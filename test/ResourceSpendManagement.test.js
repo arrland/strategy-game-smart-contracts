@@ -1,0 +1,123 @@
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
+
+describe("ResourceSpendManagement", function () {
+    let ResourceSpendManagement, resourceSpendManagement;
+    let ResourceTypeManager, resourceTypeManager;
+    let ResourceManagement, resourceManagement;
+    let centralAuthorizationRegistry;
+    let admin, user, contractAddress1, contractAddress2, externalCaller;
+
+    beforeEach(async function () {
+        [admin, user, contractAddress1, contractAddress2, externalCaller] = await ethers.getSigners();
+
+        const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
+        centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
+        await centralAuthorizationRegistry.initialize();
+
+        ResourceTypeManager = await ethers.getContractFactory("ResourceTypeManager");
+        resourceTypeManager = await ResourceTypeManager.deploy(await centralAuthorizationRegistry.getAddress());
+
+        await centralAuthorizationRegistry.setContractAddress(await resourceTypeManager.INTERFACE_ID(), await resourceTypeManager.getAddress());
+        await centralAuthorizationRegistry.addAuthorizedContract(await resourceTypeManager.getAddress());
+
+        ResourceManagement = await ethers.getContractFactory("ResourceManagement");
+        resourceManagement = await ResourceManagement.deploy(await centralAuthorizationRegistry.getAddress());
+
+        await centralAuthorizationRegistry.setContractAddress(await resourceManagement.INTERFACE_ID(), await resourceManagement.getAddress());
+        await centralAuthorizationRegistry.addAuthorizedContract(await resourceManagement.getAddress());        
+        await centralAuthorizationRegistry.addAuthorizedContract(externalCaller.address);
+
+        ResourceSpendManagement = await ethers.getContractFactory("ResourceSpendManagement");
+        resourceSpendManagement = await ResourceSpendManagement.deploy(await centralAuthorizationRegistry.getAddress());
+
+        await centralAuthorizationRegistry.setContractAddress(await resourceSpendManagement.INTERFACE_ID(), await resourceSpendManagement.getAddress());
+        await centralAuthorizationRegistry.addAuthorizedContract(await resourceSpendManagement.getAddress());        
+
+    });
+
+    it("should set resource requirements", async function () {
+        const optionalResources = [
+            { resource: "fish", amount: 1, method: 0 },
+            { resource: "coconut", amount: 1, method: 0 }
+        ];
+        const mandatoryResources = [
+            { resource: "wood", amount: 2, method: 1 }
+        ];
+
+        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", optionalResources, mandatoryResources);
+
+        const requirements = await resourceSpendManagement.getResourceRequirements("planks");
+        expect(requirements.optionalResources.length).to.equal(2);
+        expect(requirements.mandatoryResources.length).to.equal(1);
+    });
+
+    it("should burn mandatory resources", async function () {
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", 10);
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", 10);
+
+        await resourceSpendManagement.connect(externalCaller).handleResourceBurning(
+            contractAddress1.address,
+            1,
+            user.address,
+            "planks",
+            0,
+            10,
+            ["fish"]
+        );
+
+        const balance = await resourceManagement.getResourceBalance(contractAddress1.address, 1, "wood");
+        expect(balance).to.equal(5n);
+    });
+
+    it("should burn optional resources", async function () {
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", 10);
+        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "fish", amount: 1, method: 0 }], []);
+
+        await resourceSpendManagement.connect(externalCaller).handleResourceBurning(
+            contractAddress1.address,
+            1,
+            user.address,
+            "planks",
+            10,
+            0,
+            ["fish"]
+        );
+
+        const balance = await resourceManagement.getResourceBalance(contractAddress1.address, 1, "fish");
+        expect(balance).to.equal(0n);
+    });
+
+    it("should revert if insufficient mandatory resources", async function () {
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", 1);
+        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [], [{ resource: "wood", amount: 2, method: 1 }]);
+
+        await expect(
+            resourceSpendManagement.connect(externalCaller).handleResourceBurning(
+                contractAddress1.address,
+                1,
+                user.address,
+                "planks",
+                0,
+                10,
+                ["fish"]
+            )
+        ).to.be.revertedWith("Insufficient resource balance for wood");
+    });
+
+    it("should revert if no optional resources burned", async function () {
+        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "fish", amount: 1, method: 0 }], []);
+
+        await expect(
+            resourceSpendManagement.connect(externalCaller).handleResourceBurning(
+                contractAddress1.address,
+                1,
+                user.address,
+                "planks",
+                10,
+                0,
+                []
+            )
+        ).to.be.revertedWith("At least one optional resource must be burned");
+    });
+});

@@ -1,0 +1,90 @@
+[
+
+    {
+        "tokenIds": [
+            "1",
+            "1042"
+        ],
+        "skills": {
+            "characterSkills": {
+                "strength": 1000000000000000000,
+                "stamina": 2000000000000000000,
+                "swimming": 1000000000000000000,
+                "melee": 1000000000000000000,
+                "shooting": 3000000000000000000,
+                "cannons": 1000000000000000000,
+                "agility": 2000000000000000000,
+                "engineering": 3000000000000000000,
+                "wisdom": 1000000000000000000,
+                "luck": 3000000000000000000,
+                "health": 1000000000000000000,
+                "speed": 1000000000000000000
+            },
+            "toolsSkills": {
+                "harvest": 1000000000000000000,
+                "mining": 0,
+                "quarrying": 0,
+                "excavation": 1000000000000000000,
+                "husbandry": 0,
+                "woodcutting": 0,
+                "slaughter": 1000000000000000000,
+                "hunting": 1000000000000000000,
+                "cultivation": 0
+            },
+            "specialSkills": {
+                "fruitPicking": 0,
+                "fishing": 0,
+                "building": 0,
+                "crafting": 0
+            }
+        }
+    },
+    {
+        "tokenIds": [
+            "2",
+            "540",
+            "647",
+            "1082",
+            "1431",
+            "1762",
+            "1889",
+            "1999",
+            "2181",
+            "2416",
+            "2442"
+        ],
+        "skills": {
+            "characterSkills": {
+                "strength": 3000000000000000000,
+                "stamina": 3000000000000000000,
+                "swimming": 1000000000000000000,
+                "melee": 3000000000000000000,
+                "shooting": 1000000000000000000,
+                "cannons": 1000000000000000000,
+                "agility": 2000000000000000000,
+                "engineering": 1000000000000000000,
+                "wisdom": 0,
+                "luck": 2000000000000000000,
+                "health": 2000000000000000000,
+                "speed": 2000000000000000000
+            },
+            "toolsSkills": {
+                "harvest": 0,
+                "mining": 2000000000000000000,
+                "quarrying": 0,
+                "excavation": 0,
+                "husbandry": 0,
+                "woodcutting": 0,
+                "slaughter": 0,
+                "hunting": 0,
+                "cultivation": 0
+            },
+            "specialSkills": {
+                "fruitPicking": 2000000000000000000,
+                "fishing": 2000000000000000000,
+                "building": 0,
+                "crafting": 0
+            }
+        }
+    }
+]

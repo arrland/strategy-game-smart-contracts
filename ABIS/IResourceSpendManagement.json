@@ -1,0 +1,251 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      }
+    ],
+    "name": "doesResourceRequireBurning",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      }
+    ],
+    "name": "getResourceRequirements",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "resource",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum CalculationMethod",
+                "name": "method",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ResourceAmount[]",
+            "name": "optionalResources",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "resource",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum CalculationMethod",
+                "name": "method",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ResourceAmount[]",
+            "name": "mandatoryResources",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ResourceRequirement",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "storageContract",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "daysCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "resourcesProduced",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string[]",
+        "name": "resourcesToBurn",
+        "type": "string[]"
+      }
+    ],
+    "name": "handleResourceBurning",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      }
+    ],
+    "name": "resourceRequirements",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "resource",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum CalculationMethod",
+                "name": "method",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ResourceAmount[]",
+            "name": "optionalResources",
+            "type": "tuple[]"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "resource",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "amount",
+                "type": "uint256"
+              },
+              {
+                "internalType": "enum CalculationMethod",
+                "name": "method",
+                "type": "uint8"
+              }
+            ],
+            "internalType": "struct ResourceAmount[]",
+            "name": "mandatoryResources",
+            "type": "tuple[]"
+          }
+        ],
+        "internalType": "struct ResourceRequirement",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "resource",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CalculationMethod",
+            "name": "method",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct ResourceAmount[]",
+        "name": "optionalResources",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "resource",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "enum CalculationMethod",
+            "name": "method",
+            "type": "uint8"
+          }
+        ],
+        "internalType": "struct ResourceAmount[]",
+        "name": "mandatoryResources",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "setResourceRequirements",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
