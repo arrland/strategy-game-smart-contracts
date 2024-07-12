@@ -27,9 +27,10 @@ contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableU
     event PirateNftContractRegistered(address indexed collectionAddress);
     event ContractAddressSet(bytes32 indexed interfaceId, address indexed contractAddress);
 
-    function initialize() public initializer {
+    function initialize(address _admin_multi_sig) public initializer {
         __AccessControlEnumerable_init();
-        _setupRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _setupRole(DEFAULT_ADMIN_ROLE, _admin_multi_sig);
+        _setupRole(ADMIN_ROLE, _admin_multi_sig);        
         _setupRole(ADMIN_ROLE, msg.sender);        
     }
 

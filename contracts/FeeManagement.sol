@@ -39,7 +39,7 @@ contract FeeManagement is AuthorizationModifiers {
         emit RumUsed(user, amount);
     }
 
-    function calculateRumFee(uint256 days_count) internal view returns (uint256) {
+    function calculateRumFee(uint256 days_count) public view returns (uint256) {
         return days_count * rumFeePerDay;
     }
 
@@ -64,5 +64,9 @@ contract FeeManagement is AuthorizationModifiers {
         require(newRecipient != address(0), "Invalid recipient address");
         maticFeeRecipient = newRecipient;
         emit MaticFeeRecipientUpdated(newRecipient);
+    }
+
+    function getAllFees() external view returns (uint256 rumFee, uint256 maticFee) {
+        return (rumFeePerDay, maticFeePerDay);
     }
 }

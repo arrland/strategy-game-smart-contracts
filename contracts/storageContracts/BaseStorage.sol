@@ -45,6 +45,11 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return resourceBalance;
     }
 
+    function dumpResource(uint256 tokenId, string memory resource, uint256 amount) external virtual {
+        IResourceManagement resourceManagement = getResourceManagement();
+        resourceManagement.burnResource(address(this), tokenId, msg.sender, resource, amount);
+    }
+
     function getAllResourceBalances(uint256 tokenId) external view virtual returns (string[] memory, uint256[] memory) {
         IResourceManagement resourceManagement = getResourceManagement();
         (string[] memory resourceNames, uint256[] memory resourceBalances) = resourceManagement.getAllResourceBalances(address(this), tokenId);

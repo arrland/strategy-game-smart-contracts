@@ -9,8 +9,6 @@ const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
 const POLYGON_RPC = process.env.POLYGON_RPC;
 const POLYGON_AMAY_RPC = process.env.POLYGON_AMAY_RPC;
 
-console.log("PRIVATE_KEY:", PRIVATE_KEY);
-
 module.exports = {
   networks: {
     hardhat: {

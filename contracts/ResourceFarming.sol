@@ -12,13 +12,18 @@ import "./CentralAuthorizationRegistry.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract ResourceFarming is IERC1155Receiver {
+
+contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
 
     using Strings for string;
 
     CentralAuthorizationRegistry public centralAuthorizationRegistry;
 
+    uint256 constant SECONDS_IN_30_DAYS = 30 * 24 * 60 * 60;
+    //uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
+    uint256 constant SECONDS_IN_1_DAY = 5*60;
     struct FarmingInfo {
         address collectionAddress;
         uint256 tokenId;
@@ -26,6 +31,8 @@ contract ResourceFarming is IERC1155Receiver {
         uint256 endTime;
         string resource;
         bool useRum;
+        uint256 days_count;
+        string resourceToBurn;
     }
 
     mapping(address => mapping(uint256 => FarmingInfo)) public farmingInfo;
@@ -100,13 +107,13 @@ contract ResourceFarming is IERC1155Receiver {
         bool useRum,
         string memory resourceToBurn,
         bool isRestake
-    ) public payable validPirateCollection(collectionAddress) {
+    ) public payable validPirateCollection(collectionAddress) nonReentrant {
         uint256 startTime = block.timestamp;
-        uint256 endTime = startTime + (days_count * 24 * 60 * 60);
+        uint256 endTime = startTime + (days_count * SECONDS_IN_1_DAY);
         require(getResourceTypeManager().isValidResourceType(resource), "Invalid resource name");
-        require(endTime > startTime, "End time must be after start time");
-        require(endTime - startTime >= 1 days, "Minimum staking period is 1 day");
-
+        require(days_count <= 5, "Maximum staking period is 5 days");
+        require(days_count >= 1, "Minimum staking period is 1 day");
+        
         if (!isRestake) {
             // Stake the pirate
             stakePirate(collectionAddress, tokenId);
@@ -130,16 +137,15 @@ contract ResourceFarming is IERC1155Receiver {
             startTime: startTime,
             endTime: endTime,
             resource: resource,
-            useRum: useRum
+            useRum: useRum,
+            days_count: days_count,
+            resourceToBurn: resourceToBurn
         });
 
         if (!isRestake) {
             // Add to working pirates
             workingPirates[msg.sender][collectionAddress].push(tokenId);
         }
-
-        // Handle RUM usage
-        uint256 daysCount = (endTime - startTime) / 1 days;
 
         // Handle resource burning
         address storageContract = getStorageManagement().getStorageByCollection(collectionAddress);
@@ -149,12 +155,12 @@ contract ResourceFarming is IERC1155Receiver {
             require(useRum, "RUM must be used for resource burning");
             string[] memory resourcesToBurnArray = new string[](1);
             resourcesToBurnArray[0] = resourceToBurn;
-            resourceSpendManagement.handleResourceBurning(storageContract, tokenId, msg.sender, resource, daysCount, output, resourcesToBurnArray);
+            resourceSpendManagement.handleResourceBurning(storageContract, tokenId, msg.sender, resource, days_count, output, resourcesToBurnArray);
         } else {
             if (useRum) {
-                getFeeManagement().useRum(msg.sender, daysCount);
+                getFeeManagement().useRum(msg.sender, days_count);
             } else {
-                uint256 fee = getFeeManagement().calculateMaticFee(daysCount);
+                uint256 fee = getFeeManagement().calculateMaticFee(days_count);
                 require(msg.value >= fee, "Insufficient Matic sent");
 
                 // Transfer MATIC directly to the maticFeeRecipient
@@ -183,7 +189,7 @@ contract ResourceFarming is IERC1155Receiver {
 
     function claimResourcePirate(address collectionAddress, uint256 tokenId, bool isRestake) public validPirateCollection(collectionAddress) {
         FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
-        require(block.timestamp >= info.endTime, "Farming period not yet completed");
+        require(block.timestamp > info.endTime, "Farming period not yet completed");
 
         // Calculate resource output
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);
@@ -205,7 +211,7 @@ contract ResourceFarming is IERC1155Receiver {
             unstakePirate(collectionAddress, tokenId);
             delete farmingInfo[collectionAddress][tokenId];
         } else {
-            farmResource(collectionAddress, tokenId, info.resource, info.endTime, info.useRum, "", true);
+            farmResource(collectionAddress, tokenId, info.resource, info.days_count, info.useRum, info.resourceToBurn, true);
         }
     }
 
@@ -232,34 +238,104 @@ contract ResourceFarming is IERC1155Receiver {
 
     function getTotalToClaim(address collectionAddress, uint256 tokenId) public view returns (uint256) {
         FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
-        require(info.startTime != 0, "Pirate is not farming");
+        if (info.startTime == 0) {
+            return 0;
+        }
 
         return calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);
+    }
+
+    struct FarmingInfoDetails {
+        uint256 totalToClaim;
+        uint256 currentProduction;
+        uint256 startTime;
+        uint256 endTime;
+        string resource;
+        bool useRum;
+        uint256 days_count;
+        string resourceToBurn;
+    }
+
+    function getFarmingInfo(address collectionAddress, uint256 tokenId) public view returns (FarmingInfoDetails memory) {
+        FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
+        
+
+        FarmingInfoDetails memory details;
+        details.totalToClaim = getTotalToClaim(collectionAddress, tokenId);
+        details.currentProduction = getCurrentProduction(collectionAddress, tokenId);
+        details.startTime = info.startTime;
+        details.endTime = info.endTime;
+        details.resource = info.resource;
+        details.useRum = info.useRum;
+        details.days_count = info.days_count;
+        details.resourceToBurn = info.resourceToBurn;
+
+        return details;
     }
 
     function getWorkingPirates(address owner, address collectionAddress) public view returns (uint256[] memory) {
         uint256[] memory pirates = workingPirates[owner][collectionAddress];
         uint256 count = 0;
 
+        // First pass to count active pirates
         for (uint256 i = 0; i < pirates.length; i++) {
-            FarmingInfo memory info = farmingInfo[owner][pirates[i]];
-            if (block.timestamp < info.endTime) {
+            if (isPirateWorking(collectionAddress, pirates[i])) {
                 count++;
             }
         }
 
+        // Allocate memory for active pirates
         uint256[] memory activePirates = new uint256[](count);
         uint256 index = 0;
 
+        // Second pass to populate active pirates
         for (uint256 i = 0; i < pirates.length; i++) {
-            FarmingInfo memory info = farmingInfo[owner][pirates[i]];
-            if (block.timestamp < info.endTime) {
+            if (isPirateWorking(collectionAddress, pirates[i])) {
                 activePirates[index] = pirates[i];
                 index++;
             }
         }
 
         return activePirates;
+    }
+
+    function getPirates(address owner, address collectionAddress) public view returns (uint256[] memory, uint256[] memory, uint256[] memory) {
+        uint256[] memory totalPirates = workingPirates[owner][collectionAddress];
+        uint256 workingCount = 0;
+        uint256 finishedCount = 0;
+
+        // First pass to count working and finished pirates
+        for (uint256 i = 0; i < totalPirates.length; i++) {
+            if (isPirateWorking(collectionAddress, totalPirates[i])) {
+                workingCount++;
+            } else {
+                finishedCount++;
+            }
+        }
+
+        // Allocate memory for working and finished pirates
+        uint256[] memory workingPiratesList = new uint256[](workingCount);
+        uint256[] memory finishedPiratesList = new uint256[](finishedCount);
+        uint256 workingIndex = 0;
+        uint256 finishedIndex = 0;
+
+        // Second pass to populate working and finished pirates
+        for (uint256 i = 0; i < totalPirates.length; i++) {
+            if (isPirateWorking(collectionAddress, totalPirates[i])) {
+                workingPiratesList[workingIndex] = totalPirates[i];
+                workingIndex++;
+            } else {
+                finishedPiratesList[finishedIndex] = totalPirates[i];
+                finishedIndex++;
+            }
+        }
+
+        return (totalPirates, workingPiratesList, finishedPiratesList);
+    }
+
+    function isPirateWorking(address collectionAddress, uint256 tokenId) internal view returns (bool) {
+        FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
+        return block.timestamp < info.endTime;
     }
 
     function removeWorkingPirate(address owner, address collectionAddress, uint256 tokenId) internal {

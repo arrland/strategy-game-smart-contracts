@@ -3,12 +3,12 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_islandNftContract",
+        "name": "_centralAuthorizationRegistryContract",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "_centralAuthorizationRegistryContract",
+        "name": "_islandNftContract",
         "type": "address"
       }
     ],

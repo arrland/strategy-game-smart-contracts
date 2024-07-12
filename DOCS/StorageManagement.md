@@ -85,5 +85,17 @@ The [StorageManagement](https://github.com/arrland/strategy-game-smart-contracts
     - **Parameters**: None.
     - **Access**: Public.
 
-#### Example Integration
+12. **getStorageDetails**
+    - **Description**: Retrieves the storage details for a specific token in a collection.
+    - **Parameters**:
+      - [collectionAddress](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L21) (address): The address of the collection.
+      - [tokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the token.
+    - **Returns**: A `StorageDetails` struct containing the following fields:
+      - [totalResourcesInStorage](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L64) (uint256): The total amount of resources currently stored.
+      - [storageCapacity](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L65) (uint256): The maximum storage capacity.
+      - [resourceTypes](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L66) (string[]): An array of resource types stored.
+      - [resourceBalances](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L67) (uint256[]): An array of balances corresponding to each resource type.
+    - **Access**: Public.
+
+
 

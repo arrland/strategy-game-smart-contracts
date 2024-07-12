@@ -190,6 +190,34 @@
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "dumpResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
       }
     ],
     "name": "getAllResourceBalances",
@@ -293,6 +321,52 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStorageDetails",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "totalResourcesInStorage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "storageCapacity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string[]",
+            "name": "resourceTypes",
+            "type": "string[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "resourceBalances",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct StorageManagement.StorageDetails",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",

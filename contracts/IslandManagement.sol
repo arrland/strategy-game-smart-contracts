@@ -27,7 +27,7 @@ contract IslandManagement is AuthorizationModifiers {
     event ResourceTransferredToIsland(address indexed user, uint256 indexed islandId, string resource, uint256 amount);
     event ResourceTransferredToCapital(address indexed user, uint256 indexed islandId, string resource, uint256 amount);
 
-    constructor(address _islandNftContract, address _centralAuthorizationRegistryContract) AuthorizationModifiers(_centralAuthorizationRegistryContract, keccak256("IIslandManagement")) {
+    constructor(address _centralAuthorizationRegistryContract, address _islandNftContract) AuthorizationModifiers(_centralAuthorizationRegistryContract, keccak256("IIslandManagement")) {
         islandNftContract = IERC721(_islandNftContract);        
     }
 

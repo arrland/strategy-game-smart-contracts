@@ -78,6 +78,28 @@ contract StorageManagement is AuthorizationModifiers {
         return getTotalResourcesInStorage(collectionAddress, tokenId) + amount <= getStorageCapacity(collectionAddress, tokenId);
     }
 
+    struct StorageDetails {
+        uint256 totalResourcesInStorage;
+        uint256 storageCapacity;
+        string[] resourceTypes;
+        uint256[] resourceBalances;
+    }
+
+    function getStorageDetails(address collectionAddress, uint256 tokenId) public view returns (StorageDetails memory) {
+        BaseStorage storageContract = storageContracts[collectionAddress];
+        
+        uint256 totalResources = storageContract.getTotalResourcesInStorage(tokenId);
+        uint256 capacity = storageContract.getStorageCapacity(tokenId);
+        (string[] memory resourceTypes, uint256[] memory resourceBalances) = storageContract.getAllResourceBalances(tokenId);
+        
+        return StorageDetails({
+            totalResourcesInStorage: totalResources,
+            storageCapacity: capacity,
+            resourceTypes: resourceTypes,
+            resourceBalances: resourceBalances
+        });
+    }
+
     function updateStorageCapacity(address collectionAddress, uint256 tokenId, uint256 newCapacity) public onlyAuthorized {
         BaseStorage storageContract = storageContracts[collectionAddress];
         storageContract.updateStorageCapacity(tokenId, newCapacity);
@@ -100,6 +122,16 @@ contract StorageManagement is AuthorizationModifiers {
 
     function getStorageByCollection(address collectionAddress) public view returns (address) {
         return address(storageContracts[collectionAddress]);
+    }
+
+    function dumpResource(address collectionAddress, uint256 tokenId, string memory resource, uint256 amount) public {
+        BaseStorage storageContract = storageContracts[collectionAddress];
+        if (storageContract.isNft721()) {
+            require(storageContract.nftCollection721().ownerOf(tokenId) == msg.sender, "Caller does not own the token");
+        } else {
+            require(storageContract.nftCollection1155().balanceOf(msg.sender, tokenId) > 0, "Caller does not own the token");
+        }
+        storageContract.dumpResource(tokenId, resource, amount);
     }
 
     function getAllStorageContracts() public view returns (address[] memory, address[] memory) {
