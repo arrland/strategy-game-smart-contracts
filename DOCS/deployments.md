@@ -2,15 +2,15 @@
 
 The following are the addresses of the deployed contracts on the Amoy testnet:
 
-- **CentralAuthorizationRegistry**: 0x345c06a3c42992823bebDD80d731e130b206428E
-- **ResourceTypeManager**: 0xF5a0033f6cf5B2A6416B27737830e99892075222
-- **ResourceManagement**: 0x3D4Ca7ca1F06123393C9cB969Fb5a7A652EA3F2E
-- **FeeManagement**: 0x3E1807B78c703543313d0678d24270936207087b
-- **PirateManagement**: 0x5B540D6af19B66855d6fc5be329B8a12e3bDd62F
-- **PirateStorage**: 0x296A5F5bD580FB8eF65dCdeF559E678DAeFB6337
-- **IslandStorage**: 0xAF0492cD03B75Dd6E7f46A9Eb7a1050A5eDAA4EC
-- **StorageManagement**: 0x6660AF9D9E8Ac80BA9FDbbf394AB28929b7d317C
-- **ResourceSpendManagement**: 0x43BA9007C81AaFe6F58Bb7d8faBF1A478D32b28A
-- **ResourceFarmingRules**: 0x16C14Cd84F173E5a9E73ac5Fd7F67fD704292e3b
-- **ResourceFarming**: 0xCa4E47f3b9c02557Cb09B82B6152e04983770e92
-- **IslandManagement**: 0x8FBf5482e5F70279188b8640Aab7261C882494d8
+- **CentralAuthorizationRegistry**: 0x5Cbc1cfeE68a058e2ce5AE364F466c59d00bD273
+- **ResourceTypeManager**: 0x5aF0D00a11b3B3c31B0495F4dfEE4d254c575CBD
+- **ResourceManagement**: 0xC8a3Db438de543722c977D40d2FE4b8eb30B92CF
+- **FeeManagement**: 0x8Fb08bE8d32d5481bE4dD6882B370EB55BC1839d
+- **PirateManagement**: 0x95C1105a9EE2ba44a93fD711d4Fe97B1E863b90C
+- **PirateStorage**: 0x5EC0C7437c3D40ce9788B8af4e09d548ad4727d2
+- **IslandStorage**: 0x46Aaf2Bd40294576e79C022C32FE37a003D5C1f6
+- **StorageManagement**: 0xf30D163f714F5298331AabdB10A43Db16c66Dd22
+- **ResourceSpendManagement**: 0x6D0EDd40967105afD84A006F3c6B2Fb1e2A004f1
+- **ResourceFarmingRules**: 0x8199A1803A8caF4d74f374531B2F9c120cC0CeC1
+- **ResourceFarming**: 0xb00eC886A6E9E23108014d7f9a7de0eda6CaaD6e
+- **IslandManagement**: 0x0246E38A2718eB383b6bB50eaE5a801A7ff5d1f9
