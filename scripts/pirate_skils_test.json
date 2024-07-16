@@ -33,7 +33,7 @@
             },
             "specialSkills": {
                 "fruitPicking": 0,
-                "fishing": 0,
+                "fishing": 1000000000000000000,
                 "building": 0,
                 "crafting": 0
             }
@@ -41,17 +41,7 @@
     },
     {
         "tokenIds": [
-            "2",
-            "540",
-            "647",
-            "1082",
-            "1431",
-            "1762",
-            "1889",
-            "1999",
-            "2181",
-            "2416",
-            "2442"
+            "2"
         ],
         "skills": {
             "characterSkills": {
@@ -74,7 +64,7 @@
                 "quarrying": 0,
                 "excavation": 0,
                 "husbandry": 0,
-                "woodcutting": 0,
+                "woodcutting": 8000000000000000000,
                 "slaughter": 0,
                 "hunting": 0,
                 "cultivation": 0

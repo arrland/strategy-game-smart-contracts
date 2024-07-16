@@ -17,7 +17,7 @@ contract FeeManagement is AuthorizationModifiers {
     event MaticFeePerDayUpdated(uint256 newFee);
     event MaticFeeRecipientUpdated(address newRecipient);
 
-    constructor(address _rumTokenAddress, address _centralAuthorizationRegistry, address _maticFeeRecipient) 
+    constructor(address _centralAuthorizationRegistry, address _rumTokenAddress, address _maticFeeRecipient) 
     
     AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IFeeManagement")) {
         require(_rumTokenAddress != address(0), "Invalid token address");
@@ -35,7 +35,8 @@ contract FeeManagement is AuthorizationModifiers {
         uint256 amount = calculateRumFee(days_count);
         require(rumToken.balanceOf(user) >= amount, "Insufficient RUM balance");
 
-        rumToken.burnFrom(user, amount);
+        rumToken.transferFrom(user, address(this), amount);
+        rumToken.burn(amount);
         emit RumUsed(user, amount);
     }
 

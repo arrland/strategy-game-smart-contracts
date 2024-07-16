@@ -30,8 +30,10 @@ contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableU
     function initialize(address _admin_multi_sig) public initializer {
         __AccessControlEnumerable_init();
         _setupRole(DEFAULT_ADMIN_ROLE, _admin_multi_sig);
+        //_setupRole(DEFAULT_ADMIN_ROLE, msg.sender);   
         _setupRole(ADMIN_ROLE, _admin_multi_sig);        
-        _setupRole(ADMIN_ROLE, msg.sender);        
+        _setupRole(ADMIN_ROLE, msg.sender);  
+              
     }
 
     modifier onlyAdmin() {
@@ -100,12 +102,17 @@ contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableU
         return contractAddresses[interfaceId];
     }
 
-    function getAdminRoleMembers() external view returns (address[] memory) {
-        uint256 count = getRoleMemberCount(DEFAULT_ADMIN_ROLE);
-        address[] memory admins = new address[](count);
+    function getRoleMembers(bytes32 role) public view returns (address[] memory) {
+        uint256 count = getRoleMemberCount(role);
+        address[] memory members = new address[](count);
         for (uint256 i = 0; i < count; i++) {
-            admins[i] = getRoleMember(DEFAULT_ADMIN_ROLE, i);
+            members[i] = getRoleMember(role, i);
         }
-        return admins;
+        return members;
     }
+
+    function getAllDefaultAdminRoleUsers() external view returns (address[] memory) {
+        return getRoleMembers(DEFAULT_ADMIN_ROLE);
+    }
+
 }

@@ -14,7 +14,7 @@ describe("FeeManagement", function () {
 
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();        
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(admin.address);
 
         // Deploy a mock RUM token
         const DummyERC20Burnable = await ethers.getContractFactory("DummyERC20Burnable");
@@ -23,8 +23,8 @@ describe("FeeManagement", function () {
         // Deploy the FeeManagement contract
         FeeManagement = await ethers.getContractFactory("FeeManagement");
         feeManagement = await FeeManagement.deploy(
+            await centralAuthorizationRegistry.getAddress(),
             await rumToken.getAddress(),
-            await centralAuthorizationRegistry.getAddress(), // Assuming owner is the central authorization registry
             maticFeeRecipient.address
         );
 
@@ -37,9 +37,6 @@ describe("FeeManagement", function () {
     });
 
     it("should initialize with correct values", async function () {
-        console.log("rumFeePerDay", await feeManagement.rumFeePerDay())
-        console.log("maticFeePerDay", await feeManagement.maticFeePerDay())
-        console.log("maticFeeRecipient", await feeManagement.maticFeeRecipient())
         expect(await feeManagement.rumFeePerDay()).to.equal(initialRumFeePerDay);
         expect(await feeManagement.maticFeePerDay()).to.equal(initialMaticFeePerDay);
         expect(await feeManagement.maticFeeRecipient()).to.equal(await maticFeeRecipient.getAddress());
@@ -48,10 +45,8 @@ describe("FeeManagement", function () {
     it("should allow authorized user to use RUM", async function () {
         const daysCount = 5n;
         const rumFee = initialRumFeePerDay * daysCount;
-        console.log("user balance before", await rumToken.balanceOf(user.getAddress()))
         await rumToken.connect(user).approve(feeManagement.getAddress(), rumFee);
-        await feeManagement.connect(feeCaller).useRum(user.getAddress(), daysCount);
-        console.log("user balance", await rumToken.balanceOf(user.getAddress()))
+        await feeManagement.connect(feeCaller).useRum(user.getAddress(), daysCount);        
         expect(await rumToken.balanceOf(user.getAddress())).to.equal(ethers.parseEther("95"));
     });
 

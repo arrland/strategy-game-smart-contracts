@@ -36,7 +36,7 @@ async function deployAndAuthorizeContract(contractName, centralAuthorizationRegi
   console.log(logMessage);
   fs.appendFileSync('deployed_contracts.log', logMessage + '\n');
   // Add deployed contract addresses to .env file
-  const envVariables = `${contractName.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()}=${contractAddress}`;
+  const envVariables = `\n${contractName.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase()}=${contractAddress}`;
 
   fs.appendFileSync('.env', envVariables);
 
@@ -46,32 +46,42 @@ async function deployAndAuthorizeContract(contractName, centralAuthorizationRegi
 async function main() {
   const [admin] = await ethers.getSigners();
 
-  let maticFeeRecipient, genesisPiratesAddress, genesisIslandsAddress, rumTokenAddress;
+  let admin_multi_sig, maticFeeRecipient, genesisPiratesAddress, genesisIslandsAddress, rumTokenAddress;
+
+  let centralAuthorizationRegistry;
 
   if (network.name === "amoy") {
     maticFeeRecipient = "0x62D14D7aDFE5Fbb771490a94B3aC64E7dba4bD2B";
     genesisPiratesAddress = "0xbCab2d7264B555227e3B6C1eF686C5FCA3863942";
     genesisIslandsAddress = "0xbD90d1984BAbE50Cb1d9D75EB1eD08688d3Dea59";
     rumTokenAddress = "0x17fF13862c5665dE5676cab1db0927B4C97eebc1";
+    admin_multi_sig = "0x136be3a1671f19f764a3c7bd0454dd83fd643e71";
   } else {
     maticFeeRecipient = "";
     genesisPiratesAddress = "";
     genesisIslandsAddress = "";
     rumTokenAddress = "";
+    admin_multi_sig = "";
   }
 
-  const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
-  const centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
-  await centralAuthorizationRegistry.initialize();
-  const centralAuthorizationRegistryAddress = await centralAuthorizationRegistry.getAddress();
-  await checkContractDeployed(centralAuthorizationRegistryAddress);
+  let centralAuthorizationRegistryAddress = "";
 
-  const envVariables = `CENTRAL_AUTHORIZATION_REGISTRY=${centralAuthorizationRegistryAddress}`;
-  fs.appendFileSync('.env', envVariables);
+  if (centralAuthorizationRegistryAddress == "") {
+    const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
+    centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
+    await centralAuthorizationRegistry.initialize(admin_multi_sig);
+    centralAuthorizationRegistryAddress = await centralAuthorizationRegistry.getAddress();
+    await checkContractDeployed(centralAuthorizationRegistryAddress);
+    const envVariables = `CENTRAL_AUTHORIZATION_REGISTRY=${centralAuthorizationRegistryAddress}`;
+    fs.appendFileSync('.env', envVariables);
 
-  console.log("CentralAuthorizationRegistry deployed at:", centralAuthorizationRegistryAddress);
-  fs.appendFileSync('deployed_contracts.log', `CentralAuthorizationRegistry deployed at: ${centralAuthorizationRegistryAddress}` + '\n');
-
+    console.log("CentralAuthorizationRegistry deployed at:", centralAuthorizationRegistryAddress);
+    fs.appendFileSync('deployed_contracts.log', `CentralAuthorizationRegistry deployed at: ${centralAuthorizationRegistryAddress}` + '\n');
+  } else {
+    const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
+    centralAuthorizationRegistry = await CentralAuthorizationRegistry.attach(centralAuthorizationRegistryAddress);    
+  }
+  
   const resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthorizationRegistry);
   const resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthorizationRegistry);
 
@@ -80,6 +90,10 @@ async function main() {
 
   const pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, true);
   const islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, false);
+
+  const pirateStorageAddress = await pirateStorage.getAddress();
+  const islandStorageAddress = await islandStorage.getAddress();
+
   await islandStorage.initializeIslands(1);
   await islandStorage.initializeIslands(2);
   await islandStorage.initializeIslands(3);
@@ -94,10 +108,10 @@ async function main() {
   await islandStorage.initializeIslands(12);
   await islandStorage.initializeIslands(13);
 
-  const islandManagement = await deployAndAuthorizeContract("IslandManagement", genesisIslandsAddress, centralAuthorizationRegistryAddress);
+  
+  const islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
 
-
-  const storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress());
+  const storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, pirateStorageAddress, islandStorageAddress);
   const resourceSpendManagement = await deployAndAuthorizeContract("ResourceSpendManagement", centralAuthorizationRegistry);
   const resourceFarmingRules = await deployAndAuthorizeContract("ResourceFarmingRules", centralAuthorizationRegistry);
   const resourceFarming = await deployAndAuthorizeContract("ResourceFarming", centralAuthorizationRegistry);

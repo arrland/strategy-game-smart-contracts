@@ -12,7 +12,7 @@ describe("ResourceTypeManager", function () {
 
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();        
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(admin.address);
 
         ResourceTypeManager = await ethers.getContractFactory("ResourceTypeManager");
         resourceTypeManager = await ResourceTypeManager.deploy(await centralAuthorizationRegistry.getAddress());

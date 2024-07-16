@@ -5,6 +5,7 @@ import "./AuthorizationModifiers.sol";
 import "./interfaces/IResourceManagement.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./interfaces/IResourceTypeManager.sol";
+import "hardhat/console.sol";
 
 contract ResourceSpendManagement is AuthorizationModifiers {
     using Strings for string;
@@ -28,16 +29,16 @@ contract ResourceSpendManagement is AuthorizationModifiers {
     constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IResourceSpendManagement")) {    
         // Setting resource requirements for "wood"
         ResourceAmount[] memory woodOptional = new ResourceAmount[](2);
-        woodOptional[0] = ResourceAmount("fish", 1, CalculationMethod.PerDay);
-        woodOptional[1] = ResourceAmount("coconut", 1, CalculationMethod.PerDay);
+        woodOptional[0] = ResourceAmount("fish", 1*10**18, CalculationMethod.PerDay);
+        woodOptional[1] = ResourceAmount("coconut", 2*10**18, CalculationMethod.PerDay);
         _setResourceRequirements("wood", woodOptional, new ResourceAmount[](0));
 
         // Setting resource requirements for "planks"
         ResourceAmount[] memory planksOptional = new ResourceAmount[](2);
-        planksOptional[0] = ResourceAmount("fish", 1, CalculationMethod.PerDay);
-        planksOptional[1] = ResourceAmount("coconut", 1, CalculationMethod.PerDay);
+        planksOptional[0] = ResourceAmount("fish", 1*10**18, CalculationMethod.PerDay);
+        planksOptional[1] = ResourceAmount("coconut", 2*10**18, CalculationMethod.PerDay);
         ResourceAmount[] memory planksMandatory = new ResourceAmount[](1);
-        planksMandatory[0] = ResourceAmount("wood", 2, CalculationMethod.Divide);
+        planksMandatory[0] = ResourceAmount("wood", 2*10**18, CalculationMethod.Divide);
         _setResourceRequirements("planks", planksOptional, planksMandatory);
     }
 
@@ -69,10 +70,10 @@ contract ResourceSpendManagement is AuthorizationModifiers {
     }
 
     function _calculateRequiredAmount(ResourceAmount memory resourceAmount, uint256 daysCount, uint256 resourcesProduced) internal pure returns (uint256) {
-        if (resourceAmount.method == CalculationMethod.PerDay) {
+        if (resourceAmount.method == CalculationMethod.PerDay) {            
             return resourceAmount.amount * daysCount;
-        } else {
-            return resourcesProduced / resourceAmount.amount;
+        } else {          
+            return (resourcesProduced * 10**18) / resourceAmount.amount;
         }
     }
 
@@ -86,7 +87,7 @@ contract ResourceSpendManagement is AuthorizationModifiers {
             ResourceAmount memory resourceToSpend = requirement.mandatoryResources[i];
             uint256 requiredAmount = _calculateRequiredAmount(resourceToSpend, daysCount, resourcesProduced);
             uint256 userResourceBalance = resourceManagement.getResourceBalance(storageContract, tokenId, resourceToSpend.resource);
-            require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));
+            require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));            
             resourceManagement.burnResource(storageContract, tokenId, user, resourceToSpend.resource, requiredAmount);
         }
 

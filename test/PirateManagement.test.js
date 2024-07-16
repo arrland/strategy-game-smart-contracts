@@ -12,7 +12,7 @@ describe("PirateManagement", function () {
         // Deploy a mock CentralAuthorizationRegistry contract
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(admin.address);
 
         // Deploy the PirateManagement contract
         PirateManagement = await ethers.getContractFactory("PirateManagement");
@@ -27,7 +27,7 @@ describe("PirateManagement", function () {
                 tokenIds: [1n, 2n],
                 skills: {
                     characterSkills: {
-                        strength: 10n,
+                        strength: 10,
                         stamina: 20n,
                         swimming: 30n,
                         melee: 40n,
@@ -52,7 +52,7 @@ describe("PirateManagement", function () {
                         cultivation: 90n
                     },
                     specialSkills: {
-                        fruitPicking: 10n,
+                        fruitPicking: 0n,
                         fishing: 20n,
                         building: 30n,
                         crafting: 40n
@@ -72,7 +72,7 @@ describe("PirateManagement", function () {
 
         expect(skills.characterSkills.strength).to.equal(10n);
         expect(skills.toolsSkills.harvest).to.equal(10n);
-        expect(skills.specialSkills.fruitPicking).to.equal(10n);
+        expect(skills.specialSkills.fruitPicking).to.equal(0n);
     });
 
     it("should allow authorized contract to upgrade skill set", async function () {

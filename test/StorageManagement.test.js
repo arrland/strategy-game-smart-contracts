@@ -13,7 +13,7 @@ describe("StorageManagement", function () {
         // Deploy CentralAuthorizationRegistry
         CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(owner.address);
         await centralAuthorizationRegistry.grantRole(centralAuthorizationRegistry.ADMIN_ROLE(), owner.address);
 
         

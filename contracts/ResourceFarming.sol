@@ -24,9 +24,10 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
     CentralAuthorizationRegistry public centralAuthorizationRegistry;
 
     uint256 constant SECONDS_IN_30_DAYS = 30 * 24 * 60 * 60;
-    //uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
-    uint256 constant SECONDS_IN_1_DAY = 5*60;
+    uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
+    //uint256 constant SECONDS_IN_1_DAY = 5*60;
     struct FarmingInfo {
+        address owner;
         address collectionAddress;
         uint256 tokenId;
         uint256 startTime;
@@ -153,6 +154,7 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
 
         // Store farming information
         farmingInfo[collectionAddress][tokenId] = FarmingInfo({
+            owner: msg.sender,
             collectionAddress: collectionAddress,
             tokenId: tokenId,
             startTime: startTime,
@@ -222,7 +224,9 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
 
     function claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) public payable validPirateCollection(collectionAddress) nonReentrant {
         FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
+        require(info.tokenId != 0, "This pirate is not staked");
         require(block.timestamp > info.endTime, "Farming period not yet completed");
+        require(info.owner == msg.sender, "You do not own this pirate");
 
         // Calculate resource output
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);

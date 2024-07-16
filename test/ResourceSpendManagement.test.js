@@ -13,7 +13,7 @@ describe("ResourceSpendManagement", function () {
 
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(admin.address);
 
         ResourceTypeManager = await ethers.getContractFactory("ResourceTypeManager");
         resourceTypeManager = await ResourceTypeManager.deploy(await centralAuthorizationRegistry.getAddress());
@@ -38,11 +38,11 @@ describe("ResourceSpendManagement", function () {
 
     it("should set resource requirements", async function () {
         const optionalResources = [
-            { resource: "fish", amount: 1, method: 0 },
-            { resource: "coconut", amount: 1, method: 0 }
+            { resource: "fish", amount: ethers.parseEther("1"), method: 0 },
+            { resource: "coconut", amount: ethers.parseEther("2"), method: 0 }
         ];
         const mandatoryResources = [
-            { resource: "wood", amount: 2, method: 1 }
+            { resource: "wood", amount: ethers.parseEther("2"), method: 1 }
         ];
 
         await resourceSpendManagement.connect(admin).setResourceRequirements("planks", optionalResources, mandatoryResources);
@@ -52,35 +52,35 @@ describe("ResourceSpendManagement", function () {
         expect(requirements.mandatoryResources.length).to.equal(1);
     });
 
-    it("should burn mandatory resources", async function () {
-        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", 10);
-        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", 10);
+    it("should burn mandatory resources", async function () {        
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", ethers.parseEther("10"));
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", ethers.parseEther("10"));
 
         await resourceSpendManagement.connect(externalCaller).handleResourceBurning(
             contractAddress1.address,
             1,
             user.address,
             "planks",
-            0,
-            10,
+            1,
+            ethers.parseEther("10"),
             ["fish"]
         );
 
-        const balance = await resourceManagement.getResourceBalance(contractAddress1.address, 1, "wood");
-        expect(balance).to.equal(5n);
+        const balance = await resourceManagement.getResourceBalance(contractAddress1.address, 1, "wood");        
+        expect(balance).to.equal(ethers.parseEther("5"));
     });
 
     it("should burn optional resources", async function () {
-        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", 10);
-        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "fish", amount: 1, method: 0 }], []);
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", ethers.parseEther("1"));
+        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "fish", amount: ethers.parseEther("1"), method: 0 }], []);
 
         await resourceSpendManagement.connect(externalCaller).handleResourceBurning(
             contractAddress1.address,
             1,
             user.address,
             "planks",
-            10,
-            0,
+            1,
+            ethers.parseEther("10"),
             ["fish"]
         );
 
@@ -89,32 +89,30 @@ describe("ResourceSpendManagement", function () {
     });
 
     it("should revert if insufficient mandatory resources", async function () {
-        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", 1);
-        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [], [{ resource: "wood", amount: 2, method: 1 }]);
-
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "fish", ethers.parseEther("10"));
+        await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "wood", ethers.parseEther("1"));
+    
         await expect(
             resourceSpendManagement.connect(externalCaller).handleResourceBurning(
                 contractAddress1.address,
                 1,
                 user.address,
                 "planks",
-                0,
-                10,
+                1,
+                ethers.parseEther("10"),
                 ["fish"]
             )
         ).to.be.revertedWith("Insufficient resource balance for wood");
     });
 
     it("should revert if no optional resources burned", async function () {
-        await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "fish", amount: 1, method: 0 }], []);
-
         await expect(
             resourceSpendManagement.connect(externalCaller).handleResourceBurning(
                 contractAddress1.address,
                 1,
                 user.address,
                 "planks",
-                10,
+                ethers.parseEther("10"),
                 0,
                 []
             )

@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import "hardhat/console.sol";
 import "./AuthorizationModifiers.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+
 
 contract PirateManagement is AuthorizationModifiers {
     enum SkillType { Character, Tools, Special }
@@ -82,7 +85,7 @@ contract PirateManagement is AuthorizationModifiers {
 
     function batchUpdatePirateAttributes(address collectionAddress, TokenSkillSet[] calldata tokenSkillSets) external onlyAdmin {
         for (uint256 i = 0; i < tokenSkillSets.length; i++) {
-            uint256 skillSetId = _getOrAddSkillSet(tokenSkillSets[i].skills);
+            uint256 skillSetId = _getOrAddSkillSet(tokenSkillSets[i].skills);            
             
             for (uint256 j = 0; j < tokenSkillSets[i].tokenIds.length; j++) {
                 pirateSkillSetIds[collectionAddress][tokenSkillSets[i].tokenIds[j]] = skillSetId;
@@ -147,13 +150,14 @@ contract PirateManagement is AuthorizationModifiers {
         return uint256(newValue);
     }
     function _getOrAddSkillSet(PirateSkills memory newSkills) internal returns (uint256) {
-        bytes32 hash = keccak256(abi.encode(newSkills));
-        uint256 skillSetId = skillSetHashes[hash];
+        bytes32 hash_value = keccak256(abi.encode(newSkills));
+        uint256 skillSetId = skillSetHashes[hash_value];
 
         if (skillSetId == 0) {
-            skillSetId = nextSkillSetId++;
+            nextSkillSetId++;
+            skillSetId = nextSkillSetId;
             skillSets[skillSetId] = newSkills;
-            skillSetHashes[hash] = skillSetId;
+            skillSetHashes[hash_value] = skillSetId;
         }
 
         return skillSetId;

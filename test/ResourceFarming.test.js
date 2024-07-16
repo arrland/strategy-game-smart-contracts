@@ -27,7 +27,7 @@ describe("ResourceFarming", function () {
             const interfaceId = await contractInstance.INTERFACE_ID(); // Correct property access
             await centralAuthorizationRegistry.setContractAddress(interfaceId, contractAddress);
         } catch (error) {
-            console.error(error);
+            console.log("Contract already authorized");
         }
         await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
 
@@ -38,7 +38,7 @@ describe("ResourceFarming", function () {
         [admin, user, pirateOwner, contractAddress1, contractAddress2, externalCaller, maticFeeRecipient] = await ethers.getSigners();
 
         SimpleERC1155 = await ethers.getContractFactory("SimpleERC1155");
-        simpleERC1155 = await SimpleERC1155.deploy(admin.address);
+        simpleERC1155 = await SimpleERC1155.deploy(admin.address, "https://ipfs.io/ipfs/");
 
         genesisPiratesAddress = await simpleERC1155.getAddress();
 
@@ -51,7 +51,9 @@ describe("ResourceFarming", function () {
 
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
-        await centralAuthorizationRegistry.initialize();
+        await centralAuthorizationRegistry.initialize(admin.address);
+
+        await centralAuthorizationRegistry.addAuthorizedContract(externalCaller.address);
 
         resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthorizationRegistry);
         resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthorizationRegistry);
@@ -80,14 +82,14 @@ describe("ResourceFarming", function () {
         
         resourceFarming = await deployAndAuthorizeContract("ResourceFarming", centralAuthorizationRegistry);
 
+        
+
  
         const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../scripts/pirate_skils_test.json'), "utf8"));
 
-        console.log(data);
-        for (const tokenSkillSet of data) {
-            const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));
+        for (const tokenSkillSet of data) {        
+            const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));            
             const skills = tokenSkillSet.skills;
-
             const characterSkills = {
                 strength: BigInt(skills.characterSkills.strength),
                 stamina: BigInt(skills.characterSkills.stamina),
@@ -129,23 +131,23 @@ describe("ResourceFarming", function () {
                 added: true
             };
 
-            await pirateManagement.connect(admin).batchUpdatePirateAttributes(
-                await pirateManagement.getAddress(),
-                [{ tokenIds: tokenIds, skills: pirateSkills }]
-            );
+            for (const tokenId of tokenIds) {
+                await pirateManagement.connect(admin).batchUpdatePirateAttributes(
+                    genesisPiratesAddress,
+                    [{ tokenIds: [tokenId], skills: pirateSkills }]
+                );
+            }
         }
 
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
 
-        await rumToken.mint(pirateOwner.address, ethers.parseEther("100"));
+        await rumToken.mint(pirateOwner.address, ethers.parseEther("10"));
 
     });
 
     it("should stake a pirate with matic", async function () {
-        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1, 1);
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
-        const total = await storageManagement.getTotalResourcesInStorage(genesisPiratesAddress, 1);
-        console.log("Total resources in storage:", total.toString());
         await resourceFarming.connect(pirateOwner).farmResource(
             await simpleERC1155.getAddress(),
             1,
@@ -156,14 +158,15 @@ describe("ResourceFarming", function () {
             false,
             { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
         );
-
-        const farmingInfo = await resourceFarming.farmingInfo(genesisPiratesAddress, 1);
-        console.log("Farming Info:", farmingInfo);
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());        
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+        const farmingInfo = await resourceFarming.farmingInfo(genesisPiratesAddress, 1);        
         expect(farmingInfo.tokenId).to.equal(1);
     });
 
     it("should unstake a pirate", async function () {
-        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1, 1);
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
 
         await resourceFarming.connect(pirateOwner).farmResource(
@@ -177,151 +180,509 @@ describe("ResourceFarming", function () {
             { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
         );
 
-        await ethers.provider.send("evm_increaseTime", [86401]); // Increase time by 1 day
+        expect(await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1)).to.equal(1);
+                
+        await ethers.provider.send("evm_increaseTime", [86402]); // Increase time by 1 day
         await ethers.provider.send("evm_mine");
 
-        await resourceFarming.connect(pirateOwner).claimResourcePirate(genesisPiratesAddress, 1, false);
+        const totalToClaim = await resourceFarming.getTotalToClaim(genesisPiratesAddress, 1);
+        expect(totalToClaim).to.be.greaterThan(0);
+
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(genesisPiratesAddress, 1, restakeParams))
+            .to.emit(resourceManagement, 'ResourceAdded');
 
         const farmingInfo = await resourceFarming.farmingInfo(genesisPiratesAddress, 1);
         expect(farmingInfo.tokenId).to.equal(0);
-        const balance = await resourceManagement.getResourceBalance(genesisPiratesAddress, 1, "fish");
-        expect(balance).to.equal(50);
+        const balance = await storageManagement.getResourceBalance(genesisPiratesAddress, 1, "fish");
+        expect(balance).to.equal(3000000000000000000n);
+        const balanceOfContract = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1);
+        expect(balanceOfContract).to.equal(0);
+        const balanceOfPirateOwner = await simpleERC1155.balanceOf(pirateOwner.address, 1);
+        expect(balanceOfPirateOwner).to.equal(1);
+
+        
+    });
+    it("should not allow staking a pirate that is already staked", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Pirate is already staked");
+
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+    });
+    it("should not allow staking a pirate that the user does not own", async function () {
+        await simpleERC1155.connect(admin).mint(admin.address, 1); // Mint a pirate to the admin
+        await simpleERC1155.connect(admin).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("You do not own this pirate");
+
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(0);
     });
 
-    // it("should calculate resource output", async function () {
-    //     await pirateManagement.connect(admin).mintPirate(pirateOwner.address, 1);
-    //     await pirateManagement.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+    it("should not allow claiming resources for a pirate that the user does not own", async function () {
+        await simpleERC1155.connect(admin).mint(admin.address, 1); // Mint a pirate to the admin
+        await simpleERC1155.connect(admin).setApprovalForAll(await resourceFarming.getAddress(), true);
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "wood",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         false,
-    //         "",
-    //         false
-    //     );
+        await resourceFarming.connect(admin).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
 
-    //     const output = await resourceFarming.getCurrentProduction(await pirateManagement.getAddress(), 1);
-    //     expect(output).to.be.a("bigint");
-    // });
+        await ethers.provider.send("evm_increaseTime", [86402]); // Increase time by 1 day
+        await ethers.provider.send("evm_mine");
 
-    // it("should claim resources", async function () {
-    //     await pirateManagement.connect(admin).mintPirate(pirateOwner.address, 1);
-    //     await pirateManagement.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "wood",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         false,
-    //         "",
-    //         false
-    //     );
+        await expect(
+            resourceFarming.connect(user).claimResourcePirate(genesisPiratesAddress, 1, restakeParams)
+        ).to.be.revertedWith("You do not own this pirate");
+    });
 
-    //     await ethers.provider.send("evm_increaseTime", [86400]); // Increase time by 1 day
-    //     await ethers.provider.send("evm_mine");
+    it("should revert when farming resources with invalid resource names", async function () {
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
 
-    //     await resourceFarming.connect(pirateOwner).claimResourcePirate(await pirateManagement.getAddress(), 1, false);
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "invalidResource",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Invalid resource name");
 
-    //     const balance = await resourceManagement.getResourceBalance(await storageManagement.getStorageByCollection(await pirateManagement.getAddress()), 1, "wood");
-    //     expect(balance).to.be.a("bigint");
-    // });
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(0);
+    });
+    it("should revert when farming resources for more than the maximum allowed days", async function () {
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
 
-    // it("should handle RUM usage", async function () {
-    //     await pirateManagement.connect(admin).mintPirate(pirateOwner.address, 1);
-    //     await pirateManagement.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        const maxDaysAllowed = 28n;
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "wood",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         true,
-    //         "",
-    //         false
-    //     );
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                maxDaysAllowed + 1n, // Exceeding the maximum allowed days
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Exceeds maximum allowed farming days");
 
-    //     const fee = await feeManagement.calculateMaticFee(1);
-    //     expect(fee).to.be.a("bigint");
-    // });
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(0);
+    });
+    it("should revert when farming resources for less than the minimum allowed days", async function () {
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
 
-    // it("should handle resource burning", async function () {
-    //     await pirateManagement.connect(admin).mintPirate(pirateOwner.address, 1);
-    //     await pirateManagement.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        const minDaysAllowed = 1n;
 
-    //     await resourceManagement.connect(externalCaller).addResource(await storageManagement.getStorageByCollection(await pirateManagement.getAddress()), 1, pirateOwner.address, "wood", 10);
-    //     await resourceSpendManagement.connect(admin).setResourceRequirements("planks", [{ resource: "wood", amount: 1, method: 0 }], []);
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                minDaysAllowed - 1n, // Less than the minimum allowed days
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Minimum staking period is 1 day");
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "planks",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         true,
-    //         "wood",
-    //         false
-    //     );
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(0);
+    });
+    it("should farm resources using RUM", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+    
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+    
+        const initialRumBalance = await rumToken.balanceOf(pirateOwner.address);
+        expect(initialRumBalance).to.equal(ethers.parseEther("10"));
 
-    //     const balance = await resourceManagement.getResourceBalance(await storageManagement.getStorageByCollection(await pirateManagement.getAddress()), 1, "wood");
-    //     expect(balance).to.equal(0n);
-    // });
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                1, // 1 day
+                true, // Using RUM
+                "",
+                false
+            )
+        ).to.emit(resourceFarming, 'ResourceFarmed')
 
-    // it("should farm all resources", async function () {
-    //     await pirateManagement.connect(admin).mintPirate(pirateOwner.address, 1);
-    //     await pirateManagement.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        const finalRumBalance = await rumToken.balanceOf(pirateOwner.address);
+        const rumSpent = initialRumBalance - finalRumBalance;
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "wood",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         false,
-    //         "",
-    //         false
-    //     );
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
 
-    //     await resourceFarming.connect(pirateOwner).farmResource(
-    //         await pirateManagement.getAddress(),
-    //         1,
-    //         "planks",
-    //         Math.floor(Date.now() / 1000) + 86400, // 1 day later
-    //         false,
-    //         "",
-    //         true
-    //     );
+        const farmingInfo = await resourceFarming.farmingInfo(await simpleERC1155.getAddress(), 1);
+        expect(farmingInfo.tokenId).to.equal(1);
+        expect(farmingInfo.useRum).to.equal(true);
+        expect(rumSpent).to.equal(ethers.parseEther("1")); // Assuming 1 RUM is spent per day
+    });
 
-    //     const farmingInfo = await resourceFarming.farmingInfo(await pirateManagement.getAddress(), 1);
-    //     expect(farmingInfo.resource).to.equal("planks");
-    // });
+    it("should farm resources without using RUM", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
 
-    // it("should calculate resource output using rules", async function () {
-    //     const pirateSkills = {
-    //         characterSkills: {
-    //             agility: 10,
-    //             swimming: 5,
-    //             luck: 3,
-    //             stamina: 8,
-    //             melee: 7,
-    //             strength: 6
-    //         },
-    //         specialSkills: {
-    //             fruitPicking: 2,
-    //             fishing: 4
-    //         },
-    //         toolsSkills: {
-    //             woodcutting: 3,
-    //             harvest: 2,
-    //             cultivation: 1,
-    //             husbandry: 0
-    //         }
-    //     };
+        const initialMaticFeeRecipientBalance = await ethers.provider.getBalance(maticFeeRecipient.address);
 
-    //     const resource = "wood";
-    //     const durationSeconds = 86400; // 1 day
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day
+            false, // Not using RUM
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
 
-    //     const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-    //     expect(output).to.be.a("bigint");
-    // });
+        const finalMaticFeeRecipientBalance = await ethers.provider.getBalance(maticFeeRecipient.address);
+        const maticFeeTransferred = finalMaticFeeRecipientBalance - initialMaticFeeRecipientBalance;
+
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+
+        const farmingInfo = await resourceFarming.farmingInfo(await simpleERC1155.getAddress(), 1);
+        expect(farmingInfo.tokenId).to.equal(1);
+        expect(farmingInfo.useRum).to.equal(false);
+        expect(maticFeeTransferred).to.equal(ethers.parseEther("0.05"));
+    });
+
+    it("should validate the pirate collection address using validPirateCollection modifier", async function () {
+        // Attempt to farm resources with an invalid pirate collection address
+        const invalidPirateCollectionAddress = "0x0000000000000000000000000000000000000000";
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                invalidPirateCollectionAddress,
+                1,
+                "fish",
+                1, // 1 day
+                true, // Using RUM
+                "",
+                false
+            )
+        ).to.be.revertedWith("Invalid collection address");
+    });
+
+    it("should correctly burn resources when required", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address,2);
+
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        // Mint resources to the pirateOwner
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "wood", ethers.parseEther("2"));
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "fish", ethers.parseEther("10"));
+        
+        const initialWoodBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "wood");
+        const initialFishBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "fish");
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            2,
+            "planks",
+            1, // 1 day
+            true,
+            "fish", // Optional resource to burn
+            false
+        );
+
+        const finalWoodBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "wood");
+        const finalFishBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "fish");
+        expect(finalWoodBalance).to.equal(1750000000000000000n); // 2 wood required for planks
+        expect(finalFishBalance).to.equal(initialFishBalance - ethers.parseEther("1")); // 1 fish burned as optional resource
+    });
+    it("should prevent farming if the storage limit is reached", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "wood", ethers.parseEther("30"));
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "fish", ethers.parseEther("29"));
+  
+        // Attempt to farm more fish, which should fail due to storage limit
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                2,
+                "fish",
+                10,
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Storage limit reached");
+
+        const finalFishBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "fish");
+        expect(finalFishBalance).to.equal(ethers.parseEther("29")); // Ensure the balance has not changed
+    });
+
+    it("should allow restaking a pirate and handle the previous farming period correctly", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: true
+        };
+
+        // Initial staking
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            2,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(genesisPiratesAddress, 2, restakeParams, { value: ethers.parseEther("0.05") }))
+            .to.emit(resourceManagement, 'ResourceAdded');
+
+        
+    });
+
+    it("should allow restaking a pirate with new parameters", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "fish", ethers.parseEther("10"));
+        // Initial staking
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            2,
+            "fish",
+            1, // 1 day
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        // Restake with new parameters
+        const restakeParams = {
+            resource: "wood",
+            days_count: 2,
+            useRum: true,
+            resourceToBurn: "fish",
+            isSet: true
+        };
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(
+            await simpleERC1155.getAddress(),
+            2,
+            restakeParams
+        )).to.emit(resourceManagement, 'ResourceAdded');
+
+        // Verify the new farming info
+        const farmingInfo = await resourceFarming.getFarmingInfo(await simpleERC1155.getAddress(), 2);
+        expect(farmingInfo.resource).to.equal("wood");
+        expect(farmingInfo.days_count).to.equal(2);
+        expect(farmingInfo.useRum).to.equal(true);
+        expect(farmingInfo.resourceToBurn).to.equal("fish");
+    });
+    it("should simulate resource production correctly", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        
+
+        // Simulate resource production for 3 days
+        const daysCount = 3n;
+        const resource = "fish";
+        const simulatedOutput = await resourceFarming.simulateResourceProduction(
+            await simpleERC1155.getAddress(),
+            2,
+            resource,
+            daysCount
+        );
+
+        expect(simulatedOutput).to.equal(ethers.parseEther("10.5"));
+    });
+    it("should revert farming with zero days", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+
+        // Attempt to simulate resource production with zero days
+        const daysCount = 0n;
+        const resource = "wood";
+
+        await expect(
+            resourceFarming.simulateResourceProduction(
+                await simpleERC1155.getAddress(),
+                2,
+                resource,
+                daysCount
+            )
+        ).to.be.revertedWith("Invalid days count");
+    });
+
+    it("should revert farming with zero days", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+
+        // Attempt to farm resources with zero days
+        const daysCount = 0n;
+        const resource = "wood";
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                0, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )       
+        ).to.be.revertedWith("Minimum staking period is 1 day");
+    });
+
+    it("should revert farming with invalid resource name", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 3);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+
+        const invalidResource = "invalidResource";
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                3,
+                invalidResource,
+                1, // 1 day
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Invalid resource name");
+    });
+
+    it("should revert farming with invalid collection address", async function () {
+        const invalidCollectionAddress = "0x0000000000000000000000000000000000000000";
+        const resource = "fish";
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                invalidCollectionAddress,
+                1,
+                resource,
+                1, // 1 day
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("Invalid collection address");
+    });
+
+    it("should revert farming with invalid token ID", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 4);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+
+        const invalidTokenId = 9999;
+        const resource = "fish";
+
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                invalidTokenId,
+                resource,
+                1, // 1 day
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("You do not own this pirate");
+    });
+
 });
