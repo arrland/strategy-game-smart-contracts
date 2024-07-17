@@ -3,12 +3,12 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_rumTokenAddress",
+        "name": "_centralAuthorizationRegistry",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "_centralAuthorizationRegistry",
+        "name": "_rumTokenAddress",
         "type": "address"
       },
       {
@@ -156,6 +156,24 @@
         "internalType": "contract ICentralAuthorizationRegistry",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllFees",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "rumFee",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "maticFee",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
