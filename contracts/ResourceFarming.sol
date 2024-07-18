@@ -8,33 +8,44 @@ import "./interfaces/IStorageManagement.sol";
 import "./interfaces/IResourceSpendManagement.sol";
 import "./interfaces/IResourceTypeManager.sol";
 import "./interfaces/IResourceFarmingRules.sol";
+import "./interfaces/IActivityStats.sol";
 import "./CentralAuthorizationRegistry.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "./AuthorizationModifiers.sol";
 
-import "hardhat/console.sol";
 
-contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
+
+contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, ReentrancyGuard {
 
     using Strings for string;
-
-    CentralAuthorizationRegistry public centralAuthorizationRegistry;
-
-    uint256 constant SECONDS_IN_30_DAYS = 30 * 24 * 60 * 60;
-    uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
-    //uint256 constant SECONDS_IN_1_DAY = 5*60;
+    
+    //uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
+    uint256 constant SECONDS_IN_1_DAY = 5*60;
+    
     struct FarmingInfo {
         address owner;
         address collectionAddress;
         uint256 tokenId;
         uint256 startTime;
         uint256 endTime;
-        string resource;
-        bool useRum;
         uint256 days_count;
+        bool useRum;
+        string resource;
+        string resourceToBurn;
+    }
+
+    struct FarmingInfoDetails {
+        uint256 totalToClaim;
+        uint256 currentProduction;
+        uint256 startTime;
+        uint256 endTime;
+        uint256 days_count;
+        bool useRum;
+        string resource;
         string resourceToBurn;
     }
 
@@ -48,6 +59,10 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
 
     mapping(address => mapping(uint256 => FarmingInfo)) public farmingInfo;
     mapping(address => mapping(address => uint256[])) public workingPirates; // Updated mapping
+    mapping(address => uint256) public userStakeCounts;   
+    mapping(uint256 => address[]) public stakersInPeriod;
+    mapping(address => bool) public stakerInPeriod;
+    
 
     event ResourceFarmed(
         address indexed user,
@@ -66,11 +81,11 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         _;
     }
 
-    constructor(address _centralAuthorizationRegistryAddress) {
-        centralAuthorizationRegistry = CentralAuthorizationRegistry(_centralAuthorizationRegistryAddress);
+    constructor(address _centralAuthorizationRegistryAddress) AuthorizationModifiers(_centralAuthorizationRegistryAddress, keccak256("IResourceFarming")){
+    
     }
 
-    function getResourceManagement() internal view returns (IResourceManagement) {
+    function getResourceManagement() internal view returns (IResourceManagement) {        
         return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
     }
 
@@ -98,9 +113,13 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         return IPirateManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IPirateManagement")));
     }
 
+    function getActivityStats() internal view returns (IActivityStats) {
+        return IActivityStats(centralAuthorizationRegistry.getContractAddress(keccak256("IActivityStats")));
+    }
+
     function stakePirate(address collectionAddress, uint256 tokenId) internal nonReentrant {
         require(farmingInfo[collectionAddress][tokenId].tokenId == 0, "Pirate is already staked");
-        IERC1155 nftContract = centralAuthorizationRegistry.getPirateNftContract(collectionAddress);
+        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
         require(nftContract.balanceOf(msg.sender, tokenId) > 0, "You do not own this pirate");
         nftContract.safeTransferFrom(msg.sender, address(this), tokenId, 1, "");        
     }
@@ -111,7 +130,7 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         require(block.timestamp >= info.endTime, "Staking period not yet completed");
 
         // Transfer the pirate NFT back to the owner
-        IERC1155 nftContract = centralAuthorizationRegistry.getPirateNftContract(collectionAddress);
+        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
         nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
 
         // Clear the staking information
@@ -142,15 +161,17 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         } else {
             // Verify that the token ID is already staked on this contract
             require(farmingInfo[collectionAddress][tokenId].tokenId == tokenId, "This pirate is not staked on this contract");
-            IERC1155 nftContract = centralAuthorizationRegistry.getPirateNftContract(collectionAddress);
+            IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
             require(nftContract.balanceOf(address(this), tokenId) > 0, "This pirate is not staked on this contract");
             // Check if the previous pirate work has ended
             require(block.timestamp >= farmingInfo[collectionAddress][tokenId].endTime, "Previous pirate work has not ended yet");
         }
 
+        IStorageManagement storageManagement = getStorageManagement();
+
         // Verify pirate's storage capacity
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, resource, startTime, endTime);
-        require(getStorageManagement().checkStorageLimit(collectionAddress, tokenId, output), "Storage limit reached");
+        require(storageManagement.checkStorageLimit(collectionAddress, tokenId, output), "Storage limit reached");
 
         // Store farming information
         farmingInfo[collectionAddress][tokenId] = FarmingInfo({
@@ -170,8 +191,10 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
             workingPirates[msg.sender][collectionAddress].push(tokenId);
         }
 
+        getActivityStats().addActivity(msg.sender);
+
         // Handle resource burning
-        address storageContract = getStorageManagement().getStorageByCollection(collectionAddress);
+        address storageContract = storageManagement.getStorageByCollection(collectionAddress);
         IResourceSpendManagement resourceSpendManagement = getResourceSpendManagement();
 
         if (resourceSpendManagement.doesResourceRequireBurning(resource)) {
@@ -221,8 +244,7 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
 
         return getResourceFarmingRules().calculateResourceOutput(pirateSkills, resource, durationSeconds);
     }
-
-    function claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) public payable validPirateCollection(collectionAddress) nonReentrant {
+    function _claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) internal {
         FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
         require(info.tokenId != 0, "This pirate is not staked");
         require(block.timestamp > info.endTime, "Farming period not yet completed");
@@ -231,17 +253,17 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         // Calculate resource output
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);
 
+        IStorageManagement storageManagement = getStorageManagement();
         // Get current storage and storage limit
-        uint256 currentStorage = getStorageManagement().getTotalResourcesInStorage(collectionAddress, tokenId);
-        uint256 storageLimit = getStorageManagement().getStorageCapacity(collectionAddress, tokenId);
-        address storageContract = getStorageManagement().getStorageByCollection(collectionAddress);
-
+        uint256 currentStorage = storageManagement.getTotalResourcesInStorage(collectionAddress, tokenId);
+        uint256 storageLimit = storageManagement.getStorageCapacity(collectionAddress, tokenId);
+        
         // Calculate the amount that can be added without exceeding the storage limit
         uint256 availableStorage = storageLimit - currentStorage;
         uint256 amountToAdd = output > availableStorage ? availableStorage : output;
 
         // Add resources to pirate's storage
-        getResourceManagement().addResource(storageContract, tokenId, msg.sender, info.resource, amountToAdd);
+        storageManagement.addResource(collectionAddress, tokenId, msg.sender, info.resource, amountToAdd);
 
         // Unstake the pirate
         if (!restakeParams.isSet) {
@@ -250,6 +272,9 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         } else {
             _restakePirate(collectionAddress, tokenId, restakeParams, info);
         }
+    }
+    function claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) public payable validPirateCollection(collectionAddress) nonReentrant {
+        _claimResourcePirate(collectionAddress, tokenId, restakeParams);
     }
 
     function _restakePirate(
@@ -272,7 +297,7 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         for (uint256 i = 0; i < pirates.length; i++) {
             FarmingInfo memory info = farmingInfo[collectionAddress][pirates[i]];
             if (block.timestamp >= info.endTime) {
-                claimResourcePirate(collectionAddress, pirates[i], RestakeParams("", 0, false, "", false));
+                _claimResourcePirate(collectionAddress, pirates[i], RestakeParams("", 0, false, "", false));
             }
         }
     }
@@ -293,17 +318,6 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         }
 
         return calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);
-    }
-
-    struct FarmingInfoDetails {
-        uint256 totalToClaim;
-        uint256 currentProduction;
-        uint256 startTime;
-        uint256 endTime;
-        string resource;
-        bool useRum;
-        uint256 days_count;
-        string resourceToBurn;
     }
 
     function getFarmingInfo(address collectionAddress, uint256 tokenId) public view returns (FarmingInfoDetails memory) {
@@ -387,6 +401,12 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         return block.timestamp < info.endTime;
     }
 
+    function isPirateStakedByOwner(address collectionAddress, uint256 tokenId, address owner) external view returns (bool) {
+        FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
+        return info.owner == owner;    
+    }
+
+
     function removeWorkingPirate(address owner, address collectionAddress, uint256 tokenId) internal {
         uint256[] memory newWorkingPirates = new uint256[](workingPirates[owner][collectionAddress].length - 1);
         uint256 j = 0;
@@ -399,7 +419,6 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         workingPirates[owner][collectionAddress] = newWorkingPirates;
     }
 
-    // New function to simulate resource production
     function simulateResourceProduction(
         address collectionAddress,
         uint256 tokenId,
@@ -413,6 +432,22 @@ contract ResourceFarming is IERC1155Receiver, ReentrancyGuard {
         uint256 endTime = startTime + (days_count * SECONDS_IN_1_DAY);
 
         return calculateResourceOutput(collectionAddress, tokenId, resource, startTime, endTime);
+    }
+
+    function cancelFarming(address collectionAddress, uint256 tokenId) public nonReentrant {
+        FarmingInfo memory info = farmingInfo[collectionAddress][tokenId];
+        require(info.tokenId != 0, "This pirate is not staked");
+        require(info.owner == msg.sender, "You do not own this pirate");
+
+          // Clear the staking information
+        delete farmingInfo[collectionAddress][tokenId];
+
+        // Remove from working pirates
+        removeWorkingPirate(msg.sender, collectionAddress, tokenId);
+
+        // Transfer the pirate NFT back to the owner
+        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+        nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
     }
 
     // IERC1155Receiver implementation

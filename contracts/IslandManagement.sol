@@ -6,7 +6,10 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "./interfaces/IStorageManagement.sol";
 import "./interfaces/IResourceManagement.sol";
+import "./interfaces/IResourceFarming.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "hardhat/console.sol";
+
 
 contract IslandManagement is AuthorizationModifiers {
     using Strings for string;
@@ -52,7 +55,7 @@ contract IslandManagement is AuthorizationModifiers {
     }
 
     // Function to set the capital island for a user
-    function setCapitalIsland(uint256 islandId) external {
+    function setCapitalIsland(uint256 islandId) public {
         require(islandNftContract.ownerOf(islandId) == msg.sender, "User does not own this island");
         userCapitalIslands[msg.sender] = islandId;
 
@@ -69,11 +72,16 @@ contract IslandManagement is AuthorizationModifiers {
         return userCapitalIslands[owner];
     }
 
+    function getResourceFarming() internal view returns (IResourceFarming) {
+        return IResourceFarming(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarming")));
+    }
+
     // Function to transfer resources to a specific island
     function transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) internal {
         require(islandNftContract.ownerOf(islandId) == user, "User does not own this island");
         IStorageManagement storageManagement = getStorageManagement();
         // Verify storage capacity
+        require(storageManagement.getResourceBalance(pirateCollectionContract, pirateTokenId, resource) >= amount, "Not enough resources in pirate storage");    
         require(storageManagement.checkStorageLimit(address(islandNftContract), islandId, amount), "Insufficient storage capacity in island");
 
         // Transfer resources (this would interact with the Resource Management Contract)
@@ -82,7 +90,7 @@ contract IslandManagement is AuthorizationModifiers {
         address islandStorageContract = storageManagement.getStorageByCollection(address(islandNftContract));
 
         // Validate if pirateStorage has enough amount to transfer
-        require(storageManagement.checkStorageLimit(pirateCollectionContract, pirateTokenId, amount), "Insufficient resources in pirate storage");
+        
         resourceManagement.transferResource(
             pirateStorageContract, 
             pirateTokenId, 
@@ -102,9 +110,9 @@ contract IslandManagement is AuthorizationModifiers {
         uint256 capitalIslandId = userCapitalIslands[user];
         require(capitalIslandId != 0, "No capital island set for user");
 
+        IResourceFarming resourceFarming = getResourceFarming();
         // Verify that user is the owner of pirateTokenId
-        IERC1155 pirateCollection = IERC1155(pirateCollectionContract);
-        require(pirateCollection.balanceOf(user, pirateTokenId) > 0, "User does not own this pirate token");
+        require(resourceFarming.farmingInfo(pirateCollectionContract, pirateTokenId).owner == user || IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0, "User does not own this pirate token");
 
         // Transfer resources (this would interact with the Resource Management Contract)
         transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, capitalIslandId, resource, amount);

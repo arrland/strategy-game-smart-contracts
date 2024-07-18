@@ -2,6 +2,7 @@ require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
 require("@nomicfoundation/hardhat-chai-matchers");
 require('dotenv').config();
+require("hardhat-gas-reporter");
 
 
 const PRIVATE_KEY = process.env.PRIVATE_KEY;
@@ -31,6 +32,15 @@ module.exports = {
       accounts: [PRIVATE_KEY],
       chainId: 80002,
     },
+  },
+  gasReporter: {
+    enabled: false,
+    currency: 'USD',
+    gasPrice: 35,
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY, // Optional: to fetch real-time gas price
+    //outputFile: 'gas-report.txt', // Optional: to save the report to a file    
+    token: 'MATIC',
+    network: 'POLYGON'
   },
   etherscan: {    
     apiKey: POLYGONSCAN_API_KEY

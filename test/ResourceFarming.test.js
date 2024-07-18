@@ -13,8 +13,8 @@ describe("ResourceFarming", function () {
     let ResourceSpendManagement, resourceSpendManagement;
     let ResourceTypeManager, resourceTypeManager, rumToken;
     let centralAuthorizationRegistry, simpleERC1155, SimpleERC1155;
-    let IslandStorage, pirateStorage, PirateStorage;
-    let genesisPiratesAddress, SimpleERC721, islandNft, islandStorage
+    let IslandStorage, pirateStorage, PirateStorage, activityStats;
+    let genesisPiratesAddress, SimpleERC721, islandNft, islandStorage, islandManagement;
     let admin, user, pirateOwner, contractAddress1, contractAddress2, externalCaller, maticFeeRecipient;
     let genesisIslandsAddress;
 
@@ -48,6 +48,7 @@ describe("ResourceFarming", function () {
         genesisIslandsAddress = await islandNft.getAddress();
 
         await islandNft.mint(pirateOwner.address);
+        await islandNft.mint(pirateOwner.address);
 
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
@@ -67,12 +68,14 @@ describe("ResourceFarming", function () {
         pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
         
 
-        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, true);
+        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
 
-        islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, false);
+        islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
         
 
-        await islandStorage.initializeIslands(1);
+        await islandStorage.initializeIslands(1);        
+        await islandStorage.initializeIslands(13);
+        
         
         storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress());
         
@@ -82,8 +85,9 @@ describe("ResourceFarming", function () {
         
         resourceFarming = await deployAndAuthorizeContract("ResourceFarming", centralAuthorizationRegistry);
 
-        
+        activityStats = await deployAndAuthorizeContract("ActivityStats", centralAuthorizationRegistry, 1, 0, 5);
 
+        islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
  
         const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../scripts/pirate_skils_test.json'), "utf8"));
 
@@ -206,9 +210,129 @@ describe("ResourceFarming", function () {
         const balanceOfContract = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1);
         expect(balanceOfContract).to.equal(0);
         const balanceOfPirateOwner = await simpleERC1155.balanceOf(pirateOwner.address, 1);
+        expect(balanceOfPirateOwner).to.equal(1);    
+    });
+    it("should claim resources from multiple pirates at once", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            2,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        expect(await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1)).to.equal(1);
+        expect(await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 2)).to.equal(1);
+
+        await ethers.provider.send("evm_increaseTime", [86402]); // Increase time by 1 day
+        await ethers.provider.send("evm_mine");
+
+        const totalToClaim1 = await resourceFarming.getTotalToClaim(genesisPiratesAddress, 1);
+        const totalToClaim2 = await resourceFarming.getTotalToClaim(genesisPiratesAddress, 2);
+        expect(totalToClaim1).to.be.greaterThan(0);
+        expect(totalToClaim2).to.be.greaterThan(0);
+
+        await expect(resourceFarming.connect(pirateOwner).claimAllResources(genesisPiratesAddress))
+            .to.emit(resourceManagement, 'ResourceAdded')
+            .and.to.emit(resourceManagement, 'ResourceAdded');
+
+        const farmingInfo1 = await resourceFarming.farmingInfo(genesisPiratesAddress, 1);
+        const farmingInfo2 = await resourceFarming.farmingInfo(genesisPiratesAddress, 2);
+        expect(farmingInfo1.tokenId).to.equal(0);
+        expect(farmingInfo2.tokenId).to.equal(0);
+
+        const balance1 = await storageManagement.getResourceBalance(genesisPiratesAddress, 1, "fish");
+        const balance2 = await storageManagement.getResourceBalance(genesisPiratesAddress, 2, "fish");
+        expect(balance1).to.equal(3000000000000000000n);
+        expect(balance2).to.equal(3500000000000000000n);
+
+        const balanceOfContract1 = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1);
+        const balanceOfContract2 = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 2);
+        expect(balanceOfContract1).to.equal(0);
+        expect(balanceOfContract2).to.equal(0);
+
+        const balanceOfPirateOwner1 = await simpleERC1155.balanceOf(pirateOwner.address, 1);
+        const balanceOfPirateOwner2 = await simpleERC1155.balanceOf(pirateOwner.address, 2);
+        expect(balanceOfPirateOwner1).to.equal(1);
+        expect(balanceOfPirateOwner2).to.equal(1);
+    });
+    it("should allow the owner to cancel farming and return the pirate NFT", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        expect(await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1)).to.equal(1);
+
+        await resourceFarming.connect(pirateOwner).cancelFarming(await simpleERC1155.getAddress(), 1);
+
+        const farmingInfo = await resourceFarming.farmingInfo(await simpleERC1155.getAddress(), 1);
+        expect(farmingInfo.tokenId).to.equal(0);
+
+        const balanceOfContract = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1);
+        expect(balanceOfContract).to.equal(0);
+
+        const balanceOfPirateOwner = await simpleERC1155.balanceOf(pirateOwner.address, 1);
         expect(balanceOfPirateOwner).to.equal(1);
 
-        
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(0);
+    });
+
+    it("should not allow non-owner to cancel farming", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        await expect(
+            resourceFarming.connect(admin).cancelFarming(await simpleERC1155.getAddress(), 1)
+        ).to.be.revertedWith("You do not own this pirate");
+
+        const farmingInfo = await resourceFarming.farmingInfo(await simpleERC1155.getAddress(), 1);
+        expect(farmingInfo.tokenId).to.equal(1);
+
+        const balanceOfContract = await simpleERC1155.balanceOf(await resourceFarming.getAddress(), 1);
+        expect(balanceOfContract).to.equal(1);
+
+        const balanceOfPirateOwner = await simpleERC1155.balanceOf(pirateOwner.address, 1);
+        expect(balanceOfPirateOwner).to.equal(0);
     });
     it("should not allow staking a pirate that is already staked", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
@@ -354,6 +478,60 @@ describe("ResourceFarming", function () {
 
         const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
         expect(workingPirates.length).to.equal(0);
+    });
+    it("should allow dumping resources even if the pirate is working", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await storageManagement.connect(externalCaller).addResource(await simpleERC1155.getAddress(), 1, pirateOwner.address, "fish", ethers.parseEther("1"));
+        // Start farming resources
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day
+            false, // Not using RUM
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Dump resources while the pirate is still working
+        await expect(
+            storageManagement.connect(pirateOwner).dumpResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                ethers.parseEther("1")
+            )
+        ).to.emit(storageManagement, 'ResourceDumped');
+
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+
+        const farmingInfo = await resourceFarming.farmingInfo(await simpleERC1155.getAddress(), 1);
+        expect(farmingInfo.tokenId).to.equal(1);
+
+        const balance = await storageManagement.getResourceBalance(await simpleERC1155.getAddress(), 1, "fish");
+        expect(balance).to.equal(0n);
+    });
+    it("should not allow dumping resources if the user does not own the pirate", async function () {
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await storageManagement.connect(externalCaller).addResource(await simpleERC1155.getAddress(), 1, pirateOwner.address, "fish", ethers.parseEther("1"));
+        
+        // Attempt to dump resources by a user who does not own the pirate
+        await expect(
+            storageManagement.connect(externalCaller).dumpResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                ethers.parseEther("1")
+            )
+        ).to.be.revertedWith("Caller does not own the 1155 token or it is not staked in ResourceFarming");
+
+        const balance = await storageManagement.getResourceBalance(await simpleERC1155.getAddress(), 1, "fish");
+        expect(balance).to.equal(ethers.parseEther("1"));
     });
     it("should farm resources using RUM", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
@@ -683,6 +861,211 @@ describe("ResourceFarming", function () {
                 { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
             )
         ).to.be.revertedWith("You do not own this pirate");
+    });
+    it("should transfer resources to the capital island", async function () {
+        // Mint a pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+        
+        await storageManagement.connect(externalCaller).addResource(genesisPiratesAddress, 1, pirateOwner.address, "wood", ethers.parseEther("50"));    
+
+        await expect(
+            islandManagement.connect(pirateOwner).transferResourceToCapital(
+                await simpleERC1155.getAddress(),
+                1,
+                "wood",
+                ethers.parseEther("5")
+            )
+        ).to.emit(islandManagement, "ResourceTransferredToCapital")
+  
+
+        // Check pirate storage balance after transfer
+        const pirateStorageBalanceAfter = await storageManagement.getResourceBalance(genesisPiratesAddress, 1, "wood");
+        expect(pirateStorageBalanceAfter).to.equal(ethers.parseEther("45"));
+
+        // Check island storage balance after transfer
+        const islandStorageBalanceAfter = await storageManagement.getResourceBalance(genesisIslandsAddress, 1, "wood");
+        expect(islandStorageBalanceAfter).to.equal(ethers.parseEther("5"));
+        
+    });
+
+    it("should revert transfer resources to the capital island if no capital island is set", async function () {
+        // Mint a pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 6);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Attempt to transfer resources to the capital island without setting a capital island
+        const resource = "wood";
+        const amount = 100;
+
+        await expect(
+            islandManagement.connect(pirateOwner).transferResourceToCapital(
+                await simpleERC1155.getAddress(),
+                6,
+                resource,
+                amount
+            )
+        ).to.be.revertedWith("No capital island set for user");
+    });
+
+    it("should revert transfer resources to the capital island if user does not own the pirate token", async function () {
+        // Mint a pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 7);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        // Attempt to transfer resources to the capital island with a pirate token not owned by the user
+        const resource = "wood";
+        const amount = 100;
+
+        await expect(
+            islandManagement.connect(user).transferResourceToCapital(
+                await simpleERC1155.getAddress(),
+                7,
+                resource,
+                amount
+            )
+        ).to.be.revertedWith("No capital island set for user");
+    });
+    it("should set and get the capital island correctly", async function () {
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        // Get the capital island for the pirateOwner
+        const capitalIsland = await islandManagement.connect(pirateOwner).getCapitalIsland(pirateOwner.address);
+        expect(capitalIsland).to.equal(1);
+    });
+
+    it("should replace the previous capital island when setting a new one", async function () {
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        // Set a new capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(2);
+
+        // Get the capital island for the pirateOwner
+        const capitalIsland = await islandManagement.connect(pirateOwner).getCapitalIsland(pirateOwner.address);
+        expect(capitalIsland).to.equal(2);
+    });
+
+    it("should get all users with capital islands", async function () {
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        // Get all users with capital islands
+        const usersWithCapitalIslands = await islandManagement.getUsersWithCapitalIslands();
+        expect(usersWithCapitalIslands).to.include(pirateOwner.address);
+    });
+
+    it("should get all capital islands", async function () {
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        // Get all capital islands
+        const allCapitalIslands = await islandManagement.getAllCapitalIslands();
+        expect(allCapitalIslands).to.deep.equal([1n]);
+    });
+    it("should enable and disable add activity", async function () {
+        // Enable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(true);
+        let status = await activityStats.addActivityEnabled();
+        expect(status).to.be.true;
+
+        // Disable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(false);
+        status = await activityStats.addActivityEnabled();
+        expect(status).to.be.false;
+    });
+
+    it("should add activity for a user", async function () {
+        // Enable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(true);
+
+        // Add activity for the pirateOwner
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        // Check if the user is in the current activity period
+        const currentActivityPeriod = await activityStats.currentActivityPeriod();
+        const isParticipant = await activityStats.participantInPeriod(pirateOwner.address, currentActivityPeriod);
+        expect(isParticipant).to.be.true;
+
+        // Check the activity count for the user
+        const activityCount = await activityStats.userActivityCounts(currentActivityPeriod, pirateOwner.address);
+        expect(activityCount).to.equal(1);
+    });
+
+    it("should reset activity period after 28 days", async function () {
+        // Enable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(true);
+
+        const currentActivityPeriodBefore = await activityStats.currentActivityPeriod();
+        expect(currentActivityPeriodBefore).to.equal(1);
+        // Add activity for the pirateOwner
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        const blocksToMint = 3;
+
+        for (let i = 0; i < blocksToMint; i++) {
+            await ethers.provider.send("evm_mine");
+        }
+
+        // Add activity again to trigger period reset
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        // Check if the activity period has been reset
+        const currentActivityPeriod = await activityStats.currentActivityPeriod();
+        expect(currentActivityPeriod).to.equal(2);
+    });
+
+    it("should get users from the previous activity period", async function () {
+        // Enable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(true);
+
+        // Add activity for the pirateOwner
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        const blocksToMint = 6;
+
+        for (let i = 0; i < blocksToMint; i++) {
+            await ethers.provider.send("evm_mine");
+        }
+
+        const currentActivityPeriod = await activityStats.currentActivityPeriod();
+
+        expect(currentActivityPeriod).to.equal(2);
+
+        // Add activity again to trigger period reset
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        // Get users from the previous activity period
+        const usersFromPrevPeriod = await activityStats.getUsersFromPrevPeriod();
+        expect(usersFromPrevPeriod).to.include(pirateOwner.address);
+    });
+
+    it("should check if a user is in the previous activity period", async function () {
+        // Enable add activity
+        await activityStats.connect(admin).setAddActivityEnabled(true);
+
+        // Add activity for the pirateOwner
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        const blocksToMint = 6;
+
+        for (let i = 0; i < blocksToMint; i++) {
+            await ethers.provider.send("evm_mine");
+        }
+
+        // Add activity again to trigger period reset
+        await activityStats.connect(externalCaller).addActivity(pirateOwner.address);
+
+        // Check if the user is in the previous activity period
+        const isInPrevPeriod = await activityStats.isUserInPrevPeriod(pirateOwner.address);
+        expect(isInPrevPeriod).to.be.true;
     });
 
 });

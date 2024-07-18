@@ -29,10 +29,9 @@ contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableU
 
     function initialize(address _admin_multi_sig) public initializer {
         __AccessControlEnumerable_init();
-        _setupRole(DEFAULT_ADMIN_ROLE, _admin_multi_sig);
-        //_setupRole(DEFAULT_ADMIN_ROLE, msg.sender);   
-        _setupRole(ADMIN_ROLE, _admin_multi_sig);        
-        _setupRole(ADMIN_ROLE, msg.sender);  
+        _grantRole(DEFAULT_ADMIN_ROLE, _admin_multi_sig);        
+        _grantRole(ADMIN_ROLE, _admin_multi_sig);        
+        _grantRole(ADMIN_ROLE, msg.sender);  
               
     }
 

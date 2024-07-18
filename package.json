@@ -26,6 +26,7 @@
     "dotenv": "^16.4.5",
     "ethereum-waffle": "^4.0.10",
     "ethers": "^6.11.1",
+    "hardhat-gas-reporter": "^2.2.0",
     "keccak256": "^1.0.6",
     "merkletreejs": "^0.3.11",
     "mocha": "^10.2.0",

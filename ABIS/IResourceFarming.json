@@ -1,21 +1,5 @@
 [
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_centralAuthorizationRegistryAddress",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [],
-    "name": "ReentrancyGuardReentrantCall",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -77,50 +61,6 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "INTERFACE_ID",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "collectionAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "cancelFarming",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "centralAuthorizationRegistry",
-    "outputs": [
-      {
-        "internalType": "contract ICentralAuthorizationRegistry",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -173,7 +113,7 @@
             "type": "bool"
           }
         ],
-        "internalType": "struct ResourceFarming.RestakeParams",
+        "internalType": "struct IResourceFarming.RestakeParams",
         "name": "restakeParams",
         "type": "tuple"
       }
@@ -230,24 +170,6 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "farmingInfo",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
@@ -255,36 +177,61 @@
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
-      },
+      }
+    ],
+    "name": "farmingInfo",
+    "outputs": [
       {
-        "internalType": "uint256",
-        "name": "startTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "endTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "days_count",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bool",
-        "name": "useRum",
-        "type": "bool"
-      },
-      {
-        "internalType": "string",
-        "name": "resource",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "resourceToBurn",
-        "type": "string"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "collectionAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "resource",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "useRum",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "days_count",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "resourceToBurn",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct IResourceFarming.FarmingInfo",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -332,13 +279,18 @@
       {
         "components": [
           {
-            "internalType": "uint256",
-            "name": "totalToClaim",
-            "type": "uint256"
+            "internalType": "address",
+            "name": "owner",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "collectionAddress",
+            "type": "address"
           },
           {
             "internalType": "uint256",
-            "name": "currentProduction",
+            "name": "tokenId",
             "type": "uint256"
           },
           {
@@ -352,9 +304,9 @@
             "type": "uint256"
           },
           {
-            "internalType": "uint256",
-            "name": "days_count",
-            "type": "uint256"
+            "internalType": "string",
+            "name": "resource",
+            "type": "string"
           },
           {
             "internalType": "bool",
@@ -362,9 +314,9 @@
             "type": "bool"
           },
           {
-            "internalType": "string",
-            "name": "resource",
-            "type": "string"
+            "internalType": "uint256",
+            "name": "days_count",
+            "type": "uint256"
           },
           {
             "internalType": "string",
@@ -372,7 +324,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct ResourceFarming.FarmingInfoDetails",
+        "internalType": "struct IResourceFarming.FarmingInfo",
         "name": "",
         "type": "tuple"
       }
@@ -495,97 +447,6 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "operator",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "ids",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "values",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "onERC1155BatchReceived",
-    "outputs": [
-      {
-        "internalType": "bytes4",
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "operator",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "from",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "id",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "value",
-        "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "data",
-        "type": "bytes"
-      }
-    ],
-    "name": "onERC1155Received",
-    "outputs": [
-      {
-        "internalType": "bytes4",
-        "name": "",
-        "type": "bytes4"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_centralAuthorizationRegistry",
-        "type": "address"
-      }
-    ],
-    "name": "setCentralAuthorizationRegistry",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
@@ -620,69 +481,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "name": "stakerInPeriod",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "stakersInPeriod",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes4",
-        "name": "interfaceId",
-        "type": "bytes4"
-      }
-    ],
-    "name": "supportsInterface",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "",
+        "name": "user",
         "type": "address"
       }
     ],
@@ -701,26 +500,21 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "owner",
         "type": "address"
       },
       {
         "internalType": "address",
-        "name": "",
+        "name": "collectionAddress",
         "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "name": "workingPirates",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint256[]",
         "name": "",
-        "type": "uint256"
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",

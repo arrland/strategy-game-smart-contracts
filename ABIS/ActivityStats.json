@@ -2,13 +2,23 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistryAddress",
+        "type": "address"
+      },
+      {
         "internalType": "uint256",
-        "name": "_initialRewardPeriod",
+        "name": "_initialActivityPeriod",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "_initialLastRewardMintBlock",
+        "name": "_initialLastActivityBlock",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_blocks28Days",
         "type": "uint256"
       }
     ],
@@ -21,29 +31,29 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newRewardPeriod",
+        "name": "newActivityPeriod",
         "type": "uint256"
       }
     ],
-    "name": "RewardPeriodReset",
+    "name": "ActivityPeriodReset",
     "type": "event"
   },
   {
+    "anonymous": false,
     "inputs": [
       {
-        "internalType": "address",
-        "name": "staker",
-        "type": "address"
+        "indexed": false,
+        "internalType": "bool",
+        "name": "newStatus",
+        "type": "bool"
       }
     ],
-    "name": "addStaker",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    "name": "AddActivityStatusChanged",
+    "type": "event"
   },
   {
     "inputs": [],
-    "name": "currentRewardPeriod",
+    "name": "BLOCKS_28_DAYS",
     "outputs": [
       {
         "internalType": "uint256",
@@ -56,7 +66,72 @@
   },
   {
     "inputs": [],
-    "name": "getStakersFromPrevPeriod",
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "addActivity",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "addActivityEnabled",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "currentActivityPeriod",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getUsersFromPrevPeriod",
     "outputs": [
       {
         "internalType": "address[]",
@@ -71,11 +146,11 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "staker",
+        "name": "user",
         "type": "address"
       }
     ],
-    "name": "isStakerInPeriod",
+    "name": "isUserInPrevPeriod",
     "outputs": [
       {
         "internalType": "bool",
@@ -88,7 +163,7 @@
   },
   {
     "inputs": [],
-    "name": "lastRewardMintBlock",
+    "name": "lastActivityBlock",
     "outputs": [
       {
         "internalType": "uint256",
@@ -100,8 +175,62 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "resetRewardPeriod",
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "participantInPeriod",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "participantsInPeriod",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "_enabled",
+        "type": "bool"
+      }
+    ],
+    "name": "setAddActivityEnabled",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -110,48 +239,13 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "stakerInPeriod",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "stakersInPeriod",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
+        "name": "_centralAuthorizationRegistry",
         "type": "address"
       }
     ],
-    "stateMutability": "view",
+    "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -167,7 +261,7 @@
         "type": "address"
       }
     ],
-    "name": "userStakeCounts",
+    "name": "userActivityCounts",
     "outputs": [
       {
         "internalType": "uint256",

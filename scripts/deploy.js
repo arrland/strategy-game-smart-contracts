@@ -48,7 +48,7 @@ async function main() {
 
   let admin_multi_sig, maticFeeRecipient, genesisPiratesAddress, genesisIslandsAddress, rumTokenAddress;
 
-  let centralAuthorizationRegistry;
+  let centralAuthorizationRegistry, lastRewardMintBlock, _blocks28Days;
 
   if (network.name === "amoy") {
     maticFeeRecipient = "0x62D14D7aDFE5Fbb771490a94B3aC64E7dba4bD2B";
@@ -56,12 +56,16 @@ async function main() {
     genesisIslandsAddress = "0xbD90d1984BAbE50Cb1d9D75EB1eD08688d3Dea59";
     rumTokenAddress = "0x17fF13862c5665dE5676cab1db0927B4C97eebc1";
     admin_multi_sig = "0x136be3a1671f19f764a3c7bd0454dd83fd643e71";
+    lastRewardMintBlock = 0;
+    _blocks28Days = 100;
   } else {
     maticFeeRecipient = "";
     genesisPiratesAddress = "";
     genesisIslandsAddress = "";
     rumTokenAddress = "";
     admin_multi_sig = "";
+    lastRewardMintBlock = 60862541;
+    _blocks28Days = 41890 * 28;
   }
 
   let centralAuthorizationRegistryAddress = "";
@@ -88,8 +92,8 @@ async function main() {
   const feeManagement = await deployAndAuthorizeContract("FeeManagement", centralAuthorizationRegistry, rumTokenAddress, maticFeeRecipient);
   const pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
 
-  const pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, true);
-  const islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, false);
+  const pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
+  const islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
 
   const pirateStorageAddress = await pirateStorage.getAddress();
   const islandStorageAddress = await islandStorage.getAddress();
@@ -107,7 +111,10 @@ async function main() {
   await islandStorage.initializeIslands(11);
   await islandStorage.initializeIslands(12);
   await islandStorage.initializeIslands(13);
-
+  await islandStorage.initializeIslands(14);
+  await islandStorage.initializeIslands(15);
+  await islandStorage.initializeIslands(16);
+  
   
   const islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
 
@@ -115,7 +122,7 @@ async function main() {
   const resourceSpendManagement = await deployAndAuthorizeContract("ResourceSpendManagement", centralAuthorizationRegistry);
   const resourceFarmingRules = await deployAndAuthorizeContract("ResourceFarmingRules", centralAuthorizationRegistry);
   const resourceFarming = await deployAndAuthorizeContract("ResourceFarming", centralAuthorizationRegistry);
-
+  const activityStats = await deployAndAuthorizeContract("ActivityStats", centralAuthorizationRegistry, 1, lastRewardMintBlock, _blocks28Days);
   await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
 }
 

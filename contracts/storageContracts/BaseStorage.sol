@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 
 import "../AuthorizationModifiers.sol";
 import "../interfaces/IResourceManagement.sol";
+import "../interfaces/IStorageManagement.sol";
 
 abstract contract BaseStorage is AuthorizationModifiers {
     IERC721 public nftCollection721;
@@ -33,6 +34,10 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
     }
 
+    function getStorageManagement() internal view returns (IStorageManagement) {
+        return IStorageManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IStorageManagement")));
+    }
+
     function getTotalResourcesInStorage(uint256 tokenId) external view virtual returns (uint256) {
         IResourceManagement resourceManagement = getResourceManagement();
         uint256 totalResources = resourceManagement.getTotalResourcesInStorage(address(this), tokenId);
@@ -45,7 +50,17 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return resourceBalance;
     }
 
-    function dumpResource(uint256 tokenId, string memory resource, uint256 amount) external virtual {
+    function addResource(uint256 tokenId, address user, string memory resource, uint256 amount) external virtual onlyAuthorized(){
+        IResourceManagement resourceManagement = getResourceManagement();
+        resourceManagement.addResource(address(this), tokenId, user, resource, amount);
+    }
+
+    function dumpResource(uint256 tokenId, address owner, string memory resource, uint256 amount) external virtual onlyAuthorized {
+        if (isNft721) {            
+            require(nftCollection721.ownerOf(tokenId) == owner, "Caller does not own the 721 token");
+        } else {            
+            require(nftCollection1155.balanceOf(owner, tokenId) > 0, "Caller does not own the 1155 token");
+        }
         IResourceManagement resourceManagement = getResourceManagement();
         resourceManagement.burnResource(address(this), tokenId, msg.sender, resource, amount);
     }
@@ -61,8 +76,7 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return storageCapacities[tokenId];
     }
 
-    function updateStorageCapacity(uint256 tokenId, uint256 newCapacity) external virtual {
-        require(centralAuthorizationRegistry.isAuthorized(msg.sender), "Caller is not authorized");
+    function updateStorageCapacity(uint256 tokenId, uint256 newCapacity) external virtual onlyAuthorized {
         storageCapacities[tokenId] = newCapacity;
         emit StorageCapacityUpdated(tokenId, newCapacity);
     }

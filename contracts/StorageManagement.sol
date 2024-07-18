@@ -4,6 +4,9 @@ pragma solidity ^0.8.25;
 import "./CentralAuthorizationRegistry.sol";
 import "./storageContracts/BaseStorage.sol";
 import "./AuthorizationModifiers.sol";
+import "@openzeppelin/contracts/interfaces/IERC721.sol";
+import "@openzeppelin/contracts/interfaces/IERC1155.sol";
+import "hardhat/console.sol";
 
 contract StorageManagement is AuthorizationModifiers {
     // Central Authorization Registry Contract
@@ -20,6 +23,7 @@ contract StorageManagement is AuthorizationModifiers {
     event StorageCapacityUpdated(address indexed contractAddress, uint256 indexed tokenId, uint256 newCapacity);
     event StorageContractAdded(address indexed collectionAddress, address indexed contractAddress);
     event StorageContractRemoved(address indexed contractAddress);
+    event ResourceDumped(address indexed collectionAddress, uint256 indexed tokenId, address indexed owner, string resource, uint256 amount);
 
     constructor(
         address _centralAuthorizationRegistry,
@@ -62,6 +66,10 @@ contract StorageManagement is AuthorizationModifiers {
 
         storageContractCount--;
         emit StorageContractRemoved(collectionAddress);
+    }
+
+    function getResourceFarming() internal view returns (IResourceManagement) {        
+        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
     }
 
     function getStorageCapacity(address collectionAddress, uint256 tokenId) public view returns (uint256) {
@@ -124,14 +132,16 @@ contract StorageManagement is AuthorizationModifiers {
         return address(storageContracts[collectionAddress]);
     }
 
+    function addResource(address collectionAddress, uint256 tokenId, address user, string memory resource, uint256 amount) external onlyAuthorized {
+        BaseStorage storageContract = storageContracts[collectionAddress];
+        storageContract.addResource(tokenId, user, resource, amount);
+    }
+
     function dumpResource(address collectionAddress, uint256 tokenId, string memory resource, uint256 amount) public {
         BaseStorage storageContract = storageContracts[collectionAddress];
-        if (storageContract.isNft721()) {
-            require(storageContract.nftCollection721().ownerOf(tokenId) == msg.sender, "Caller does not own the token");
-        } else {
-            require(storageContract.nftCollection1155().balanceOf(msg.sender, tokenId) > 0, "Caller does not own the token");
-        }
-        storageContract.dumpResource(tokenId, resource, amount);
+        storageContract.dumpResource(tokenId, msg.sender, resource, amount);
+
+        emit ResourceDumped(collectionAddress, tokenId, msg.sender, resource, amount);
     }
 
     function getAllStorageContracts() public view returns (address[] memory, address[] memory) {
