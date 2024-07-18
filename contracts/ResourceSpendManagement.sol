@@ -5,7 +5,7 @@ import "./AuthorizationModifiers.sol";
 import "./interfaces/IResourceManagement.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./interfaces/IResourceTypeManager.sol";
-import "hardhat/console.sol";
+
 
 contract ResourceSpendManagement is AuthorizationModifiers {
     using Strings for string;
@@ -63,6 +63,38 @@ contract ResourceSpendManagement is AuthorizationModifiers {
 
     function getResourceRequirements(string memory resource) public view returns (ResourceRequirement memory) {
         return resourceRequirements[resource];
+    }
+
+    struct ResourceRequirementAmount {
+        string resourceName;
+        uint256 amount;
+        bool isMandatory;
+    }
+
+    function getResourceRequirementAmounts(string memory resource, uint256 daysCount, uint256 resourcesProduced) public view returns (ResourceRequirementAmount[] memory) {
+        uint256 totalResources = resourceRequirements[resource].optionalResources.length + resourceRequirements[resource].mandatoryResources.length;
+        ResourceRequirementAmount[] memory amounts = new ResourceRequirementAmount[](totalResources);
+
+        uint256 index = 0;
+        for (uint256 i = 0; i < resourceRequirements[resource].optionalResources.length; i++) {
+            amounts[index] = ResourceRequirementAmount({
+                resourceName: resourceRequirements[resource].optionalResources[i].resource,
+                amount: _calculateRequiredAmount(resourceRequirements[resource].optionalResources[i], daysCount, resourcesProduced),
+                isMandatory: false
+            });
+            index++;
+        }
+
+        for (uint256 i = 0; i < resourceRequirements[resource].mandatoryResources.length; i++) {
+            amounts[index] = ResourceRequirementAmount({
+                resourceName: resourceRequirements[resource].mandatoryResources[i].resource,
+                amount: _calculateRequiredAmount(resourceRequirements[resource].mandatoryResources[i], daysCount, resourcesProduced),
+                isMandatory: true
+            });
+            index++;
+        }
+
+        return amounts;
     }
 
     function doesResourceRequireBurning(string memory resource) public view returns (bool) {

@@ -118,4 +118,35 @@ describe("ResourceSpendManagement", function () {
             )
         ).to.be.revertedWith("At least one optional resource must be burned");
     });
+    it("should return correct resource requirement amounts", async function () {
+        await resourceSpendManagement.connect(admin).setResourceRequirements(
+            "planks",
+            [
+                { resource: "fish", amount: ethers.parseEther("1"), method: 0 },
+                { resource: "coconut", amount: ethers.parseEther("2"), method: 0 }
+            ],
+            [
+                { resource: "wood", amount: ethers.parseEther("2"), method: 1 }
+            ]
+        );
+
+        const daysCount = 5;
+        const resourcesProduced = ethers.parseEther("10");
+
+        const requirementAmounts = await resourceSpendManagement.getResourceRequirementAmounts("planks", daysCount, resourcesProduced);
+
+        expect(requirementAmounts.length).to.equal(3);
+
+        expect(requirementAmounts[0].resourceName).to.equal("fish");
+        expect(requirementAmounts[0].amount).to.equal(ethers.parseEther("5"));
+        expect(requirementAmounts[0].isMandatory).to.equal(false);
+
+        expect(requirementAmounts[1].resourceName).to.equal("coconut");
+        expect(requirementAmounts[1].amount).to.equal(ethers.parseEther("10"));
+        expect(requirementAmounts[1].isMandatory).to.equal(false);
+
+        expect(requirementAmounts[2].resourceName).to.equal("wood");
+        expect(requirementAmounts[2].amount).to.equal(ethers.parseEther("5"));
+        expect(requirementAmounts[2].isMandatory).to.equal(true);
+    });
 });
