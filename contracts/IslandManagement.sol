@@ -8,7 +8,6 @@ import "./interfaces/IStorageManagement.sol";
 import "./interfaces/IResourceManagement.sol";
 import "./interfaces/IResourceFarming.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "hardhat/console.sol";
 
 
 contract IslandManagement is AuthorizationModifiers {
@@ -110,7 +109,7 @@ contract IslandManagement is AuthorizationModifiers {
 
         IResourceFarming resourceFarming = getResourceFarming();
         // Verify that user is the owner of pirateTokenId
-        require(resourceFarming.farmingInfo(pirateCollectionContract, pirateTokenId).owner == user || IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0, "User does not own this pirate token");
+        require(resourceFarming.isPirateStakedByOwner(pirateCollectionContract, pirateTokenId, user) || IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0 || IERC721(pirateCollectionContract).ownerOf(pirateTokenId) == user, "User does not own this pirate token");
 
         // Transfer resources (this would interact with the Resource Management Contract)
         _transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, capitalIslandId, resource, amount);

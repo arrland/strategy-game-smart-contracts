@@ -13,5 +13,5 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **ResourceSpendManagement**: 0x5AF9218612955F608Ee68c379721CE0226261db6
 - **ResourceFarmingRules**: 0x967fD50ed190Df9133Cf2027D8F1Fc6a1fCbb26B
 - **ResourceFarming**: 0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73
-- **IslandManagement**: 0x556c5d2aEee4EaF60bE0274618f3470DA556ac8E
+- **IslandManagement**: 0xB9B5A7CBD982030c7C1D863608CCc70D6290F20e
 - **ActivityStats**: 0xf8d6F0bEfeA585d6A2a9f55F4a84E36Bd0268Fd1

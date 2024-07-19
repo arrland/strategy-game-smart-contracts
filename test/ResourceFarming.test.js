@@ -938,6 +938,41 @@ describe("ResourceFarming", function () {
             )
         ).to.be.revertedWith("No capital island set for user");
     });
+    it("should revert transfer resources to the capital island if pirate is working staked", async function () {
+        // Mint a pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(1);
+
+        await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 1, pirateOwner.address, "wood", ethers.parseEther("2"));
+
+        // Stake the pirate NFT
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await simpleERC1155.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Attempt to transfer resources to the capital island while the pirate is working staked
+        const resource = "wood";
+        const amount = ethers.parseEther("1");
+
+    
+        await islandManagement.connect(pirateOwner).transferResourceToCapital(
+            await simpleERC1155.getAddress(),
+            1,
+            resource,
+            amount
+        );
+    
+    });
     it("should set and get the capital island correctly", async function () {
         // Set the capital island for the pirateOwner
         await islandManagement.connect(pirateOwner).setCapitalIsland(1);

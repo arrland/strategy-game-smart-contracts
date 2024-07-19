@@ -6,7 +6,7 @@ import "./storageContracts/BaseStorage.sol";
 import "./AuthorizationModifiers.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC1155.sol";
-import "hardhat/console.sol";
+
 
 contract StorageManagement is AuthorizationModifiers {
     // Central Authorization Registry Contract

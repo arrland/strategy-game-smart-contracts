@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "./CentralAuthorizationRegistry.sol";
 import "./AuthorizationModifiers.sol";
 import "./interfaces/IResourceTypeManager.sol";
-import "hardhat/console.sol";
 
 
 contract ResourceManagement is AuthorizationModifiers {

@@ -4,7 +4,6 @@ pragma solidity ^0.8.25;
 import "./interfaces/IPirateManagement.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./AuthorizationModifiers.sol";
-import "hardhat/console.sol";
 
 
 contract ResourceFarmingRules is AuthorizationModifiers {
