@@ -2,12 +2,13 @@
 pragma solidity ^0.8.25;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts-upgradeable/access/AccessControlEnumerableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnumerableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 
-contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableUpgradeable {
+contract CentralAuthorizationRegistry is Initializable, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     // Array to store authorized contracts
@@ -29,11 +30,14 @@ contract CentralAuthorizationRegistry is Initializable, AccessControlEnumerableU
 
     function initialize(address _admin_multi_sig) public initializer {
         __AccessControlEnumerable_init();
+        __UUPSUpgradeable_init();
         _grantRole(DEFAULT_ADMIN_ROLE, _admin_multi_sig);        
         _grantRole(ADMIN_ROLE, _admin_multi_sig);        
         _grantRole(ADMIN_ROLE, msg.sender);  
               
     }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyAdmin() {}
 
     modifier onlyAdmin() {
         require(isAdmin(msg.sender), string(abi.encodePacked("Caller is not an admin: ", Strings.toHexString(uint160(msg.sender), 20))));

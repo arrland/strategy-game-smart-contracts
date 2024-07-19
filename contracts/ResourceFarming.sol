@@ -15,16 +15,17 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "./AuthorizationModifiers.sol";
 
 
 
-contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, ReentrancyGuard {
+contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, IERC721Receiver, ReentrancyGuard {
 
     using Strings for string;
     
-    //uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
-    uint256 constant SECONDS_IN_1_DAY = 5*60;
+    uint256 constant SECONDS_IN_1_DAY = 24 * 60 * 60;
     
     struct FarmingInfo {
         address owner;
@@ -119,9 +120,19 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
 
     function stakePirate(address collectionAddress, uint256 tokenId) internal nonReentrant {
         require(farmingInfo[collectionAddress][tokenId].tokenId == 0, "Pirate is already staked");
-        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
-        require(nftContract.balanceOf(msg.sender, tokenId) > 0, "You do not own this pirate");
-        nftContract.safeTransferFrom(msg.sender, address(this), tokenId, 1, "");        
+        IStorageManagement storageManagement = getStorageManagement();
+        if (storageManagement.requiresOtherNFTForStorage(collectionAddress)) {
+            require(storageManagement.checkUserOwnsRequiredStorageNFT(msg.sender, collectionAddress, tokenId), "Caller does not own the required storage NFT");
+        }
+        if (isERC1155(collectionAddress)) {
+            IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            require(nftContract.balanceOf(msg.sender, tokenId) > 0, "You do not own this pirate");
+            nftContract.safeTransferFrom(msg.sender, address(this), tokenId, 1, "");
+        } else {
+            IERC721 nftContract = IERC721(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            require(nftContract.ownerOf(tokenId) == msg.sender, "You do not own this pirate");
+            nftContract.safeTransferFrom(msg.sender, address(this), tokenId);
+        }
     }
 
     function unstakePirate(address collectionAddress, uint256 tokenId) internal {
@@ -129,9 +140,13 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
         require(info.tokenId == tokenId, "This pirate is not staked by you");
         require(block.timestamp >= info.endTime, "Staking period not yet completed");
 
-        // Transfer the pirate NFT back to the owner
-        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
-        nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
+        if (isERC1155(collectionAddress)) {
+            IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
+        } else {
+            IERC721 nftContract = IERC721(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            nftContract.safeTransferFrom(address(this), msg.sender, tokenId);
+        }
 
         // Clear the staking information
         delete farmingInfo[collectionAddress][tokenId];
@@ -161,8 +176,13 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
         } else {
             // Verify that the token ID is already staked on this contract
             require(farmingInfo[collectionAddress][tokenId].tokenId == tokenId, "This pirate is not staked on this contract");
-            IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
-            require(nftContract.balanceOf(address(this), tokenId) > 0, "This pirate is not staked on this contract");
+            if (isERC1155(collectionAddress)) {
+                IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+                require(nftContract.balanceOf(address(this), tokenId) > 0, "This pirate is not staked on this contract");
+            } else {
+                IERC721 nftContract = IERC721(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+                require(nftContract.ownerOf(tokenId) == address(this), "This pirate is not staked on this contract");
+            }
             // Check if the previous pirate work has ended
             require(block.timestamp >= farmingInfo[collectionAddress][tokenId].endTime, "Previous pirate work has not ended yet");
         }
@@ -171,6 +191,7 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
 
         // Verify pirate's storage capacity
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, resource, startTime, endTime);
+        require(output > 0, string(abi.encodePacked("Pirate has no skills to farm ", resource)));
         require(storageManagement.checkStorageLimit(collectionAddress, tokenId, output), "Storage limit reached");
 
         // Store farming information
@@ -254,26 +275,36 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
         uint256 output = calculateResourceOutput(collectionAddress, tokenId, info.resource, info.startTime, info.endTime);
 
         IStorageManagement storageManagement = getStorageManagement();
+        address storageCollectionAddress = address(0);
+        uint256 storageTokenId = 0;
+        if (storageManagement.requiresOtherNFTForStorage(collectionAddress)) {            
+            (storageCollectionAddress, storageTokenId) = storageManagement.getAssignedStorage(collectionAddress, tokenId);
+        } else {
+            storageCollectionAddress = collectionAddress;
+            storageTokenId = tokenId;
+        }
+
         // Get current storage and storage limit
-        uint256 currentStorage = storageManagement.getTotalResourcesInStorage(collectionAddress, tokenId);
-        uint256 storageLimit = storageManagement.getStorageCapacity(collectionAddress, tokenId);
+        uint256 currentStorage = storageManagement.getTotalResourcesInStorage(storageCollectionAddress, storageTokenId);
+        uint256 storageLimit = storageManagement.getStorageCapacity(storageCollectionAddress, storageTokenId);
         
         // Calculate the amount that can be added without exceeding the storage limit
         uint256 availableStorage = storageLimit - currentStorage;
         uint256 amountToAdd = output > availableStorage ? availableStorage : output;
 
         // Add resources to pirate's storage
-        storageManagement.addResource(collectionAddress, tokenId, msg.sender, info.resource, amountToAdd);
+        storageManagement.addResource(storageCollectionAddress, storageTokenId, msg.sender, info.resource, amountToAdd);
 
         // Unstake the pirate
         if (!restakeParams.isSet) {
             unstakePirate(collectionAddress, tokenId);
             delete farmingInfo[collectionAddress][tokenId];
         } else {
+            require(address(centralAuthorizationRegistry.getPirateNftContract(collectionAddress)) != address(0), "Invalid collection address");
             _restakePirate(collectionAddress, tokenId, restakeParams, info);
         }
     }
-    function claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) public payable validPirateCollection(collectionAddress) nonReentrant {
+    function claimResourcePirate(address collectionAddress, uint256 tokenId, RestakeParams memory restakeParams) public payable nonReentrant {
         _claimResourcePirate(collectionAddress, tokenId, restakeParams);
     }
 
@@ -446,11 +477,23 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
         removeWorkingPirate(msg.sender, collectionAddress, tokenId);
 
         // Transfer the pirate NFT back to the owner
-        IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
-        nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
+        if (isERC1155(collectionAddress)) {
+            IERC1155 nftContract = IERC1155(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            nftContract.safeTransferFrom(address(this), msg.sender, tokenId, 1, "");
+        } else {
+            IERC721 nftContract = IERC721(centralAuthorizationRegistry.getPirateNftContract(collectionAddress));
+            nftContract.safeTransferFrom(address(this), msg.sender, tokenId);
+        }
     }
 
-    // IERC1155Receiver implementation
+    function isERC1155(address collectionAddress) internal view returns (bool) {
+        try IERC1155(collectionAddress).supportsInterface(type(IERC1155).interfaceId) returns (bool isSupported) {
+            return isSupported;
+        } catch {
+            return false;
+        }
+    }
+
     function onERC1155Received(address operator, address from, uint256 id, uint256 value, bytes calldata data) public returns (bytes4) {
         return this.onERC1155Received.selector;
     }
@@ -459,7 +502,13 @@ contract ResourceFarming is AuthorizationModifiers, IERC1155Receiver, Reentrancy
         return this.onERC1155BatchReceived.selector;
     }
 
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return interfaceId == type(IERC1155Receiver).interfaceId;
+    function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data) public override returns (bytes4) {
+        return this.onERC721Received.selector;
     }
+
+    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
+        return interfaceId == type(IERC1155Receiver).interfaceId || interfaceId == type(IERC721Receiver).interfaceId;
+    }
+
+  
 }

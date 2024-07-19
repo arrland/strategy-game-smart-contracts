@@ -77,31 +77,29 @@ contract IslandManagement is AuthorizationModifiers {
     }
 
     // Function to transfer resources to a specific island
-    function transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) internal {
+    function _transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) internal {
         require(islandNftContract.ownerOf(islandId) == user, "User does not own this island");
         IStorageManagement storageManagement = getStorageManagement();
         // Verify storage capacity
         require(storageManagement.getResourceBalance(pirateCollectionContract, pirateTokenId, resource) >= amount, "Not enough resources in pirate storage");    
         require(storageManagement.checkStorageLimit(address(islandNftContract), islandId, amount), "Insufficient storage capacity in island");
 
-        // Transfer resources (this would interact with the Resource Management Contract)
-        IResourceManagement resourceManagement = getResourceManagement();
-        address pirateStorageContract = storageManagement.getStorageByCollection(pirateCollectionContract);
-        address islandStorageContract = storageManagement.getStorageByCollection(address(islandNftContract));
-
-        // Validate if pirateStorage has enough amount to transfer
-        
-        resourceManagement.transferResource(
-            pirateStorageContract, 
+        storageManagement.transferResource(
+            pirateCollectionContract, 
             pirateTokenId, 
-            user, // fromOwner
-            islandStorageContract, 
+            user,
+            address(islandNftContract), 
             islandId, 
-            user, // toOwner
+            user,
             resource, 
             amount
         );
+        
         emit ResourceTransferredToIsland(user, islandId, resource, amount);
+    }
+
+    function transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) external onlyAuthorized() {
+        _transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, islandId, resource, amount);
     }
 
     // Function to transfer resources to the capital island
@@ -115,7 +113,7 @@ contract IslandManagement is AuthorizationModifiers {
         require(resourceFarming.farmingInfo(pirateCollectionContract, pirateTokenId).owner == user || IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0, "User does not own this pirate token");
 
         // Transfer resources (this would interact with the Resource Management Contract)
-        transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, capitalIslandId, resource, amount);
+        _transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, capitalIslandId, resource, amount);
         emit ResourceTransferredToCapital(user, capitalIslandId, resource, amount);
     }
 

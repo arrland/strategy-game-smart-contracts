@@ -12,10 +12,7 @@ contract ResourceManagement is AuthorizationModifiers {
 
     // Mapping to store resources for each token ID and owner
     mapping(address => mapping(uint256 => mapping(string => uint256))) public resources;
-    // List of all contract addresses that have been added
-    address[] public allContractAddresses;
-    // Mapping to check if a contract address has been added
-    mapping(address => bool) private contractAddressAdded;
+    
 
     event ResourceAdded(address indexed contractAddress, uint256 indexed tokenId, address indexed owner, string resource, uint256 amount);
     event ResourceTransferred(
@@ -47,10 +44,6 @@ contract ResourceManagement is AuthorizationModifiers {
         IResourceTypeManager resourceTypeManager = getResourceTypeManager();
         require(resourceTypeManager.isValidResourceType(resource), "Invalid resource name");
         resources[contractAddress][tokenId][resource] += amount;
-        if (!contractAddressAdded[contractAddress]) {
-            allContractAddresses.push(contractAddress);
-            contractAddressAdded[contractAddress] = true;
-        }
         emit ResourceAdded(contractAddress, tokenId, owner, resource, amount);
     }
     function transferResource(

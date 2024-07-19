@@ -295,4 +295,112 @@ describe("StorageManagement", function () {
             expect(storageAddresses[1]).to.equal(await islandStorage.getAddress());
         });
     });
+    describe("Assign Storage To Primary", function () {
+        it("Should assign storage to primary token", async function () {
+            // Assign storage to primary token using pirateStorage
+            await pirateStorage.connect(externalCaller).setRequiredStorage(true, genesisIslandsAddress);
+
+            const requiredStorageContract = await pirateStorage.getRequiredStorageContract();
+            expect(requiredStorageContract).to.equal(genesisIslandsAddress);
+            
+            await storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 2);
+
+            // Verify the storage assignment
+            const assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
+            expect(assignedStorageTokenId).to.equal(2);
+        });
+        it("Should assign storage 1155 to primary token", async function () {
+            // Assign storage to primary token using pirateStorage
+            const RequiredNFT1155 = await ethers.getContractFactory("SimpleERC1155");
+            const requiredNFT1155 = await RequiredNFT1155.deploy(admin.address, "https://ipfs.io/ipfs/");
+
+            const requiredNFT1155Address = await requiredNFT1155.getAddress();
+
+            await requiredNFT1155.connect(admin).mint(pirateOwner.address, 1);
+
+            await pirateStorage.connect(externalCaller).setRequiredStorage(true, requiredNFT1155Address);
+
+            const requiredStorageContract = await pirateStorage.getRequiredStorageContract();
+            expect(requiredStorageContract).to.equal(requiredNFT1155Address);
+            
+            await storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 1);
+
+            // Verify the storage assignment
+            const assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
+            expect(assignedStorageTokenId).to.equal(1);
+        });
+        
+        it("Should fail if caller does not own the primary token", async function () {
+            // Set required storage to true for pirateStorage
+            await pirateStorage.connect(externalCaller).setRequiredStorage(true, genesisIslandsAddress);
+
+            const requiredStorageContract = await pirateStorage.getRequiredStorageContract();
+            expect(requiredStorageContract).to.equal(genesisIslandsAddress);
+
+            // Try to assign storage to primary token with an unauthorized caller
+            await expect(
+                storageManagement.connect(addr2).assignStorageToPrimary(genesisPiratesAddress, 1, 2)
+            ).to.be.revertedWith("Caller does not own the 1155 token");
+        });
+        it("Should fail if storage does not require other NFT for storage", async function () {
+            // Set required storage to false for pirateStorage
+            await pirateStorage.connect(externalCaller).setRequiredStorage(false, genesisIslandsAddress);
+
+            const requiredStorage = await pirateStorage.requiresOtherNFTForStorage();
+            expect(requiredStorage).to.be.false;
+
+            // Try to assign storage to primary token when storage does not require other NFT for storage
+            await expect(
+                storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 2)
+            ).to.be.revertedWith("Storage does not require other NFT for storage");
+        });
+
+    it("Should unassign storage from primary token", async function () {
+        // Assign storage to primary token using pirateStorage
+        await pirateStorage.connect(externalCaller).setRequiredStorage(true, genesisIslandsAddress);
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 2);
+
+        // Verify the storage assignment
+        let assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
+        expect(assignedStorageTokenId).to.equal(2);
+
+        // Unassign storage from primary token
+        await storageManagement.connect(pirateOwner).unassignStorageFromPrimary(genesisPiratesAddress, 1);
+
+        // Verify the storage unassignment
+        assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
+        expect(assignedStorageTokenId).to.equal(0);
+    });
+
+    it("Should fail to unassign storage if caller does not own the primary token", async function () {
+        // Assign storage to primary token using pirateStorage
+        await pirateStorage.connect(externalCaller).setRequiredStorage(true, genesisIslandsAddress);
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 2);
+
+        // Verify the storage assignment
+        let assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
+        expect(assignedStorageTokenId).to.equal(2);
+
+        // Try to unassign storage from primary token with an unauthorized caller
+        await expect(
+            storageManagement.connect(addr2).unassignStorageFromPrimary(genesisPiratesAddress, 1)
+        ).to.be.revertedWith("Caller does not own the 1155 token");
+    });
+
+    it("Should fail to unassign storage if storage does not require other NFT for storage", async function () {
+        // Set required storage to false for pirateStorage
+        await pirateStorage.connect(externalCaller).setRequiredStorage(false, genesisIslandsAddress);
+
+        const requiredStorage = await pirateStorage.requiresOtherNFTForStorage();
+        expect(requiredStorage).to.be.false;
+
+        // Try to unassign storage from primary token when storage does not require other NFT for storage
+        await expect(
+            storageManagement.connect(pirateOwner).unassignStorageFromPrimary(genesisPiratesAddress, 1)
+        ).to.be.revertedWith("Storage does not require other NFT for storage");
+    });
+
+
+  
+    });
 });

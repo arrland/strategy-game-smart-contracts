@@ -61,6 +61,52 @@
         "internalType": "string",
         "name": "resource",
         "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "daysCount",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "resourcesProduced",
+        "type": "uint256"
+      }
+    ],
+    "name": "getResourceRequirementAmounts",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "resourceName",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "amount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isMandatory",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ResourceSpendManagement.ResourceRequirementAmount[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
       }
     ],
     "name": "getResourceRequirements",

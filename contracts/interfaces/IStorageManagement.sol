@@ -19,8 +19,12 @@ interface IStorageManagement {
     function getStorageByCollection(address collectionAddress) external view returns (address);
     function getAllStorageContracts() external view returns (address[] memory collectionAddresses, address[] memory storageAddresses);
     function getResourceBalance(address collectionAddress, uint256 tokenId, string memory resource) external view returns (uint256);
-    function getAllResourceBalances(address collectionAddress, uint256 tokenId) external view returns (string[] memory, uint256[] memory);
+    function getAllResourceBalances(address collectionAddress, uint256 tokenId) external view returns (string[] memory resourceTypes, uint256[] memory resourceBalances);
     function dumpResource(address collectionAddress, uint256 tokenId, string memory resource, uint256 amount) external;
     function getStorageDetails(address collectionAddress, uint256 tokenId) external view returns (uint256 totalResourcesInStorage, uint256 storageCapacity, string[] memory resourceTypes, uint256[] memory resourceBalances);
     function addResource(address collectionAddress, uint256 tokenId, address user, string memory resource, uint256 amount) external;
+    function transferResource(address fromCollection, uint256 fromTokenId, address fromOwner, address toCollection, uint256 toTokenId, address toOwner, string memory resource, uint256 amount) external;
+    function checkUserOwnsRequiredStorageNFT(address user, address collectionAddress, uint256 tokenId) external view returns (bool);
+    function requiresOtherNFTForStorage(address collectionAddress) external view returns (bool);
+    function getAssignedStorage(address collectionAddress, uint256 tokenId) external view returns (address, uint256);
 }

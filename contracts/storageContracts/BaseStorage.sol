@@ -3,24 +3,33 @@ pragma solidity ^0.8.25;
 
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-
+import "@openzeppelin/contracts/utils/Strings.sol";
 import "../AuthorizationModifiers.sol";
 import "../interfaces/IResourceManagement.sol";
 import "../interfaces/IStorageManagement.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
+import "hardhat/console.sol";
 
 abstract contract BaseStorage is AuthorizationModifiers {
+    using Strings for string;
+
     IERC721 public nftCollection721;
     IERC1155 public nftCollection1155;
     address public nftCollectionAddress;
     bool public isNft721;
+    bool public requiredStorage;
+    address public requiredStorageContract; // nft collecton 
 
     // Mapping from token ID to storage capacity
     mapping(uint256 => uint256) public storageCapacities;
 
+    // Mapping from primary token ID to storage token ID
+    mapping(address => mapping(uint256 => uint256)) public primaryToStorage;
+
     event StorageCapacityUpdated(uint256 indexed tokenId, uint256 newCapacity);
 
     constructor(address _centralAuthorizationRegistry, address _nftCollectionAddress, bool _isNft721, bytes32 _interfaceId) AuthorizationModifiers(_centralAuthorizationRegistry, _interfaceId) {        
-
         nftCollectionAddress = _nftCollectionAddress;
         isNft721 = _isNft721;
         if (isNft721) {
@@ -28,6 +37,40 @@ abstract contract BaseStorage is AuthorizationModifiers {
         } else {
             nftCollection1155 = IERC1155(_nftCollectionAddress);
         }
+        requiredStorage = false;
+        requiredStorageContract = address(0);
+    }
+
+    function _setRequiredStorage(bool _requiredStorage, address _requiredStorageContract) internal {
+        requiredStorage = _requiredStorage;
+        requiredStorageContract = _requiredStorageContract;
+    }
+    function setRequiredStorage(bool _requiredStorage, address _requiredStorageContract) external onlyAuthorized {
+        _setRequiredStorage(_requiredStorage, _requiredStorageContract);
+    }
+
+    function getRequiredStorageContract() external view returns (address) {
+        return requiredStorageContract;
+    }
+
+    function requiresOtherNFTForStorage() external view returns (bool) {
+        return requiredStorage;
+    }
+
+    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external onlyAuthorized {
+        primaryToStorage[primaryCollection][primaryTokenId] = storageTokenId;
+    }
+
+    function unassignStorageFromPrimary(address primaryCollection, uint256 primaryTokenId) external onlyAuthorized {
+        primaryToStorage[primaryCollection][primaryTokenId] = 0;
+    }
+
+    function isRequiredStorageAssigned(address primaryCollection, uint256 primaryTokenId) external view returns (bool) {
+        return primaryToStorage[primaryCollection][primaryTokenId] != 0;
+    }
+
+    function getAssignedStorage(address primaryCollection, uint256 primaryTokenId) external view returns (uint256) {
+        return primaryToStorage[primaryCollection][primaryTokenId];
     }
 
     function getResourceManagement() internal view returns (IResourceManagement) {
@@ -65,13 +108,36 @@ abstract contract BaseStorage is AuthorizationModifiers {
         resourceManagement.burnResource(address(this), tokenId, msg.sender, resource, amount);
     }
 
+    function transferResource(
+        uint256 fromTokenId,
+        address fromOwner,
+        uint256 toTokenId,
+        address toOwner,
+        address toStorageContract,
+        string memory resource,
+        uint256 amount
+    ) external virtual onlyAuthorized {
+        IResourceManagement resourceManagement = getResourceManagement();        
+        require(fromOwner != address(0) && toOwner != address(0), "Invalid token ownership");
+
+        resourceManagement.transferResource(
+            address(this),
+            fromTokenId,
+            fromOwner,
+            toStorageContract,
+            toTokenId,
+            toOwner,
+            resource,
+            amount
+        );
+    }
+
     function getAllResourceBalances(uint256 tokenId) external view virtual returns (string[] memory, uint256[] memory) {
         IResourceManagement resourceManagement = getResourceManagement();
         (string[] memory resourceNames, uint256[] memory resourceBalances) = resourceManagement.getAllResourceBalances(address(this), tokenId);
         return (resourceNames, resourceBalances);
     }
     
-
     function getStorageCapacity(uint256 tokenId) public view virtual returns (uint256) {
         return storageCapacities[tokenId];
     }
@@ -79,5 +145,31 @@ abstract contract BaseStorage is AuthorizationModifiers {
     function updateStorageCapacity(uint256 tokenId, uint256 newCapacity) external virtual onlyAuthorized {
         storageCapacities[tokenId] = newCapacity;
         emit StorageCapacityUpdated(tokenId, newCapacity);
+    }
+
+    function _isERC1155(address collectionAddress) internal view returns (bool) {
+        return IERC165(collectionAddress).supportsInterface(type(IERC1155).interfaceId);
+    }
+
+    function isERC1155(address collectionAddress) external view returns (bool) {
+        return _isERC1155(collectionAddress);
+    }
+
+    function _isERC721(address collectionAddress) internal view returns (bool) {
+        return IERC165(collectionAddress).supportsInterface(type(IERC721).interfaceId);
+    }
+
+    function isERC721(address collectionAddress) external view returns (bool) {
+        return _isERC721(collectionAddress);
+    }
+
+    function checkUserOwnsRequiredStorageNFT(address user, uint256 requiredStorageTokenId) external view returns (bool) {
+        if (_isERC1155(requiredStorageContract)) {
+            return IERC1155(requiredStorageContract).balanceOf(user, requiredStorageTokenId) > 0;
+        } else if (_isERC721(requiredStorageContract)) {
+            return IERC721(requiredStorageContract).ownerOf(requiredStorageTokenId) == user;
+        } else {
+            revert("Conntract is not ERC1155 or ERC721");
+        }
     }
 }

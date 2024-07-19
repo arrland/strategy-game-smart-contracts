@@ -94,6 +94,29 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "assignStorageToPrimary",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "centralAuthorizationRegistry",
     "outputs": [
@@ -101,6 +124,30 @@
         "internalType": "contract ICentralAuthorizationRegistry",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "requiredStorageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "checkUserOwnsRequiredStorageNFT",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
       }
     ],
     "stateMutability": "view",
@@ -153,6 +200,43 @@
         "internalType": "uint256[]",
         "name": "",
         "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAssignedStorage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getRequiredStorageContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -221,8 +305,70 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      }
+    ],
+    "name": "isERC1155",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      }
+    ],
+    "name": "isERC721",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "isNft721",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "isRequiredStorageAssigned",
     "outputs": [
       {
         "internalType": "bool",
@@ -276,11 +422,92 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "primaryToStorage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requiredStorage",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requiredStorageContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "requiresOtherNFTForStorage",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "_centralAuthorizationRegistry",
         "type": "address"
       }
     ],
     "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bool",
+        "name": "_requiredStorage",
+        "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "_requiredStorageContract",
+        "type": "address"
+      }
+    ],
+    "name": "setRequiredStorage",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -302,6 +529,67 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "fromTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "fromOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "toOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "toStorageContract",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "unassignStorageFromPrimary",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

@@ -3,6 +3,62 @@ const { ethers } = require("hardhat");
 const fs = require('fs');
 const path = require('path');
 
+async function updatePirateSkillsFromJSON(filePath, pirateManagement, admin, genesisPiratesAddress) {
+    const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+
+    for (const tokenSkillSet of data) {        
+        const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));            
+        const skills = tokenSkillSet.skills;
+        const characterSkills = {
+            strength: BigInt(skills.characterSkills.strength),
+            stamina: BigInt(skills.characterSkills.stamina),
+            swimming: BigInt(skills.characterSkills.swimming),
+            melee: BigInt(skills.characterSkills.melee),
+            shooting: BigInt(skills.characterSkills.shooting),
+            cannons: BigInt(skills.characterSkills.cannons),
+            agility: BigInt(skills.characterSkills.agility),
+            engineering: BigInt(skills.characterSkills.engineering),
+            wisdom: BigInt(skills.characterSkills.wisdom),
+            luck: BigInt(skills.characterSkills.luck),
+            health: BigInt(skills.characterSkills.health),
+            speed: BigInt(skills.characterSkills.speed)
+        };
+
+        const toolsSkills = {
+            harvest: BigInt(skills.toolsSkills.harvest),
+            mining: BigInt(skills.toolsSkills.mining),
+            quarrying: BigInt(skills.toolsSkills.quarrying),
+            excavation: BigInt(skills.toolsSkills.excavation),
+            husbandry: BigInt(skills.toolsSkills.husbandry),
+            woodcutting: BigInt(skills.toolsSkills.woodcutting),
+            slaughter: BigInt(skills.toolsSkills.slaughter),
+            hunting: BigInt(skills.toolsSkills.hunting),
+            cultivation: BigInt(skills.toolsSkills.cultivation)
+        };
+
+        const specialSkills = {
+            fruitPicking: BigInt(skills.specialSkills.fruitPicking),
+            fishing: BigInt(skills.specialSkills.fishing),
+            building: BigInt(skills.specialSkills.building),
+            crafting: BigInt(skills.specialSkills.crafting)
+        };
+
+        const pirateSkills = {
+            characterSkills: characterSkills,
+            toolsSkills: toolsSkills,
+            specialSkills: specialSkills,
+            added: true
+        };
+
+        for (const tokenId of tokenIds) {
+            await pirateManagement.connect(admin).batchUpdatePirateAttributes(
+                genesisPiratesAddress,
+                [{ tokenIds: [tokenId], skills: pirateSkills }]
+            );
+        }
+    }
+}
+
 describe("ResourceFarming", function () {
     let ResourceFarming, resourceFarming;
     let ResourceFarmingRules, resourceFarmingRules;
@@ -89,59 +145,9 @@ describe("ResourceFarming", function () {
 
         islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
  
-        const data = JSON.parse(fs.readFileSync(path.join(__dirname, '../scripts/pirate_skils_test.json'), "utf8"));
+        
 
-        for (const tokenSkillSet of data) {        
-            const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));            
-            const skills = tokenSkillSet.skills;
-            const characterSkills = {
-                strength: BigInt(skills.characterSkills.strength),
-                stamina: BigInt(skills.characterSkills.stamina),
-                swimming: BigInt(skills.characterSkills.swimming),
-                melee: BigInt(skills.characterSkills.melee),
-                shooting: BigInt(skills.characterSkills.shooting),
-                cannons: BigInt(skills.characterSkills.cannons),
-                agility: BigInt(skills.characterSkills.agility),
-                engineering: BigInt(skills.characterSkills.engineering),
-                wisdom: BigInt(skills.characterSkills.wisdom),
-                luck: BigInt(skills.characterSkills.luck),
-                health: BigInt(skills.characterSkills.health),
-                speed: BigInt(skills.characterSkills.speed)
-            };
-
-            const toolsSkills = {
-                harvest: BigInt(skills.toolsSkills.harvest),
-                mining: BigInt(skills.toolsSkills.mining),
-                quarrying: BigInt(skills.toolsSkills.quarrying),
-                excavation: BigInt(skills.toolsSkills.excavation),
-                husbandry: BigInt(skills.toolsSkills.husbandry),
-                woodcutting: BigInt(skills.toolsSkills.woodcutting),
-                slaughter: BigInt(skills.toolsSkills.slaughter),
-                hunting: BigInt(skills.toolsSkills.hunting),
-                cultivation: BigInt(skills.toolsSkills.cultivation)
-            };
-
-            const specialSkills = {
-                fruitPicking: BigInt(skills.specialSkills.fruitPicking),
-                fishing: BigInt(skills.specialSkills.fishing),
-                building: BigInt(skills.specialSkills.building),
-                crafting: BigInt(skills.specialSkills.crafting)
-            };
-
-            const pirateSkills = {
-                characterSkills: characterSkills,
-                toolsSkills: toolsSkills,
-                specialSkills: specialSkills,
-                added: true
-            };
-
-            for (const tokenId of tokenIds) {
-                await pirateManagement.connect(admin).batchUpdatePirateAttributes(
-                    genesisPiratesAddress,
-                    [{ tokenIds: [tokenId], skills: pirateSkills }]
-                );
-            }
-        }
+        await updatePirateSkillsFromJSON(path.join(__dirname, '../scripts/pirate_skils_test.json'), pirateManagement, admin, genesisPiratesAddress);
 
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
 
@@ -1067,5 +1073,112 @@ describe("ResourceFarming", function () {
         const isInPrevPeriod = await activityStats.isUserInPrevPeriod(pirateOwner.address);
         expect(isInPrevPeriod).to.be.true;
     });
+    it("should stake and unstake an NFT 721", async function () {
+        await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisIslandsAddress);
+  
+        await updatePirateSkillsFromJSON(path.join(__dirname, '../scripts/pirate_skils_test.json'), pirateManagement, admin, genesisIslandsAddress);
+
+        // Get the tokenId of the newly minted NFT
+        const tokenId = 1n;
+
+        // Approve the ResourceFarming contract to transfer the NFT
+        await islandNft.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Stake the NFT
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await islandNft.getAddress(),
+            tokenId,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Check if the NFT is staked
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await islandNft.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(tokenId);
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        // Unstake the NFT
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(await islandNft.getAddress(), tokenId, restakeParams))
+            .to.emit(resourceManagement, 'ResourceAdded');
+
+        // Check if the NFT is unstaked
+        const ownerOfToken = await islandNft.ownerOf(tokenId);
+        expect(ownerOfToken).to.equal(pirateOwner.address);
+    });
+
+    it("should farm with requiredStorageContract NFT", async function () {
+        await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisIslandsAddress);
+        await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
+
+        await updatePirateSkillsFromJSON(path.join(__dirname, '../scripts/pirate_skils_test.json'), pirateManagement, admin, genesisIslandsAddress);
+
+        // Get the tokenId of the newly minted NFT
+        const tokenId = 1n;
+        const storageTokenId = 3n;
+
+        // Approve the ResourceFarming contract to transfer the NFT
+        await islandNft.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        await islandStorage.connect(externalCaller).setRequiredStorage(true, await simpleERC1155.getAddress());
+        // Assign storage to primary NFT
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, storageTokenId);
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(await islandNft.getAddress(), tokenId, storageTokenId);
+
+        
+        // Stake the NFT with required storage contract
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await islandNft.getAddress(),
+            tokenId,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Check if the NFT is staked
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await islandNft.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(tokenId);
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        // Unstake the NFT
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(await islandNft.getAddress(), tokenId, restakeParams))
+            .to.emit(resourceManagement, 'ResourceAdded');
+
+        // Check if the NFT is unstaked
+        const ownerOfToken = await islandNft.ownerOf(tokenId);
+        expect(ownerOfToken).to.equal(pirateOwner.address);
+    });
+
 
 });
