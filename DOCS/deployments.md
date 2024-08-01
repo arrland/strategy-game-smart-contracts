@@ -15,7 +15,7 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **ResourceFarming**: 0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73
 - **IslandManagement**: 0xB9B5A7CBD982030c7C1D863608CCc70D6290F20e
 - **ActivityStats**: 0xf8d6F0bEfeA585d6A2a9f55F4a84E36Bd0268Fd1
-- **BatchFarmingInfo**: 0x85831486902abc905E8a39dCf9CADF7286a84900
+- **BatchFarmingInfo**: 0x5AE007084c18249A5dfe0529687d6deD2c837baB
 
 
 ## Mainnet Deployed Addresses
