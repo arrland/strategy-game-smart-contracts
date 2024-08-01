@@ -1,0 +1,92 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_resourceFarmingAddress",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "batchGetFarmingInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "totalToClaim",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "currentProduction",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "days_count",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "useRum",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "resource",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "resourceToBurn",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ResourceFarming.FarmingInfoDetails[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "resourceFarming",
+    "outputs": [
+      {
+        "internalType": "contract ResourceFarming",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

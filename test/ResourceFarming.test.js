@@ -1214,6 +1214,40 @@ describe("ResourceFarming", function () {
         const ownerOfToken = await islandNft.ownerOf(tokenId);
         expect(ownerOfToken).to.equal(pirateOwner.address);
     });
+    it("should return correct farming info details for batch of tokenIds", async function () {
+        // Deploy the BatchFarmingInfo contract
+        const BatchFarmingInfo = await ethers.getContractFactory("BatchFarmingInfo");
+        const batchFarmingInfo = await BatchFarmingInfo.deploy(await resourceFarming.getAddress());
+
+        // Mint multiple NFTs
+        const tokenIds = [1n, 2n, 3n];
+        for (const tokenId of tokenIds) {
+            await simpleERC1155.connect(admin).mint(pirateOwner.address, tokenId);            
+        }
+
+        // Approve the ResourceFarming contract to transfer the NFTs
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Stake the NFTs
+        for (const tokenId of tokenIds) {
+            await resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                tokenId,
+                "fish",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            );
+        }
+
+        // Get farming info details for the batch of tokenIds
+        const farmingInfoDetailsArray = await batchFarmingInfo.batchGetFarmingInfo(await simpleERC1155.getAddress(), tokenIds);
+        // Check if the farming info details are correct
+        expect(farmingInfoDetailsArray.length).to.equal(tokenIds.length);
+    });
+    
 
 
 });

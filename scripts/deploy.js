@@ -46,6 +46,15 @@ async function deployAndAuthorizeContract(contractName, centralAuthorizationRegi
 async function main() {
   const [admin] = await ethers.getSigners();
 
+  console.log("Deploying to network:", network.name);
+  console.log("Deployer address:", admin.address);
+
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  await sleep(5000);
+
   let admin_multi_sig, maticFeeRecipient, genesisPiratesAddress, genesisIslandsAddress, rumTokenAddress;
 
   let centralAuthorizationRegistry, lastRewardMintBlock, _blocks28Days;
@@ -59,14 +68,28 @@ async function main() {
     lastRewardMintBlock = 0;
     _blocks28Days = 100;
   } else {
-    maticFeeRecipient = "";
-    genesisPiratesAddress = "";
-    genesisIslandsAddress = "";
-    rumTokenAddress = "";
-    admin_multi_sig = "";
+    maticFeeRecipient = "0x0cEc288905316197bA3BBf2F19D94286d684fe43";
+    genesisPiratesAddress = "0x5e0a64e69ee74fbaed5e4ec4e4e40cb4a45e3b6c";
+    genesisIslandsAddress = "0xd861ae58f9f098ed0d6fe6347288ff26bda6aad1";
+    rumTokenAddress = "0x14e5386f47466a463f85d151653e1736c0c50fc3";
+    admin_multi_sig = "0x0cEc288905316197bA3BBf2F19D94286d684fe43";
     lastRewardMintBlock = 60862541;
     _blocks28Days = 41890 * 28;
+
+    // Add to .env file
+    const envVariables = `
+MATIC_FEE_RECIPIENT=${maticFeeRecipient}
+GENESIS_PIRATES_ADDRESS=${genesisPiratesAddress}
+GENESIS_ISLANDS_ADDRESS=${genesisIslandsAddress}
+RUM_TOKEN_ADDRESS=${rumTokenAddress}
+ADMIN_MULTI_SIG=${admin_multi_sig}
+LAST_REWARD_MINT_BLOCK=${lastRewardMintBlock}
+BLOCKS_28_DAYS=${_blocks28Days}`;
+
+    fs.appendFileSync('.env', envVariables);
   }
+
+  
 
   let centralAuthorizationRegistryAddress = "";
 
@@ -76,7 +99,7 @@ async function main() {
     await centralAuthorizationRegistry.initialize(admin_multi_sig);
     centralAuthorizationRegistryAddress = await centralAuthorizationRegistry.getAddress();
     await checkContractDeployed(centralAuthorizationRegistryAddress);
-    const envVariables = `CENTRAL_AUTHORIZATION_REGISTRY=${centralAuthorizationRegistryAddress}`;
+    const envVariables = `\nCENTRAL_AUTHORIZATION_REGISTRY=${centralAuthorizationRegistryAddress}`;
     fs.appendFileSync('.env', envVariables);
 
     console.log("CentralAuthorizationRegistry deployed at:", centralAuthorizationRegistryAddress);

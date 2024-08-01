@@ -22,12 +22,22 @@ async function main() {
 
     const data = JSON.parse(fs.readFileSync(path.join(__dirname, 'pirate_skills.json'), "utf8"));
 
+    // Define the range of token IDs to be updated
+    const startTokenId = 1;
+    const endTokenId = 400;
+
     const batchSize = 10;
     for (let i = 0; i < data.length; i += batchSize) {
         console.log(`Processing batch ${i / batchSize + 1} of ${Math.ceil(data.length / batchSize)}`);
         const batch = data.slice(i, i + batchSize);
         const batchUpdates = batch.map(tokenSkillSet => {
             const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));
+            // const tokenIds = tokenSkillSet.tokenIds
+            //     .map(id => parseInt(id))
+            //     .filter(id => id >= startTokenId && id <= endTokenId); // Filter token IDs within the range
+
+            // if (tokenIds.length === 0) return null; // Skip if no token IDs in range
+
             const skills = tokenSkillSet.skills;
 
             const characterSkills = {
@@ -72,7 +82,9 @@ async function main() {
             };
 
             return { tokenIds: tokenIds, skills: pirateSkills };
-        });
+        }).filter(update => update !== null); // Filter out null updates
+
+        if (batchUpdates.length === 0) continue; // Skip if no updates in this batch
 
         let retries = 0;
         while (retries < MAX_RETRIES) {
