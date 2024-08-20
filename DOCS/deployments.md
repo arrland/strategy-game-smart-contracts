@@ -35,3 +35,4 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **ResourceFarmingRules**: 0x3f91573fe369DAD2F40cBCF9f0D44c3d59Dcf233
 - **ResourceFarming**: 0x2B448C5218c3aABf8517B5B3DE54b0E817231daF
 - **ActivityStats**: 0x047A28670A824307bE2bFFE072246645dEFD5486
+- **BatchFarmingInfo**: 0x5FbDB2315678afecb367f032d93F642f64180aa3
