@@ -1,4 +1,5 @@
 const hre = require("hardhat");
+const { ethers, network } = require("hardhat");
 
 async function checkContractDeployed(tokenAddress) {
     let code = await ethers.provider.getCode(tokenAddress);
@@ -31,8 +32,6 @@ async function main() {
   // Deploy BatchFarmingInfo
   const BatchFarmingInfo = await ethers.getContractFactory("BatchFarmingInfo");
   const batchFarmingInfo = await BatchFarmingInfo.deploy(resourceFarmingAddress);
-
-  
 
   const batchFarmingInfoAddress = await batchFarmingInfo.getAddress();
   await checkContractDeployed(batchFarmingInfoAddress);
