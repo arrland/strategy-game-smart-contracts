@@ -69,7 +69,7 @@ contract PirateManagement is AuthorizationModifiers {
     mapping(address => mapping(uint256 => PirateSkills)) public updatedSkillSets;
     mapping(bytes32 => uint256) private skillSetHashes;
 
-    uint256 public nextSkillSetId;
+    uint256 public nextSkillSetId = 1; // Start from 1 to avoid confusion with default value 0
 
     constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IPirateManagement")) {                
     }
@@ -157,7 +157,7 @@ contract PirateManagement is AuthorizationModifiers {
             nextSkillSetId++;
             skillSetId = nextSkillSetId;
             skillSets[skillSetId] = newSkills;
-            skillSetHashes[hash_value] = skillSetId;
+            skillSetHashes[hash_value] = skillSetId;           
         }
 
         return skillSetId;

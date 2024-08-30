@@ -21,10 +21,6 @@ contract PirateStorage is BaseStorage {
         return capacity;
     }
 
-    function getResourceFarming() internal view returns (IResourceFarming) {        
-        return IResourceFarming(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarming")));
-    }
-
     function dumpResource(uint256 tokenId, address owner, string memory resource, uint256 amount) external override onlyAuthorized {
         IResourceFarming resourceFarming = getResourceFarming();
         if (isNft721) {            

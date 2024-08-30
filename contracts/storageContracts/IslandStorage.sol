@@ -8,7 +8,7 @@ import "hardhat/console.sol";
 contract IslandStorage is BaseStorage {
     using Strings for string;
 
-    enum IslandSize { Small, Medium, Large, Huge }
+    enum IslandSize { Small, Medium, Large, Huge, ExtraSmall }
 
     struct Island {
         IslandSize size;
@@ -17,15 +17,24 @@ contract IslandStorage is BaseStorage {
 
     mapping(uint256 => Island) public islands;
     mapping(IslandSize => uint256) public defaultCapacities;
+    mapping(IslandSize => uint256) public plotNumbers;
 
     constructor(address _centralAuthorizationRegistry, address _nftCollectionAddress, bool _isNft721) 
         BaseStorage(_centralAuthorizationRegistry, _nftCollectionAddress, _isNft721, keccak256("IIslandStorage")) {
 
-        defaultCapacities[IslandSize.Small] = (8 * 50)*10**18;
-        defaultCapacities[IslandSize.Medium] = (16 * 50)*10**18;
-        defaultCapacities[IslandSize.Large] = (32 * 50)*10**18;
-        defaultCapacities[IslandSize.Huge] = (64 * 50)*10**18;
+        plotNumbers[IslandSize.Small] = 8;
+        plotNumbers[IslandSize.Medium] = 24;
+        plotNumbers[IslandSize.Large] = 64;
+        plotNumbers[IslandSize.Huge] = 120;
+        plotNumbers[IslandSize.ExtraSmall] = 1;
 
+        defaultCapacities[IslandSize.Small] = (8 * 50)*10**18;
+        defaultCapacities[IslandSize.Medium] = (24 * 50)*10**18;
+        defaultCapacities[IslandSize.Large] = (64 * 50)*10**18;
+        defaultCapacities[IslandSize.Huge] = (120 * 50)*10**18;
+        defaultCapacities[IslandSize.ExtraSmall] = 50*10**18;
+
+        
     }
 
     function initializeIslands(uint8 part) external onlyAdmin {
@@ -70,19 +79,34 @@ contract IslandStorage is BaseStorage {
     }
 
     function getIslandSize(uint256 tokenId) public view returns (IslandSize) {
+        if (islands[tokenId].capacity == 0) {
+            return IslandSize.ExtraSmall;
+        }
         return islands[tokenId].size;
     }
 
     function getStorageCapacity(uint256 tokenId) public view override returns (uint256) {
+        if (islands[tokenId].capacity == 0) {
+            return defaultCapacities[IslandSize.ExtraSmall];
+        }
         return islands[tokenId].capacity;
+    }
+
+    function getPlotNumber(uint256 tokenId) public view returns (uint256) {
+        if (islands[tokenId].capacity == 0) {
+            return 1;
+        }
+        return plotNumbers[islands[tokenId].size];
     }
 
     function _batchSetIslandSize(uint256 startId, uint256 endId, IslandSize size) internal {
         require(startId <= endId, "Start ID must be less than or equal to End ID");
+
+        // Create the Island struct in memory
+        Island memory newIsland = Island(size, defaultCapacities[size]);
+
         for (uint256 tokenId = startId; tokenId <= endId; tokenId++) {
-            islands[tokenId] = Island(size, defaultCapacities[size]);   
-            require(islands[tokenId].capacity == defaultCapacities[size], "Capacity is not set correctly");
+            islands[tokenId] = newIsland; // Write the pre-constructed island to storage
         }
     }
 }
-

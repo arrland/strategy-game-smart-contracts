@@ -9,7 +9,7 @@ import "../interfaces/IResourceManagement.sol";
 import "../interfaces/IStorageManagement.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import "hardhat/console.sol";
+import "../interfaces/IResourceFarming.sol";
 
 abstract contract BaseStorage is AuthorizationModifiers {
     using Strings for string;
@@ -26,6 +26,8 @@ abstract contract BaseStorage is AuthorizationModifiers {
 
     // Mapping from primary token ID to storage token ID
     mapping(address => mapping(uint256 => uint256)) public primaryToStorage;
+
+    mapping(uint256 => uint256[]) public storageToPrimaryTokens;
 
     event StorageCapacityUpdated(uint256 indexed tokenId, uint256 newCapacity);
 
@@ -57,11 +59,11 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return requiredStorage;
     }
 
-    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external onlyAuthorized {
+    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external virtual onlyAuthorized {
         primaryToStorage[primaryCollection][primaryTokenId] = storageTokenId;
     }
 
-    function unassignStorageFromPrimary(address primaryCollection, uint256 primaryTokenId) external onlyAuthorized {
+    function unassignStorageFromPrimary(address primaryCollection, uint256 primaryTokenId) external virtual onlyAuthorized {
         primaryToStorage[primaryCollection][primaryTokenId] = 0;
     }
 
@@ -171,5 +173,13 @@ abstract contract BaseStorage is AuthorizationModifiers {
         } else {
             revert("Conntract is not ERC1155 or ERC721");
         }
+    }
+
+    function getPrimaryTokensForStorage(uint256 storageTokenId) external view returns (uint256[] memory) {
+        return storageToPrimaryTokens[storageTokenId];
+    }
+
+    function getResourceFarming() internal view returns (IResourceFarming) {        
+        return IResourceFarming(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarming")));
     }
 }

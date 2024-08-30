@@ -37,8 +37,7 @@ contract StorageManagement is AuthorizationModifiers {
         _addStorageContract(_genesisIslandsAddress, _islandStorage);        
     }
 
-    function _addStorageContract(address collectionAddress, address contractAddress) internal {
-        require(centralAuthorizationRegistry.isAuthorized(contractAddress), "Contract is not authorized");
+    function _addStorageContract(address collectionAddress, address contractAddress) internal {        
         storageContracts[collectionAddress] = BaseStorage(contractAddress);
         registeredStorageAddresses[contractAddress] = true;
         collectionAddresses.push(collectionAddress);
@@ -209,5 +208,10 @@ contract StorageManagement is AuthorizationModifiers {
         }
 
         storageContract.unassignStorageFromPrimary(primaryCollection, primaryTokenId);
+    }
+
+    function getPrimaryTokensForStorage(address primaryCollection, uint256 storageTokenId) public view returns (uint256[] memory) {
+        BaseStorage storageContract = storageContracts[primaryCollection];
+        return storageContract.getPrimaryTokensForStorage(storageTokenId);
     }
 }

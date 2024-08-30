@@ -19,19 +19,6 @@
     "type": "event"
   },
   {
-    "inputs": [],
-    "name": "INTERFACE_ID",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -80,19 +67,6 @@
     "name": "assignStorageToPrimary",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "centralAuthorizationRegistry",
-    "outputs": [
-      {
-        "internalType": "contract ICentralAuthorizationRegistry",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -190,25 +164,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "storageTokenId",
-        "type": "uint256"
-      }
-    ],
-    "name": "getPrimaryTokensForStorage",
-    "outputs": [
-      {
-        "internalType": "uint256[]",
-        "name": "",
-        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -407,12 +362,12 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "primaryCollection",
         "type": "address"
       },
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "primaryTokenId",
         "type": "uint256"
       }
     ],
@@ -469,19 +424,6 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_centralAuthorizationRegistry",
-        "type": "address"
-      }
-    ],
-    "name": "setCentralAuthorizationRegistry",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "bool",
         "name": "_requiredStorage",
         "type": "bool"
@@ -501,35 +443,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "tokenId",
         "type": "uint256"
       }
     ],
     "name": "storageCapacities",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "storageToPrimaryTokens",
     "outputs": [
       {
         "internalType": "uint256",
