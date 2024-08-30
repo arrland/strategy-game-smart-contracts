@@ -73,6 +73,7 @@ describe("ResourceFarming", function () {
     let genesisPiratesAddress, SimpleERC721, islandNft, islandStorage, islandManagement;
     let admin, user, pirateOwner, contractAddress1, contractAddress2, externalCaller, maticFeeRecipient;
     let genesisIslandsAddress;
+    let inhabitantStorage, inhabitantNFT, InhabitantsAddress, InhabitantNFT;
 
     async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
         const ContractFactory = await ethers.getContractFactory(contractName);
@@ -106,6 +107,13 @@ describe("ResourceFarming", function () {
         await islandNft.mint(pirateOwner.address);
         await islandNft.mint(pirateOwner.address);
 
+        InhabitantNFT = await ethers.getContractFactory("SimpleERC721");
+        inhabitantNFT = await InhabitantNFT.deploy("Inhabitant", "INH", "https://inhabitant.com/", admin.address);
+        InhabitantsAddress = await inhabitantNFT.getAddress();
+
+        await inhabitantNFT.mint(pirateOwner.address);
+        await inhabitantNFT.mint(pirateOwner.address);
+
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
         await centralAuthorizationRegistry.initialize(admin.address);
@@ -128,9 +136,10 @@ describe("ResourceFarming", function () {
 
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
         
-
-        await islandStorage.initializeIslands(1);        
-        await islandStorage.initializeIslands(13);
+        inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, genesisIslandsAddress);
+                
+        await islandStorage.initializeIslands(1, { gasLimit: 30000000 });        
+        await islandStorage.initializeIslands(13, { gasLimit: 30000000 });
         
         
         storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress());
@@ -145,14 +154,64 @@ describe("ResourceFarming", function () {
 
         islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
  
-        
-
         await updatePirateSkillsFromJSON(path.join(__dirname, '../scripts/pirate_skils_test.json'), pirateManagement, admin, genesisPiratesAddress);
+        await updatePirateSkillsFromJSON(path.join(__dirname, '../scripts/pirate_skils_test.json'), pirateManagement, admin, InhabitantsAddress);
 
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
+        await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(InhabitantsAddress);
 
         await rumToken.mint(pirateOwner.address, ethers.parseEther("10"));
 
+        storageManagement.addStorageContract(InhabitantsAddress, await inhabitantStorage.getAddress());
+
+        
+
+    });
+
+    it("should allow farming resources for an Inhabitant", async function () {
+        // Mint an Inhabitant NFT
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(InhabitantsAddress, 1, 1);
+        await inhabitantNFT.connect(admin).mint(pirateOwner.address);
+
+        // Approve the ResourceFarming contract to transfer the Inhabitant NFT
+        await inhabitantNFT.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Farm resources for the Inhabitant
+        await resourceFarming.connect(pirateOwner).farmResource(
+            await inhabitantNFT.getAddress(),
+            1,
+            "fish",
+            1, // 1 day later
+            false,
+            "",
+            false,
+            { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+        );
+
+        // Check if the Inhabitant is staked
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await inhabitantNFT.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        // Unstake the Inhabitant
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
+
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(await inhabitantNFT.getAddress(), 1, restakeParams))
+            .to.emit(resourceManagement, 'ResourceAdded');
+
+        // Check if the Inhabitant is unstaked
+        const ownerOfToken = await inhabitantNFT.ownerOf(1);
+        expect(ownerOfToken).to.equal(pirateOwner.address);
     });
 
     it("should stake a pirate with matic", async function () {

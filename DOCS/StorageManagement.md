@@ -97,5 +97,35 @@ The [StorageManagement](https://github.com/arrland/strategy-game-smart-contracts
       - [resourceBalances](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L67) (uint256[]): An array of balances corresponding to each resource type.
     - **Access**: Public.
 
+    13. **assignStorageToPrimary**
+    - **Description**: Assigns a storage token to a primary token in a collection.
+    - **Parameters**:
+      - [primaryCollection](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L21) (address): The address of the primary collection.
+      - [primaryTokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the primary token.
+      - [storageTokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the storage token.
+    - **Access**: Only callable by the owner of the primary token.
+
+    14. **getPrimaryTokensForStorage**
+    - **Description**: Retrieves all primary tokens assigned to a specific storage token.
+    - **Parameters**:
+      - [primaryCollection](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L21) (address): The address of the primary collection.
+      - [storageTokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the storage token.
+    - **Access**: Public.
+
+    15. **unassignStorageFromPrimary**
+    - **Description**: Unassigns a storage token from a primary token in a collection.
+    - **Parameters**:
+      - [primaryCollection](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L21) (address): The address of the primary collection.
+      - [primaryTokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the primary token.
+    - **Access**: Only callable by the owner of the primary token.
+    16. **getAssignedStorage**
+    - **Description**: Retrieves the storage token assigned to a primary token in a collection.
+    - **Parameters**:
+      - [primaryCollection](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L21) (address): The address of the primary collection.
+      - [primaryTokenId](https://github.com/arrland/strategy-game-smart-contracts/blob/main/contracts/StorageManagement.sol#L20) (uint256): The ID of the primary token.
+    - **Returns**: The ID of the storage token assigned to the primary token.
+    - **Access**: Public.
+
+
 
 
