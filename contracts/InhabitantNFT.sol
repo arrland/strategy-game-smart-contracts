@@ -41,6 +41,12 @@ contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessContro
         _safeMint(to, tokenId);        
     }
 
+    function safeMintMany(address to, uint256[] memory tokenIds) public onlyRole(MINTER_ROLE) {
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            safeMint(to, tokenIds[i]);
+        }
+    }
+
     function batchMint(address[] memory to, uint256[] memory tokenIds) public onlyRole(MINTER_ROLE) {
         require(to.length == tokenIds.length, "IslandNft: addresses and token IDs count mismatch");
         require(to.length > 0, "IslandNft: no addresses provided");
