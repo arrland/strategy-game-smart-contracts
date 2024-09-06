@@ -75,6 +75,22 @@ contract IslandManagement is AuthorizationModifiers {
         return IResourceFarming(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarming")));
     }
 
+    function _isERC1155(address collectionAddress) internal view returns (bool) {
+        return IERC165(collectionAddress).supportsInterface(type(IERC1155).interfaceId);
+    }
+
+    function isERC1155(address collectionAddress) external view returns (bool) {
+        return _isERC1155(collectionAddress);
+    }
+
+    function _isERC721(address collectionAddress) internal view returns (bool) {
+        return IERC165(collectionAddress).supportsInterface(type(IERC721).interfaceId);
+    }
+
+    function isERC721(address collectionAddress) external view returns (bool) {
+        return _isERC721(collectionAddress);
+    }
+
     // Function to transfer resources to a specific island
     function _transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) internal {
         require(islandNftContract.ownerOf(islandId) == user, "User does not own this island");
@@ -97,6 +113,8 @@ contract IslandManagement is AuthorizationModifiers {
         emit ResourceTransferredToIsland(user, islandId, resource, amount);
     }
 
+    
+
     function transferResourceToIsland(address user, address pirateCollectionContract, uint256 pirateTokenId, uint256 islandId, string memory resource, uint256 amount) external onlyAuthorized() {
         _transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, islandId, resource, amount);
     }
@@ -109,7 +127,7 @@ contract IslandManagement is AuthorizationModifiers {
 
         IResourceFarming resourceFarming = getResourceFarming();
         // Verify that user is the owner of pirateTokenId
-        require(resourceFarming.isPirateStakedByOwner(pirateCollectionContract, pirateTokenId, user) || IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0 || IERC721(pirateCollectionContract).ownerOf(pirateTokenId) == user, "User does not own this pirate token");
+        require(_isERC1155(pirateCollectionContract) && IERC1155(pirateCollectionContract).balanceOf(user, pirateTokenId) > 0 || _isERC721(pirateCollectionContract) && IERC721(pirateCollectionContract).ownerOf(pirateTokenId) == user || resourceFarming.isPirateStakedByOwner(pirateCollectionContract, pirateTokenId, user), "User does not own this pirate token");
 
         // Transfer resources (this would interact with the Resource Management Contract)
         _transferResourceToIsland(user, pirateCollectionContract, pirateTokenId, capitalIslandId, resource, amount);

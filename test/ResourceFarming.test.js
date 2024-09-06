@@ -75,21 +75,7 @@ describe("ResourceFarming", function () {
     let genesisIslandsAddress;
     let inhabitantStorage, inhabitantNFT, InhabitantsAddress, InhabitantNFT;
 
-    async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
-        const ContractFactory = await ethers.getContractFactory(contractName);
-        const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args);
-        const contractAddress = await contractInstance.getAddress();
-
-        try {
-            const interfaceId = await contractInstance.INTERFACE_ID(); // Correct property access
-            await centralAuthorizationRegistry.setContractAddress(interfaceId, contractAddress);
-        } catch (error) {
-            console.log("Contract already authorized");
-        }
-        await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
-
-        return contractInstance;
-    }
+    const { deployAndAuthorizeContract } = require('./utils');
 
     beforeEach(async function () {
         [admin, user, pirateOwner, contractAddress1, contractAddress2, externalCaller, maticFeeRecipient] = await ethers.getSigners();
@@ -111,6 +97,7 @@ describe("ResourceFarming", function () {
         inhabitantNFT = await InhabitantNFT.deploy("Inhabitant", "INH", "https://inhabitant.com/", admin.address);
         InhabitantsAddress = await inhabitantNFT.getAddress();
 
+        await inhabitantNFT.mint(pirateOwner.address);
         await inhabitantNFT.mint(pirateOwner.address);
         await inhabitantNFT.mint(pirateOwner.address);
 
@@ -213,6 +200,59 @@ describe("ResourceFarming", function () {
         const ownerOfToken = await inhabitantNFT.ownerOf(1);
         expect(ownerOfToken).to.equal(pirateOwner.address);
     });
+
+    it("should transfer resources to the capital island for an Inhabitant NFT", async function () {
+        // Mint an Inhabitant NFT to the pirateOwner
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(InhabitantsAddress, 1, 1);
+        await inhabitantNFT.connect(admin).mint(pirateOwner.address);
+
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(2);
+
+        // Add resources to the Inhabitant NFT storage
+        await storageManagement.connect(externalCaller).addResource(InhabitantsAddress, 1, pirateOwner.address, "wood", ethers.parseEther("10"));
+
+        // Transfer resources to the capital island
+        await expect(
+            islandManagement.connect(pirateOwner).transferResourceToCapital(
+                await inhabitantNFT.getAddress(),
+                1,
+                "wood",
+                ethers.parseEther("5")
+            )
+        ).to.emit(islandManagement, "ResourceTransferredToCapital");
+
+        // Check Inhabitant NFT storage balance after transfer
+        const inhabitantStorageBalanceAfter = await storageManagement.getResourceBalance(InhabitantsAddress, 1, "wood");
+        expect(inhabitantStorageBalanceAfter).to.equal(ethers.parseEther("5"));
+
+        // Check island storage balance after transfer
+        const islandStorageBalanceAfter = await storageManagement.getResourceBalance(genesisIslandsAddress, 1, "wood");
+        expect(islandStorageBalanceAfter).to.equal(ethers.parseEther("5"));
+    });
+
+    it("should get assigned pirates for user islands", async function () {
+        // Mint an Inhabitant NFT to the pirateOwner
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(InhabitantsAddress, 1, 1);
+        await inhabitantNFT.connect(admin).mint(pirateOwner.address);
+
+        // Set the capital island for the pirateOwner
+        await islandManagement.connect(pirateOwner).setCapitalIsland(2);
+
+        // Add resources to the Inhabitant NFT storage
+        await storageManagement.connect(externalCaller).addResource(InhabitantsAddress, 1, pirateOwner.address, "wood", ethers.parseEther("10"));
+
+        // Get assigned pirates for user islands
+        const assignedPirates = await storageManagement.getAllAssignedToStorage(pirateOwner.address, InhabitantsAddress, genesisIslandsAddress);        
+        expect(assignedPirates.length).to.equal(2);
+        expect(assignedPirates[0].storageTokenId).to.equal(1);
+        expect(assignedPirates[0].primaryTokens.length).to.equal(1);
+        expect(assignedPirates[0].primaryTokens[0]).to.equal(1);
+        expect(assignedPirates[1].storageTokenId).to.equal(2);
+        expect(assignedPirates[1].primaryTokens.length).to.equal(0);
+        
+    });
+
 
     it("should stake a pirate with matic", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
@@ -1023,7 +1063,6 @@ describe("ResourceFarming", function () {
         const resource = "wood";
         const amount = ethers.parseEther("1");
 
-    
         await islandManagement.connect(pirateOwner).transferResourceToCapital(
             await simpleERC1155.getAddress(),
             1,

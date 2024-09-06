@@ -6,6 +6,7 @@ import "./storageContracts/BaseStorage.sol";
 import "./AuthorizationModifiers.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC1155.sol";
+import "./interfaces/IIslandNft.sol";
 
 
 contract StorageManagement is AuthorizationModifiers {
@@ -19,6 +20,11 @@ contract StorageManagement is AuthorizationModifiers {
     uint256 public storageContractCount;
     // Mapping to track registered storage addresses
     mapping(address => bool) public registeredStorageAddresses;
+
+    struct StorageAssignment {
+        uint256 storageTokenId;
+        uint256[] primaryTokens;
+    }
 
     event StorageCapacityUpdated(address indexed contractAddress, uint256 indexed tokenId, uint256 newCapacity);
     event StorageContractAdded(address indexed collectionAddress, address indexed contractAddress);
@@ -193,7 +199,9 @@ contract StorageManagement is AuthorizationModifiers {
         } else {
             require(storageContract.nftCollection1155().balanceOf(msg.sender, primaryTokenId) > 0, "Caller does not own the 1155 token");
         }
-        require(storageContract.checkUserOwnsRequiredStorageNFT(msg.sender, storageTokenId), "Caller does not own the required storage NFT");
+        require(storageContract.checkUserOwnsRequiredStorageNFT(msg.sender, storageTokenId), "Caller does not own the required storage NFT");        
+        uint256 assignedStorageId = storageContract.getAssignedStorage(primaryCollection, primaryTokenId);
+        require(assignedStorageId != storageTokenId, "Storage is already assigned to a primary");        
         storageContract.assignStorageToPrimary(primaryCollection, primaryTokenId, storageTokenId);
     }
 
@@ -213,5 +221,17 @@ contract StorageManagement is AuthorizationModifiers {
     function getPrimaryTokensForStorage(address primaryCollection, uint256 storageTokenId) public view returns (uint256[] memory) {
         BaseStorage storageContract = storageContracts[primaryCollection];
         return storageContract.getPrimaryTokensForStorage(storageTokenId);
+    }
+
+    function getAllAssignedToStorage(address user, address piratesCollection, address islandCollection) public view returns (StorageAssignment[] memory) {
+        IIslandNft islandNFT = IIslandNft(islandCollection);
+        uint256 islandBalance = islandNFT.balanceOf(user);
+        StorageAssignment[] memory assigned = new StorageAssignment[](islandBalance);
+
+        for (uint256 i = 0; i < islandBalance; i++) {
+            uint256 islandTokenId = islandNFT.tokenOfOwnerByIndex(user, i);
+            assigned[i] = StorageAssignment(islandTokenId, getPrimaryTokensForStorage(piratesCollection, islandTokenId));
+        }
+        return assigned;
     }
 }

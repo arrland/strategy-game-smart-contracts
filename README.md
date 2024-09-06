@@ -52,6 +52,8 @@ To update pirate attributes using the provided script, follow these steps:
 2. **Run the Update Script**: Execute the update script using Hardhat:
     ```bash
     npx hardhat run scripts/updatePirates.js --network amoy
+
+    npx hardhat run scripts/updateInhabitants.js --network amoy
     ```
 
 Replace `<network_name>` with the appropriate network you are targeting (e.g., `amoy`, `polygon_mainnet`, etc.).

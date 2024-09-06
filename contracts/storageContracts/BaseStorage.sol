@@ -59,7 +59,7 @@ abstract contract BaseStorage is AuthorizationModifiers {
         return requiredStorage;
     }
 
-    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external virtual onlyAuthorized {
+    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external virtual onlyAuthorized {        
         primaryToStorage[primaryCollection][primaryTokenId] = storageTokenId;
     }
 
@@ -177,6 +177,10 @@ abstract contract BaseStorage is AuthorizationModifiers {
 
     function getPrimaryTokensForStorage(uint256 storageTokenId) external view returns (uint256[] memory) {
         return storageToPrimaryTokens[storageTokenId];
+    }
+
+    function isStorageAssignedToPrimary(address primaryCollection, uint256 primaryTokenId) external view returns (bool) {
+        return primaryToStorage[primaryCollection][primaryTokenId] != 0;
     }
 
     function getResourceFarming() internal view returns (IResourceFarming) {        

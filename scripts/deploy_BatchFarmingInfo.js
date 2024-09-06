@@ -2,6 +2,20 @@ const hre = require("hardhat");
 const { ethers, network } = require("hardhat");
 
 async function checkContractDeployed(tokenAddress) {
+  let code = await ethers.provider.getCode(tokenAddress);
+  
+  let count = 0;
+  while (code === '0x' && count < 36) {
+    await new Promise(resolve => setTimeout(resolve, 6000));
+    code = await ethers.provider.getCode(tokenAddress);
+    count++;
+  }
+  if (code === '0x') {
+    throw new Error("Contract deployment failed. No code at the given address after 180 seconds.");
+  }
+}
+
+async function checkContractDeployed(tokenAddress) {
     let code = await ethers.provider.getCode(tokenAddress);
     
     let count = 0;
@@ -39,7 +53,7 @@ async function main() {
 
   // Verify the contract on Etherscan
   // Note: This step is optional and only works if you've set up Etherscan API key in your Hardhat config
-  if (hre.network.name !== "hardhat" && hre.network.name !== "localhost") {
+  if (network.name !== "amoy") {
     await hre.run("verify:verify", {
       address: batchFarmingInfoAddress,
       constructorArguments: [resourceFarmingAddress],

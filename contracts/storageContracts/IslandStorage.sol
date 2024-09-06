@@ -22,10 +22,10 @@ contract IslandStorage is BaseStorage {
     constructor(address _centralAuthorizationRegistry, address _nftCollectionAddress, bool _isNft721) 
         BaseStorage(_centralAuthorizationRegistry, _nftCollectionAddress, _isNft721, keccak256("IIslandStorage")) {
 
-        plotNumbers[IslandSize.Small] = 8;
-        plotNumbers[IslandSize.Medium] = 24;
-        plotNumbers[IslandSize.Large] = 64;
-        plotNumbers[IslandSize.Huge] = 120;
+        plotNumbers[IslandSize.Small] = 6;
+        plotNumbers[IslandSize.Medium] = 14;
+        plotNumbers[IslandSize.Large] = 30;
+        plotNumbers[IslandSize.Huge] = 62;
         plotNumbers[IslandSize.ExtraSmall] = 1;
 
         defaultCapacities[IslandSize.Small] = (8 * 50)*10**18;

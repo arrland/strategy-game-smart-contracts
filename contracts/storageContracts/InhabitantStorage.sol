@@ -23,7 +23,8 @@ contract InhabitantStorage is BaseStorage {
         return capacity == 0 ? DEFAULT_STORAGE_CAPACITY : capacity;
     }
 
-    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external override onlyAuthorized {
+    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external override onlyAuthorized {        
+        require(_getPlotNumber(primaryTokenId) > storageToPrimaryTokens[storageTokenId].length, "Max storage assignments reached");
         primaryToStorage[primaryCollection][primaryTokenId] = storageTokenId;
         storageToPrimaryTokens[storageTokenId].push(primaryTokenId);
         emit StorageAssigned(primaryCollection, primaryTokenId, storageTokenId);
@@ -47,10 +48,14 @@ contract InhabitantStorage is BaseStorage {
         }
     }
 
+    function _getPlotNumber(uint256 storageTokenId) internal view returns (uint256) {
+        return IIslandStorage(getStorageManagement().getStorageByCollection(requiredStorageContract)).getPlotNumber(storageTokenId);
+    }
+
     function getMaxStorageAssignments(uint256 tokenId) external view returns (uint256) {    
         uint256 storageTokenId = _getAssignedStorage(tokenId);
         require(storageTokenId != 0, "No storage token assigned");
-        return IIslandStorage(getStorageManagement().getStorageByCollection(requiredStorageContract)).getPlotNumber(storageTokenId);
+        return _getPlotNumber(storageTokenId);
     }
 
     function dumpResource(uint256 tokenId, address owner, string memory resource, uint256 amount) external override onlyAuthorized {
@@ -82,7 +87,6 @@ contract InhabitantStorage is BaseStorage {
         uint256 amount
     ) external override onlyAuthorized {
         _checkOwnership(fromTokenId, fromOwner);
-        _checkOwnership(toTokenId, toOwner);
         uint256 fromStorageTokenId = _getAssignedStorage(fromTokenId);     
         require(fromStorageTokenId != 0, "No storage token assigned");   
         require(toStorageContract != address(this), "Cannot transfer to the same contract");

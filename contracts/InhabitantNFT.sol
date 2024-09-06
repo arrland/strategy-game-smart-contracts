@@ -17,7 +17,7 @@ contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessContro
         _grantRole(DEFAULT_ADMIN_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, defaultAdmin);
         _grantRole(MINTER_ROLE, _minter);
-        _currentBaseURI = "https://arrland-media.s3-eu-central-1.amazonaws.com/meta/citizens/l1/";
+        _currentBaseURI = "https://arrland-media.s3-eu-central-1.amazonaws.com/meta/inhabitants/";
         _setDefaultRoyalty(_royaltyRecipient, 500);
     }
 
@@ -31,6 +31,10 @@ contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessContro
 
     function setBaseURI(string memory newBaseURI) public onlyRole(DEFAULT_ADMIN_ROLE) {
         _currentBaseURI = newBaseURI;
+    }
+
+    function contractURI() public view returns (string memory) {
+        return string.concat(_baseURI(), "contract.json");
     }
 
     function safeMint(address to, uint256 tokenId) public onlyRole(MINTER_ROLE) {
