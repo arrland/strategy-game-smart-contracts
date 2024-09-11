@@ -376,6 +376,47 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "piratesCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "islandCollection",
+        "type": "address"
+      }
+    ],
+    "name": "getAllAssignedToStorage",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "storageTokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "primaryTokens",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct StorageManagement.StorageAssignment[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
