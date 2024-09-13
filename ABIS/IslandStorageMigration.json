@@ -25,6 +25,11 @@
         "internalType": "address",
         "name": "initialOwner",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_islandManagement",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -136,6 +141,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "islandManagement",
+    "outputs": [
+      {
+        "internalType": "contract IslandManagement",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address[]",
@@ -144,6 +162,24 @@
       }
     ],
     "name": "migrateAllOwners",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address[]",
+        "name": "users",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "ids",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "migrateCapitalIslands",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

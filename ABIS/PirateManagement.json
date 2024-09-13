@@ -227,6 +227,183 @@
         "type": "address"
       },
       {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "getManyPirateSkills",
+    "outputs": [
+      {
+        "components": [
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "strength",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "stamina",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "swimming",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "melee",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "shooting",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "cannons",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "agility",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "engineering",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "wisdom",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "luck",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "health",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "speed",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct PirateManagement.CharacterSkills",
+            "name": "characterSkills",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "harvest",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "mining",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "quarrying",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "excavation",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "husbandry",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "woodcutting",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "slaughter",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "hunting",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "cultivation",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct PirateManagement.ToolsSkills",
+            "name": "toolsSkills",
+            "type": "tuple"
+          },
+          {
+            "components": [
+              {
+                "internalType": "uint256",
+                "name": "fruitPicking",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "fishing",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "building",
+                "type": "uint256"
+              },
+              {
+                "internalType": "uint256",
+                "name": "crafting",
+                "type": "uint256"
+              }
+            ],
+            "internalType": "struct PirateManagement.SpecialSkills",
+            "name": "specialSkills",
+            "type": "tuple"
+          },
+          {
+            "internalType": "bool",
+            "name": "added",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct PirateManagement.PirateSkills[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"

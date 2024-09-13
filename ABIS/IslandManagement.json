@@ -271,6 +271,24 @@
   {
     "inputs": [
       {
+        "internalType": "address[]",
+        "name": "users",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "islandIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "setManyCapitalIslands",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "pirateCollectionContract",
         "type": "address"

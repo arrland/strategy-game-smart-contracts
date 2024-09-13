@@ -74,13 +74,25 @@ contract PirateManagement is AuthorizationModifiers {
     constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IPirateManagement")) {                
     }
 
-    function getPirateSkills(address collectionAddress, uint256 tokenId) external view returns (PirateSkills memory) {
+    function _getPirateSkills(address collectionAddress, uint256 tokenId) internal view returns (PirateSkills memory) {
         if (updatedSkillSets[collectionAddress][tokenId].added) {
             return updatedSkillSets[collectionAddress][tokenId];
         } else {
             uint256 skillSetId = pirateSkillSetIds[collectionAddress][tokenId];
             return skillSets[skillSetId];
         }
+    }
+
+    function getPirateSkills(address collectionAddress, uint256 tokenId) external view returns (PirateSkills memory) {
+        return _getPirateSkills(collectionAddress, tokenId);
+    }
+
+    function getManyPirateSkills(address collectionAddress, uint256[] calldata tokenIds) external view returns (PirateSkills[] memory) {
+        PirateSkills[] memory skills = new PirateSkills[](tokenIds.length);
+        for (uint256 i = 0; i < tokenIds.length; i++) {
+            skills[i] = _getPirateSkills(collectionAddress, tokenIds[i]);
+        }
+        return skills;
     }
 
     function batchUpdatePirateAttributes(address collectionAddress, TokenSkillSet[] calldata tokenSkillSets) external onlyAdmin {

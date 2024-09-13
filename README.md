@@ -41,6 +41,9 @@ To deploy the smart contracts on a testnet or mainnet, follow these steps:
 3. **Run Deployment Script**: Execute the deployment script using Hardhat:
     ```bash
     npx hardhat run scripts/deploy.js --network polygon_mainnet
+    
+    npx hardhat run scripts/deploy_InhabitantNFT.js --network polygon_mainnet
+
     ```
 
 ### Updating Pirate Attributes

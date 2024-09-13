@@ -5,11 +5,11 @@ pragma solidity ^0.8.25;
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
+import "@openzeppelin/contracts/access/extensions/AccessControlEnumerable.sol";
 import "@openzeppelin/contracts/token/common/ERC2981.sol";
 
 
-contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessControl, ERC2981 {
+contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessControlEnumerable, ERC2981 {
     bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
     string private _currentBaseURI;    
 
@@ -124,10 +124,19 @@ contract InhabitantNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessContro
         return uniqueOwners;
     }
 
+    function getRoleMembers(bytes32 role) public view returns (address[] memory) {
+        uint256 count = getRoleMemberCount(role);
+        address[] memory members = new address[](count);
+        for (uint256 i = 0; i < count; i++) {
+            members[i] = getRoleMember(role, i);
+        }
+        return members;
+    }
+
     function supportsInterface(bytes4 interfaceId)
         public
         view
-        override(ERC721, ERC721Enumerable, AccessControl, ERC2981)
+        override(ERC721, ERC721Enumerable, AccessControlEnumerable, ERC2981)
         returns (bool)
     {
         return super.supportsInterface(interfaceId);

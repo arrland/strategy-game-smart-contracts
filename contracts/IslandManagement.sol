@@ -53,17 +53,27 @@ contract IslandManagement is AuthorizationModifiers {
         return storageManagement.checkStorageLimit(address(islandNftContract), islandId, amount);
     }
 
+    function _setCapitalIsland(address user, uint256 islandId) internal {        
+        userCapitalIslands[user] = islandId;
+
+        if (!isUserInList[user]) {
+            usersWithCapitalIslands.push(user);
+            isUserInList[user] = true;
+        }
+    }
+
     // Function to set the capital island for a user
     function setCapitalIsland(uint256 islandId) public {
         require(islandNftContract.ownerOf(islandId) == msg.sender, "User does not own this island");
-        userCapitalIslands[msg.sender] = islandId;
-
-        if (!isUserInList[msg.sender]) {
-            usersWithCapitalIslands.push(msg.sender);
-            isUserInList[msg.sender] = true;
-        }
-
+        _setCapitalIsland(msg.sender, islandId);
         emit CapitalIslandSet(msg.sender, islandId);
+    }
+
+    function setManyCapitalIslands(address[] memory users, uint256[] memory islandIds) external onlyAuthorized() {
+        require(users.length == islandIds.length, "Users and islandIds arrays must have the same length");
+        for (uint256 i = 0; i < users.length; i++) {
+            _setCapitalIsland(users[i], islandIds[i]);
+        }
     }
 
     // Function to get the capital island of a user

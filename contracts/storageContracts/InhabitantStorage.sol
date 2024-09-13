@@ -24,7 +24,7 @@ contract InhabitantStorage is BaseStorage {
     }
 
     function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external override onlyAuthorized {        
-        require(_getPlotNumber(primaryTokenId) > storageToPrimaryTokens[storageTokenId].length, "Max storage assignments reached");
+        require(_getPlotNumber(storageTokenId) > storageToPrimaryTokens[storageTokenId].length, "Max storage assignments reached");
         primaryToStorage[primaryCollection][primaryTokenId] = storageTokenId;
         storageToPrimaryTokens[storageTokenId].push(primaryTokenId);
         emit StorageAssigned(primaryCollection, primaryTokenId, storageTokenId);
