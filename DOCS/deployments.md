@@ -3,7 +3,7 @@
 The following are the addresses of the deployed contracts on the Amoy testnet:
 
 - **CentralAuthorizationRegistry**: 0x99a764fd156083aA343e2577C348c8cF110C7141
-- **ResourceTypeManager**: 0xb5ad93f6301aE7060aB3D15EA94153689318E791
+- **ResourceTypeManager**: 0x826B8039A22A426Dc2cCd97dFd4890A0F6a3f2C3
 - **ResourceManagement**: 0x52b107ECd25148239A827FDE5b39246516825657
 - **FeeManagement**: 0x9f9582f104e352528BDd4B4af1CCe5577B5A9A2b
 - **PirateManagement**: 0xE7039a9e36f0facf3d9815564C3a5a97728E52DE
@@ -11,8 +11,8 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **InhabitantStorage**: 0x0f2c30DAA6ca392b6474E134384727D0bd256f51
 - **IslandStorage**: 0xd6D83A36a5feCd3C2Ca64f94dac1B431Bd9C6041
 - **StorageManagement**: 0xbEE6286A1edcBc10140199c151Ef850be3de2645
-- **ResourceSpendManagement**: 0x5AF9218612955F608Ee68c379721CE0226261db6
-- **ResourceFarmingRules**: 0x967fD50ed190Df9133Cf2027D8F1Fc6a1fCbb26B
+- **ResourceSpendManagement**: 0x1a8d3690E05B426bA13dFc648A8aBEA277A854Ea
+- **ResourceFarmingRules**: 0x8197cC6190C6457f9961A3F42a8A0cD1153Cba11
 - **ResourceFarming**: 0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73
 - **IslandManagement**: 0x326E6d79d2d1f9B9476da9863D65596Ca8A6515B
 - **ActivityStats**: 0xf8d6F0bEfeA585d6A2a9f55F4a84E36Bd0268Fd1

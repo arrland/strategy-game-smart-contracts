@@ -3,6 +3,11 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "_oldIslandStorage",
         "type": "address"
       },
@@ -13,17 +18,7 @@
       },
       {
         "internalType": "address",
-        "name": "_storageManagement",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
         "name": "_collectionAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "initialOwner",
         "type": "address"
       },
       {
@@ -34,28 +29,6 @@
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableInvalidOwner",
-    "type": "error"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      }
-    ],
-    "name": "OwnableUnauthorizedAccount",
-    "type": "error"
   },
   {
     "anonymous": false,
@@ -77,30 +50,37 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "previousOwner",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "newOwner",
-        "type": "address"
-      }
-    ],
-    "name": "OwnershipTransferred",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "CollectionAddress",
     "outputs": [
       {
         "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
         "name": "",
         "type": "address"
       }
@@ -256,47 +236,14 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "owner",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "renounceOwnership",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "storageManagement",
-    "outputs": [
-      {
-        "internalType": "contract StorageManagement",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
-        "name": "newOwner",
+        "name": "_centralAuthorizationRegistry",
         "type": "address"
       }
     ],
-    "name": "transferOwnership",
+    "name": "setCentralAuthorizationRegistry",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
