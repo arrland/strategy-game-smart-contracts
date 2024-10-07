@@ -8,15 +8,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "contracts/interfaces/storage/IIslandStorage.sol";
 import "contracts/interfaces/IIslandNft.sol";
 import "contracts/IslandManagement.sol";
+import "../interfaces/IResourceManagement.sol";
+import "../AuthorizationModifiers.sol";
 
 
-contract IslandStorageMigration is Ownable {
+contract IslandStorageMigration is AuthorizationModifiers {
     using Strings for string;
 
     BaseStorage public oldIslandStorage;
     BaseStorage public newIslandStorage;
-    address public CollectionAddress;
-    StorageManagement public storageManagement;
+    address public CollectionAddress;    
     IslandManagement public islandManagement;
     bool public migrationCompleted = false; // Flag to track if migration has been completed
     address[] public migratedOwners;
@@ -24,16 +25,14 @@ contract IslandStorageMigration is Ownable {
     event MigrationCompleted(address indexed owner, uint256 indexed tokenId);
 
     constructor(
+        address _centralAuthorizationRegistry,
         address _oldIslandStorage,
-        address _newIslandStorage,
-        address _storageManagement,
-        address _collectionAddress,
-        address initialOwner,
+        address _newIslandStorage,        
+        address _collectionAddress,        
         address _islandManagement
-    ) Ownable(initialOwner) {
+    ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IIslandStorageMigration")) {
         oldIslandStorage = BaseStorage(_oldIslandStorage);
-        newIslandStorage = BaseStorage(_newIslandStorage);
-        storageManagement = StorageManagement(_storageManagement);
+        newIslandStorage = BaseStorage(_newIslandStorage);        
         CollectionAddress = _collectionAddress;
         islandManagement = IslandManagement(_islandManagement);
     }
@@ -42,13 +41,19 @@ contract IslandStorageMigration is Ownable {
         return migratedOwners;
     }
 
+    function getResourceManagement() internal view returns (IResourceManagement) {
+        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
+    }
+
     function migrateTokenResources(uint256 tokenId, address owner) internal {
+        IResourceManagement resourceManagement = getResourceManagement();
         (string[] memory resourceTypes, uint256[] memory resourceBalances) = oldIslandStorage.getAllResourceBalances(tokenId);
 
         for (uint256 i = 0; i < resourceTypes.length; i++) {
             if (resourceBalances[i] > 0) {
                 newIslandStorage.addResource(tokenId, owner, resourceTypes[i], resourceBalances[i]);
-                oldIslandStorage.dumpResource(tokenId, owner, resourceTypes[i], resourceBalances[i]);
+                // use sender as owner to dump resources                
+                resourceManagement.burnResource(address(oldIslandStorage), tokenId, msg.sender, resourceTypes[i], resourceBalances[i]);
                 bool ownerExists = false;
                 for (uint256 j = 0; j < migratedOwners.length; j++) {
                     if (migratedOwners[j] == owner) {
@@ -75,7 +80,7 @@ contract IslandStorageMigration is Ownable {
         return tokenIds;
     }
 
-    function migrateOwnerTokens(address owner) public onlyOwner {
+    function migrateOwnerTokens(address owner) public onlyAdmin {
         require(!migrationCompleted, "Migration has already been completed");
         uint256[] memory tokenIds = getTokenIdsByOwner(owner);
 
@@ -84,19 +89,19 @@ contract IslandStorageMigration is Ownable {
         }
     }
 
-    function updateStorageManagement() public onlyOwner {
+    function updateStorageManagement() public onlyAdmin {
         require(!migrationCompleted, "Migration has already been completed");
         migrationCompleted = true;
     }
 
-    function migrateAllOwners(address[] memory owners) public onlyOwner {
+    function migrateAllOwners(address[] memory owners) public onlyAdmin {
         require(!migrationCompleted, "Migration has already been completed");
         for (uint256 i = 0; i < owners.length; i++) {
             migrateOwnerTokens(owners[i]);
         }
     }
 
-    function migrateCapitalIslands(address[] memory users, uint256[] memory ids) public onlyOwner {
+    function migrateCapitalIslands(address[] memory users, uint256[] memory ids) public onlyAdmin {
         require(!migrationCompleted, "Migration has already been completed");
         islandManagement.setManyCapitalIslands(users, ids);
     }

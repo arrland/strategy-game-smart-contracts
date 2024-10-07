@@ -10,6 +10,8 @@ import "./interfaces/IResourceTypeManager.sol";
 contract ResourceSpendManagement is AuthorizationModifiers {
     using Strings for string;
 
+    uint256 constant ONE_ETHER = 10**18;
+
     enum CalculationMethod { PerDay, Divide }
 
     struct ResourceAmount {
@@ -26,20 +28,135 @@ contract ResourceSpendManagement is AuthorizationModifiers {
     mapping(string => ResourceRequirement) internal resourceRequirements;
     mapping(string => bool) public resourcesRequiringBurn;
 
-    constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IResourceSpendManagement")) {    
-        // Setting resource requirements for "wood"
-        ResourceAmount[] memory woodOptional = new ResourceAmount[](2);
-        woodOptional[0] = ResourceAmount("fish", 1*10**18, CalculationMethod.PerDay);
-        woodOptional[1] = ResourceAmount("coconut", 2*10**18, CalculationMethod.PerDay);
-        _setResourceRequirements("wood", woodOptional, new ResourceAmount[](0));
+    // Define a struct to represent the tuple
+    struct ResourceTuple {
+        string resource;
+        uint256 amount;
+        CalculationMethod method;
+    }
 
-        // Setting resource requirements for "planks"
-        ResourceAmount[] memory planksOptional = new ResourceAmount[](2);
-        planksOptional[0] = ResourceAmount("fish", 1*10**18, CalculationMethod.PerDay);
-        planksOptional[1] = ResourceAmount("coconut", 2*10**18, CalculationMethod.PerDay);
-        ResourceAmount[] memory planksMandatory = new ResourceAmount[](1);
-        planksMandatory[0] = ResourceAmount("wood", 2*10**18, CalculationMethod.Divide);
-        _setResourceRequirements("planks", planksOptional, planksMandatory);
+    constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IResourceSpendManagement")) {    
+        _initializeResourceRequirements();
+    }
+
+    function _initializeResourceRequirements() internal {
+        ResourceTuple[] memory higherFoodResources = new ResourceTuple[](5);
+        higherFoodResources[0] = ResourceTuple("fish", ONE_ETHER, CalculationMethod.PerDay);
+        higherFoodResources[1] = ResourceTuple("coconut", 2 * ONE_ETHER, CalculationMethod.PerDay);
+        higherFoodResources[2] = ResourceTuple("meat", ONE_ETHER / 2, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
+        higherFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
+        higherFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 200, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
+
+        ResourceTuple[] memory lowerFoodResources = new ResourceTuple[](5);
+        lowerFoodResources[0] = ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay);  
+        lowerFoodResources[1] = ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
+        lowerFoodResources[2] = ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay); // 0.25 * ONE_ETHER
+        lowerFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
+        lowerFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay); // 0.0001 * ONE_ETHER
+
+
+        ResourceTuple[] memory planksMandatoryResources = new ResourceTuple[](1);
+        planksMandatoryResources[0] = ResourceTuple("wood", 2 * 10**18, CalculationMethod.Divide);
+
+        ResourceTuple[] memory crateMandatoryResources = new ResourceTuple[](1);
+        crateMandatoryResources[0] = ResourceTuple("planks", 2 * 10**18, CalculationMethod.Divide);
+
+        ResourceTuple[] memory barrelMandatoryResources = new ResourceTuple[](1);
+        barrelMandatoryResources[0] = ResourceTuple("planks", 4 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory cottonMandatoryResources = new ResourceTuple[](1);
+        cottonMandatoryResources[0] = ResourceTuple("cotton", 1 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory bagPackedTobaccoMandatoryResources = new ResourceTuple[](2);
+        bagPackedTobaccoMandatoryResources[0] = ResourceTuple("tobacco", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        bagPackedTobaccoMandatoryResources[1] = ResourceTuple("bags", 1 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory bagPackedGrainMandatoryResources = new ResourceTuple[](2);
+        bagPackedGrainMandatoryResources[0] = ResourceTuple("grain", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        bagPackedGrainMandatoryResources[1] = ResourceTuple("bags", 1 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory bagPackedCottonMandatoryResources = new ResourceTuple[](2);
+        bagPackedCottonMandatoryResources[0] = ResourceTuple("cotton", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        bagPackedCottonMandatoryResources[1] = ResourceTuple("bags", 1 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory bagPackedSugarcaneMandatoryResources = new ResourceTuple[](2);
+        bagPackedSugarcaneMandatoryResources[0] = ResourceTuple("sugarcane", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        bagPackedSugarcaneMandatoryResources[1] = ResourceTuple("bags", 1 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory pigMandatoryResources = new ResourceTuple[](1);
+        pigMandatoryResources[0] = ResourceTuple("bag-packed grain", ONE_ETHER / 1000, CalculationMethod.PerDay); // 0.001 * ONE_ETHER
+
+        ResourceTuple[] memory wildGameMandatoryResources = new ResourceTuple[](1);
+        wildGameMandatoryResources[0] = ResourceTuple("bag-packed tobacco", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
+
+        ResourceTuple[] memory coconutLiquorMandatoryResources = new ResourceTuple[](2);
+        coconutLiquorMandatoryResources[0] = ResourceTuple("bag-packed sugarcane", 25 * ONE_ETHER, CalculationMethod.Divide);
+        coconutLiquorMandatoryResources[1] = ResourceTuple("bag-packed coconut", 100 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory meatMandatoryResources = new ResourceTuple[](2);
+        meatMandatoryResources[0] = ResourceTuple("pig", ONE_ETHER / 50, CalculationMethod.Divide); // 0.02 * ONE_ETHER
+        meatMandatoryResources[1] = ResourceTuple("wild game", ONE_ETHER / 50, CalculationMethod.Divide); // 0.02 * ONE_ETHER
+
+        ResourceTuple[] memory barrelPackedFishMandatoryResources = new ResourceTuple[](3);
+        barrelPackedFishMandatoryResources[0] = ResourceTuple("barrels", ONE_ETHER, CalculationMethod.Divide);
+        barrelPackedFishMandatoryResources[1] = ResourceTuple("fish", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        barrelPackedFishMandatoryResources[2] = ResourceTuple("crate-packed citrus", 10 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory barrelPackedMeatMandatoryResources = new ResourceTuple[](3);
+        barrelPackedMeatMandatoryResources[0] = ResourceTuple("barrels", ONE_ETHER, CalculationMethod.Divide);
+        barrelPackedMeatMandatoryResources[1] = ResourceTuple("meat", ONE_ETHER / 100, CalculationMethod.Divide); // 0.01 * ONE_ETHER
+        barrelPackedMeatMandatoryResources[2] = ResourceTuple("crate-packed citrus", 10 * ONE_ETHER, CalculationMethod.Divide);
+
+        ResourceTuple[] memory cratePackedCitrusMandatoryResources = new ResourceTuple[](2);
+        cratePackedCitrusMandatoryResources[0] = ResourceTuple("crates", ONE_ETHER, CalculationMethod.Divide);
+        cratePackedCitrusMandatoryResources[1] = ResourceTuple("citrus", ONE_ETHER / 50, CalculationMethod.Divide); // 0.02 * ONE_ETHER
+
+        ResourceTuple[] memory cratePackedCoconutsMandatoryResources = new ResourceTuple[](2);
+        cratePackedCoconutsMandatoryResources[0] = ResourceTuple("crates", ONE_ETHER, CalculationMethod.Divide);
+        cratePackedCoconutsMandatoryResources[1] = ResourceTuple("coconut", ONE_ETHER / 25, CalculationMethod.Divide); // 0.04 * ONE_ETHER
+
+
+        _setResourceRequirements("planks", _createResourceAmounts(higherFoodResources), _createResourceAmounts(planksMandatoryResources));
+
+        _setResourceRequirements("wood", _createResourceAmounts(higherFoodResources), new ResourceAmount[](0));
+
+        _setResourceRequirements("crates", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(crateMandatoryResources));
+
+        _setResourceRequirements("barrels", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(barrelMandatoryResources));
+
+        _setResourceRequirements("bags", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(cottonMandatoryResources));
+
+        _setResourceRequirements("bag-packed tobacco", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(bagPackedTobaccoMandatoryResources));
+
+        _setResourceRequirements("bag-packed grain", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(bagPackedGrainMandatoryResources));
+
+        _setResourceRequirements("bag-packed cotton", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(bagPackedCottonMandatoryResources));
+
+        _setResourceRequirements("bag-packed sugarcane", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(bagPackedSugarcaneMandatoryResources));
+
+        _setResourceRequirements("pig", new ResourceAmount[](0), _createResourceAmounts(pigMandatoryResources));
+
+        _setResourceRequirements("wild game", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(wildGameMandatoryResources));
+
+        _setResourceRequirements("coconut liquor", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(coconutLiquorMandatoryResources));
+
+        _setResourceRequirements("meat", _createResourceAmounts(meatMandatoryResources), new ResourceAmount[](0));
+
+        _setResourceRequirements("barrel-packed fish", new ResourceAmount[](0), _createResourceAmounts(barrelPackedFishMandatoryResources));
+
+        _setResourceRequirements("barrel-packed meat", new ResourceAmount[](0), _createResourceAmounts(barrelPackedMeatMandatoryResources));
+
+        _setResourceRequirements("crate-packed citrus", new ResourceAmount[](0), _createResourceAmounts(cratePackedCitrusMandatoryResources));
+
+        _setResourceRequirements("crate-packed coconuts", new ResourceAmount[](0), _createResourceAmounts(cratePackedCoconutsMandatoryResources));
+    }
+
+    function _createResourceAmounts(ResourceTuple[] memory resources) internal pure returns (ResourceAmount[] memory) {
+        ResourceAmount[] memory resourceAmounts = new ResourceAmount[](resources.length);
+        for (uint256 i = 0; i < resources.length; i++) {
+            resourceAmounts[i] = ResourceAmount(resources[i].resource, resources[i].amount, resources[i].method);
+        }
+        return resourceAmounts;
     }
 
     function getResourceTypeManager() internal view returns (IResourceTypeManager) {

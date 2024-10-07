@@ -59,7 +59,9 @@ describe("ResourceManagement", function () {
         await resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "silver", 200);
         const [resourceNames, resourceBalances] = await resourceManagement.getAllResourceBalances(contractAddress1.address, 1);
         expect(resourceNames).to.include.members(["gold", "silver"]);
-        expect(resourceBalances).to.deep.equal([0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 100n, 200n]);
+        expect(resourceBalances).to.deep.equal([
+            0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 0n, 100n, 200n
+        ]);
     });
 
     it("should return total resources in storage", async function () {

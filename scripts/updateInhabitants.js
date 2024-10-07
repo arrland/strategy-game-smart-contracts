@@ -1,6 +1,9 @@
 const { ethers } = require("hardhat");
 const fs = require("fs");
+const path = require('path');
+const { log } = require("console");
 
+const BATCH_SIZE = 2; // Reduced batch size to fit within transaction limits
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000; // 5 seconds
 
@@ -39,29 +42,30 @@ async function main() {
 
     let collectionAddress;
     if (network.name === "amoy") {
-        collectionAddress = "0xbCab2d7264B555227e3B6C1eF686C5FCA3863942"; // Replace with your collection address
+        collectionAddress = "0xFBD5F4Db158125ee6FC69E44CAd77AA01c348654";
     } else {
-        collectionAddress = "0x5e0a64e69ee74fbaed5e4ec4e4e40cb4a45e3b6c";
+        collectionAddress = "0xa1B3Afc3e025C617BAc5BF89ed259FDb789d506C";
     }
 
-    let data = JSON.parse(fs.readFileSync("/Users/dominik/blockchain/strategy-game-smart-contracts/scripts/pirate_skills.json", "utf8"));
+    let data;
+    data = JSON.parse(fs.readFileSync("ihabitants_skills.json", "utf8"));
 
+    // Define the range of token IDs to be updated
     const specificTokenIds = [];
+
     if (specificTokenIds.length > 0) {
+        // Filter the data to include only the specific token IDs
         data = data.filter(tokenSkillSet => {
             const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));
             return tokenIds.some(id => specificTokenIds.includes(id));
         });
     }
 
-    const batchSize = 10;
-    for (let i = 0; i < data.length; i += batchSize) {
-        const batch_nr = i / batchSize + 1;
-        console.log(`Processing batch ${batch_nr} of ${Math.ceil(data.length / batchSize)}`);
-        const batch = data.slice(i, i + batchSize);
+    for (let i = 0; i < data.length; i += BATCH_SIZE) {
+        console.log(`Processing batch ${i / BATCH_SIZE + 1} of ${Math.ceil(data.length / BATCH_SIZE)}`);
+        const batch = data.slice(i, i + BATCH_SIZE);
         const batchUpdates = batch.map(tokenSkillSet => {
             const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));
-
             const skills = tokenSkillSet.skills;
 
             const characterSkills = {
@@ -108,17 +112,47 @@ async function main() {
             return { tokenIds: tokenIds, skills: pirateSkills };
         }).filter(update => update !== null); // Filter out null updates
 
-        if (batchUpdates.length === 0) {
+        const batchUpdatesWithBatches = [];
+        for (const update of batchUpdates) {
+            const tokenIds = update.tokenIds;
+            const skills = update.skills;
+            const batchSize = 500;
+            for (let j = 0; j < tokenIds.length; j += batchSize) {
+                const tokenBatch = tokenIds.slice(j, j + batchSize);
+                batchUpdatesWithBatches.push({ tokenIds: tokenBatch, skills: skills });
+            }
+        }
+
+        if (batchUpdatesWithBatches.length === 0) {
             throw new Error("No updates in this batch");
         }
 
-        try {
-            await batchUpdateWithRetry(pirateManagement, deployer, collectionAddress, batchUpdates);
-        } catch (error) {
-            console.error(`Failed to update batch ${batch_nr}:`, error);
+        for (const batchUpdate of batchUpdatesWithBatches) {
+            console.log(`Batch Update ${batchUpdatesWithBatches.indexOf(batchUpdate) + 1} out of ${batchUpdatesWithBatches.length}`);
+
+            const logDir = path.join(__dirname, 'logs');
+            if (!fs.existsSync(logDir)) {
+                fs.mkdirSync(logDir);
+            }
+            const logFilePath = path.join(logDir, `added_token_ids_${collectionAddress}.txt`);
+    
+            const addedTokenIds = fs.readFileSync(logFilePath, "utf8").split(',').map(id => parseInt(id.trim()));
+            batchUpdate.tokenIds = batchUpdate.tokenIds.filter(id => !addedTokenIds.includes(id));
+            if (batchUpdate.tokenIds.length === 0) {
+                console.log("No new token IDs to update");
+                continue;
+            }
+            const tx = await pirateManagement.connect(deployer).batchUpdatePirateAttributes(
+                collectionAddress,
+                [batchUpdate]
+            );
+            console.log(`Transaction ID: ${tx.hash}`);
+            const updatedTokenIds = batchUpdate.tokenIds.map(id => id.toString()).join(',');
+            fs.appendFileSync(logFilePath, updatedTokenIds + ',');
+            await tx.wait(); // Wait until the transaction is confirmed
         }
 
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        await new Promise(resolve => setTimeout(resolve, 1000));
     }
 
     console.log("All pirate attributes updated successfully");

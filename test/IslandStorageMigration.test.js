@@ -24,7 +24,7 @@ describe("IslandStorageMigration", function () {
     let StorageManagement, storageManagement;
     let IslandNft, islandNft;
     let admin, owner1, owner2, externalCaller;
-    let genesisPiratesAddress, SimpleERC1155, simpleERC1155, resourceManagement, resourceTypeManager
+    let genesisPiratesAddress, SimpleERC1155, simpleERC1155, resourceManagement, resourceTypeManager, islandManagement
 
     beforeEach(async function () {
         [admin, owner1, owner2, externalCaller] = await ethers.getSigners();
@@ -51,6 +51,8 @@ describe("IslandStorageMigration", function () {
 
         const genesisIslandsAddress = await islandNft.getAddress();
 
+        islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
+
         // Deploy the old and new IslandStorage contracts
         OldIslandStorage = await ethers.getContractFactory("IslandStorage");
         oldIslandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
@@ -73,11 +75,11 @@ describe("IslandStorageMigration", function () {
         // Deploy the IslandStorageMigration contract
         IslandStorageMigration = await ethers.getContractFactory("IslandStorageMigration");
         islandStorageMigration = await IslandStorageMigration.deploy(
+            await centralAuthorizationRegistry.getAddress(),
             await oldIslandStorage.getAddress(),
             await newIslandStorage.getAddress(),
-            await storageManagement.getAddress(),
-            await islandNft.getAddress(),
-            admin.address
+            await islandNft.getAddress(),            
+            await islandManagement.getAddress()
         );
 
         await centralAuthorizationRegistry.grantRole(await centralAuthorizationRegistry.ADMIN_ROLE(), await islandStorageMigration.getAddress());

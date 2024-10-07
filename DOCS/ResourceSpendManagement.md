@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `ResourceSpendManagement` contract is designed to manage the requirements and burning of resources within a system. It extends the `AuthorizationModifiers` contract to ensure that only authorized entities can interact with its functions.
+The `ResourceSpendManagement` contract manages resource requirements and burning within the system. It extends `AuthorizationModifiers` to ensure only authorized entities can interact with its functions.
 
 ## Prerequisites
 
@@ -17,90 +17,160 @@ The `ResourceSpendManagement` contract is designed to manage the requirements an
 
 ### Enums
 
-- `CalculationMethod`: Defines the method of calculation for resource amounts.
-  - `PerDay`: Calculation based on a per-day rate.
-  - `Divide`: Calculation based on division of produced resources.
+- `CalculationMethod`: Defines resource amount calculation method.
+  - `PerDay`: Based on a per-day rate.
+  - `Divide`: Based on division of produced resources.
 
 ### Structs
 
-- `ResourceAmount`: Represents an amount of a specific resource.
-  - `string resource`: The name of the resource.
-  - `uint256 amount`: The amount of the resource.
-  - `CalculationMethod method`: The method used to calculate the resource amount.
+- `ResourceAmount`: Represents a resource amount.
+  - `string resource`: Resource name.
+  - `uint256 amount`: Resource amount.
+  - `CalculationMethod method`: Calculation method.
 
-- `ResourceRequirement`: Represents the requirements for a resource.
-  - `ResourceAmount[] optionalResources`: Optional resources required.
-  - `ResourceAmount[] mandatoryResources`: Mandatory resources required.
+- `ResourceRequirement`: Represents resource requirements.
+  - `ResourceAmount[] optionalResources`: Optional resources.
+  - `ResourceAmount[] mandatoryResources`: Mandatory resources.
 
-- `ResourceRequirementAmount`: Represents the amount of a resource required.
-  - `string resourceName`: The name of the resource.
-  - `uint256 amount`: The amount required.
-  - `bool isMandatory`: Indicates if the resource is mandatory.
+- `ResourceRequirementAmount`: Represents required resource amount.
+  - `string resourceName`: Resource name.
+  - `uint256 amount`: Required amount.
+  - `bool isMandatory`: Mandatory flag.
 
 ### State Variables
 
-- `mapping(string => ResourceRequirement) internal resourceRequirements`: Stores the resource requirements.
+- `mapping(string => ResourceRequirement) internal resourceRequirements`: Stores resource requirements.
 - `mapping(string => bool) public resourcesRequiringBurn`: Indicates if a resource requires burning.
 
 ### Constructor
 
-- `constructor(address _centralAuthorizationRegistry)`: Initializes the contract with the central authorization registry address and sets initial resource requirements for "wood" and "planks".
+- `constructor(address _centralAuthorizationRegistry)`: Initializes the contract.
 
 ### Internal Functions
 
-- `getResourceTypeManager() internal view returns (IResourceTypeManager)`: Retrieves the resource type manager contract.
-- `_setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) internal validResourceName(resource)`: Sets the resource requirements for a given resource.
-- `_calculateRequiredAmount(ResourceAmount memory resourceAmount, uint256 daysCount, uint256 resourcesProduced) internal pure returns (uint256)`: Calculates the required amount of a resource based on the calculation method.
-- `_burnRequiredResources(address storageContract, uint256 tokenId, address user, string memory resource, string[] memory resourcesToBurn, uint256 daysCount, uint256 resourcesProduced) internal`: Burns the required resources for a given resource.
+- `getResourceTypeManager() internal view returns (IResourceTypeManager)`: Gets resource type manager contract.
+- `_setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) internal validResourceName(resource)`: Sets resource requirements.
+- `_calculateRequiredAmount(ResourceAmount memory resourceAmount, uint256 daysCount, uint256 resourcesProduced) internal pure returns (uint256)`: Calculates required resource amount.
+- `_burnRequiredResources(address storageContract, uint256 tokenId, address user, string memory resource, string[] memory resourcesToBurn, uint256 daysCount, uint256 resourcesProduced) internal`: Burns required resources.
 
 ### Modifiers
 
-- `validResourceName(string memory resource)`: Ensures the resource name is valid by checking with the resource type manager.
+- `validResourceName(string memory resource)`: Ensures valid resource name.
 
 ### Public Functions
 
-- `setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) public onlyAdmin validResourceName(resource)`:
-  - Description: Sets the resource requirements for a given resource.
-  - Parameters:
-    - `resource`: The name of the resource.
-    - `optionalResources`: An array of optional resources required.
-    - `mandatoryResources`: An array of mandatory resources required.
+- `setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) public onlyAdmin validResourceName(resource)`: Sets resource requirements.
+- `getResourceRequirements(string memory resource) public view returns (ResourceRequirement memory)`: Gets resource requirements.
+- `getResourceRequirementAmounts(string memory resource, uint256 daysCount, uint256 resourcesProduced) public view returns (ResourceRequirementAmount[] memory)`: Gets required resource amounts.
+- `doesResourceRequireBurning(string memory resource) public view returns (bool)`: Checks if resource requires burning.
+- `handleResourceBurning(address storageContract, uint256 tokenId, address user, string memory resource, uint256 daysCount, uint256 resourcesProduced, string[] memory resourcesToBurn) external onlyAuthorized()`: Handles resource burning.
 
-- `getResourceRequirements(string memory resource) public view returns (ResourceRequirement memory)`:
-  - Description: Retrieves the resource requirements for a given resource.
-  - Parameters:
-    - `resource`: The name of the resource.
-  - Returns: The resource requirements.
+## Resource Spend Rules
 
-- `getResourceRequirementAmounts(string memory resource, uint256 daysCount, uint256 resourcesProduced) public view returns (ResourceRequirementAmount[] memory)`:
-  - Description: Retrieves the amounts of resources required for a given resource.
-  - Parameters:
-    - `resource`: The name of the resource.
-    - `daysCount`: The number of days.
-    - `resourcesProduced`: The amount of resources produced.
-  - Returns: An array of resource requirement amounts.
+1. Planks
+   - Optional: Higher Food Resources
+   - Mandatory: Wood: 2 ONE_ETHER (Divide)
 
-- `doesResourceRequireBurning(string memory resource) public view returns (bool)`:
-  - Description: Checks if a resource requires burning.
-  - Parameters:
-    - `resource`: The name of the resource.
-  - Returns: `true` if the resource requires burning, otherwise `false`.
+2. Wood
+   - Optional: Higher Food Resources
+   - Mandatory: None
 
-- `handleResourceBurning(address storageContract, uint256 tokenId, address user, string memory resource, uint256 daysCount, uint256 resourcesProduced, string[] memory resourcesToBurn) external onlyAuthorized()`:
-  - Description: Handles the burning of required resources for a given resource.
-  - Parameters:
-    - `storageContract`: The address of the storage contract.
-    - `tokenId`: The token ID.
-    - `user`: The address of the user.
-    - `resource`: The name of the resource.
-    - `daysCount`: The number of days.
-    - `resourcesProduced`: The amount of resources produced.
-    - `resourcesToBurn`: An array of resources to burn.
+3. Crates
+   - Optional: Lower Food Resources
+   - Mandatory: Planks: 2 ONE_ETHER (Divide)
 
-## Usage
+4. Barrels
+   - Optional: Lower Food Resources
+   - Mandatory: Planks: 4 ONE_ETHER (Divide)
 
-1. **Setting Resource Requirements**: Use `setResourceRequirements` to define the optional and mandatory resources required for a specific resource.
-2. **Getting Resource Requirements**: Use `getResourceRequirements` to retrieve the requirements for a specific resource.
-3. **Calculating Resource Amounts**: Use `getResourceRequirementAmounts` to calculate the amounts of resources required based on the number of days and resources produced.
-4. **Burning Resources**: Use `handleResourceBurning` to burn the required resources for a specific resource.
+5. Bags
+   - Optional: Lower Food Resources
+   - Mandatory: Cotton: 1 ONE_ETHER (Divide)
 
+6. Bag-packed Tobacco
+   - Optional: Lower Food Resources
+   - Mandatory:
+     - Tobacco: 0.01 ONE_ETHER (Divide)
+     - Bags: 1 ONE_ETHER (Divide)
+
+7. Bag-packed Grain
+   - Optional: Lower Food Resources
+   - Mandatory:
+     - Grain: 0.01 ONE_ETHER (Divide)
+     - Bags: 1 ONE_ETHER (Divide)
+
+8. Bag-packed Cotton
+   - Optional: Lower Food Resources
+   - Mandatory:
+     - Cotton: 0.01 ONE_ETHER (Divide)
+     - Bags: 1 ONE_ETHER (Divide)
+
+9. Bag-packed Sugarcane
+   - Optional: Lower Food Resources
+   - Mandatory:
+     - Sugarcane: 0.01 ONE_ETHER (Divide)
+     - Bags: 1 ONE_ETHER (Divide)
+
+10. Pig
+    - Optional: None
+    - Mandatory: Bag-packed grain: 0.001 ONE_ETHER (PerDay)
+
+11. Wild Game
+    - Optional: Lower Food Resources
+    - Mandatory: Bag-packed tobacco: 0.01 ONE_ETHER (PerDay)
+
+12. Coconut Liquor
+    - Optional: Lower Food Resources
+    - Mandatory:
+      - Bag-packed sugarcane: 25 ONE_ETHER (Divide)
+      - Bag-packed coconut: 100 ONE_ETHER (Divide)
+
+13. Meat
+    - Optional: None
+    - Mandatory:
+      - Pig: 0.02 ONE_ETHER (Divide)
+      - Wild game: 0.02 ONE_ETHER (Divide)
+
+14. Barrel-packed Fish
+    - Optional: None
+    - Mandatory:
+      - Barrels: 1 ONE_ETHER (Divide)
+      - Fish: 0.01 ONE_ETHER (Divide)
+      - Crate-packed citrus: 10 ONE_ETHER (Divide)
+
+15. Barrel-packed Meat
+    - Optional: None
+    - Mandatory:
+      - Barrels: 1 ONE_ETHER (Divide)
+      - Meat: 0.01 ONE_ETHER (Divide)
+      - Crate-packed citrus: 10 ONE_ETHER (Divide)
+
+16. Crate-packed Citrus
+    - Optional: None
+    - Mandatory:
+      - Crates: 1 ONE_ETHER (Divide)
+      - Citrus: 0.02 ONE_ETHER (Divide)
+
+17. Crate-packed Coconuts
+    - Optional: None
+    - Mandatory:
+      - Crates: 1 ONE_ETHER (Divide)
+      - Coconut: 0.04 ONE_ETHER (Divide)
+
+### Food Resources
+
+Higher Food Resources:
+- Fish: 1 ONE_ETHER (PerDay)
+- Coconut: 2 ONE_ETHER (PerDay)
+- Meat: 0.5 ONE_ETHER (PerDay)
+- Barrel-packed fish: 0.01 ONE_ETHER (PerDay)
+- Barrel-packed meat: 0.005 ONE_ETHER (PerDay)
+
+Lower Food Resources:
+- Coconut: 1 ONE_ETHER (PerDay)
+- Fish: 0.5 ONE_ETHER (PerDay)
+- Meat: 0.25 ONE_ETHER (PerDay)
+- Barrel-packed fish: 0.005 ONE_ETHER (PerDay)
+- Barrel-packed meat: 0.0001 ONE_ETHER (PerDay)
+
+These rules define the resources required to produce each type, with some being optional and others mandatory.

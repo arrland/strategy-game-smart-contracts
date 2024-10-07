@@ -152,16 +152,16 @@ describe("ResourceFarmingRules", function () {
     it("should calculate resource output for wood when woodcutting skill is zero", async function () {
         const pirateSkills = {
             characterSkills: {
-                strength: 0n,
+                strength: 3n*10n**18n,
                 stamina: 0n,
                 swimming: 0n,
-                melee: 4n*10n**18n,
+                melee: 0n,
                 shooting: 0n,
                 cannons: 0n,
                 agility: 0n,
                 engineering: 0n,
                 wisdom: 0n,
-                luck: 0n,
+                luck: 2n*10n**18n,
                 health: 0n,
                 speed: 0n
             },
@@ -188,9 +188,9 @@ describe("ResourceFarmingRules", function () {
         const resource = "wood";
         const durationSeconds = 86400n; // 1 day
 
-        await expect(resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds))
-            .to.be.revertedWith('Pirate does not have woodcutting tool');
-        
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
+        console.log("Output per day for wood without woodcutting skill:", Number(output)/10**18);
+        expect(output).to.equal(166666666666666666n); // (3 + 2) / 30 = 0.1666... * 10**18
     });
     it("should calculate resource output for citrus", async function () {
         const pirateSkills = {

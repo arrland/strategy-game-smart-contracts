@@ -30,9 +30,9 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **ResourceTypeManager**: 0x0234DDf078c9D3BF23e4Ca30E13FA73ec4acf255
 - **ResourceManagement**: 0x526edD73D8f331f7469b36E8485FcE643b09bACB
 - **FeeManagement**: 0xA4C960945F5fa18409D3e52692e10AE408d4AaC2
-- **PirateManagement**: 0x5AD5fDda0Eb4Cc6847286490467cdf31aDd4d6F5
+- **PirateManagement**: 0x490b32F2Ee77F733F8a143deD9fB1bD8715Af86F
 - **PirateStorage**: 0xC617FE2c8B4C0dF871E07b3796Fda41BD0996E7C
-- **IslandStorage**: 0xAeB73203c0b648F143C1234b0b62906519b98aD5
+- **IslandStorage**: 0x5112435C6f6a9Bb10925BCaE523A7E758e45eF2B
 - **IslandManagement**: 0xa28F15cf6F9E616A8870563325A47765B92a0290
 - **InhabitantStorage**: 0xa02cc67D253B22473f5c2cC5E9f5B83eCEc53f7E
 - **StorageManagement**: 0xcb38d3AcC98a4B60dA5a51ab80A9ecF1d150ae09
@@ -41,3 +41,4 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **ResourceFarming**: 0x2B448C5218c3aABf8517B5B3DE54b0E817231daF
 - **ActivityStats**: 0x047A28670A824307bE2bFFE072246645dEFD5486
 - **BatchFarmingInfo**: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+

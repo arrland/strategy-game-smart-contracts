@@ -31,6 +31,20 @@ contract ResourceTypeManager is AuthorizationModifiers {
         _addResourceType("sugarcane", true, true);
         _addResourceType("grain", true, true);
         _addResourceType("planks", true, true);
+        _addResourceType("meat", true, true); // New resource type
+        _addResourceType("barrel-packed fish", true, true); // New resource type
+        _addResourceType("barrel-packed meat", true, true); // New resource type
+        _addResourceType("crates", true, true); // New resource type
+        _addResourceType("barrels", true, true); // New resource type
+        _addResourceType("bags", true, true); // New resource type
+        _addResourceType("bag-packed tobacco", true, true); // New resource type
+        _addResourceType("bag-packed grain", true, true); // New resource type
+        _addResourceType("bag-packed cotton", true, true); // New resource type
+        _addResourceType("bag-packed sugarcane", true, true); // New resource type
+        _addResourceType("wild game", true, true); // New resource type
+        _addResourceType("coconut liquor", true, true); // New resource type
+        _addResourceType("crate-packed citrus", true, true); // New resource type
+        _addResourceType("crate-packed coconuts", true, true); // New resource type
     }
 
     function addResourceType(

@@ -5,8 +5,10 @@ require("@openzeppelin/hardhat-upgrades");
 require('dotenv').config();
 require("hardhat-gas-reporter");
 
+if (!process.env.LOCAL_TEST) {
+  require("@secrez/cryptoenv").parse();
+}
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
 const POLYGON_RPC = process.env.POLYGON_RPC;
 const POLYGON_AMAY_RPC = process.env.POLYGON_AMAY_RPC;
@@ -22,15 +24,14 @@ module.exports = {
       gas: 30000000
     },
     // Configuration for the Polygon Mainnet
-    polygon_mainnet: {
+    polygon: {
       url: POLYGON_RPC,
-      accounts: [PRIVATE_KEY],
+      accounts: process.env.PRIVATE_KEY_POLYGON ? [process.env.PRIVATE_KEY_POLYGON] : [],
       chainId: 137,
     },
-    // Configuration for the Mumbai Testnet
     amoy: {
       url: POLYGON_AMAY_RPC,
-      accounts: [PRIVATE_KEY],
+      accounts: process.env.PRIVATE_KEY_AMAY ? [process.env.PRIVATE_KEY_AMAY] : [],
       chainId: 80002,
     },
   },

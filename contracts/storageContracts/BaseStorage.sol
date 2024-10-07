@@ -107,7 +107,7 @@ abstract contract BaseStorage is AuthorizationModifiers {
             require(nftCollection1155.balanceOf(owner, tokenId) > 0, "Caller does not own the 1155 token");
         }
         IResourceManagement resourceManagement = getResourceManagement();
-        resourceManagement.burnResource(address(this), tokenId, msg.sender, resource, amount);
+        resourceManagement.burnResource(address(this), tokenId, owner, resource, amount);
     }
 
     function transferResource(
