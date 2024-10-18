@@ -1,22 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { deployAndAuthorizeContract } = require("./utils");
 
-
-async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
-    const ContractFactory = await ethers.getContractFactory(contractName);
-    const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args);
-    const contractAddress = await contractInstance.getAddress();
-
-    try {
-        const interfaceId = await contractInstance.INTERFACE_ID(); // Correct property access
-        await centralAuthorizationRegistry.setContractAddress(interfaceId, contractAddress);
-    } catch (error) {
-        console.log("Contract already authorized");
-    }
-    await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
-
-    return contractInstance;
-}
 
 describe("StorageManagement", function () {
     let StorageManagement, storageManagement;
@@ -399,6 +384,11 @@ describe("StorageManagement", function () {
         await expect(
             storageManagement.connect(pirateOwner).unassignStorageFromPrimary(genesisPiratesAddress, 1)
         ).to.be.revertedWith("Storage does not require other NFT for storage");
+    });
+
+    it("Should get collection address by storage contract", async function () {
+        const collectionAddress = await storageManagement.getCollectionAddressByStorageContract(await pirateStorage.getAddress());
+        expect(collectionAddress).to.equal(genesisPiratesAddress);
     });
 
 

@@ -3,16 +3,16 @@
 The following are the addresses of the deployed contracts on the Amoy testnet:
 
 - **CentralAuthorizationRegistry**: 0x99a764fd156083aA343e2577C348c8cF110C7141
-- **ResourceTypeManager**: 0x826B8039A22A426Dc2cCd97dFd4890A0F6a3f2C3
+- **ResourceTypeManager**: 0x9366618E944434B9C0A0Ec5B2569F533cF0d4E6C
 - **ResourceManagement**: 0x52b107ECd25148239A827FDE5b39246516825657
 - **FeeManagement**: 0x9f9582f104e352528BDd4B4af1CCe5577B5A9A2b
 - **PirateManagement**: 0xE7039a9e36f0facf3d9815564C3a5a97728E52DE
 - **PirateStorage**: 0xE218A366e07a358Cf7782641E6CE7a7920C10A90
 - **InhabitantStorage**: 0x0f2c30DAA6ca392b6474E134384727D0bd256f51
 - **IslandStorage**: 0xd6D83A36a5feCd3C2Ca64f94dac1B431Bd9C6041
-- **StorageManagement**: 0xbEE6286A1edcBc10140199c151Ef850be3de2645
-- **ResourceSpendManagement**: 0x1a8d3690E05B426bA13dFc648A8aBEA277A854Ea
-- **ResourceFarmingRules**: 0x8197cC6190C6457f9961A3F42a8A0cD1153Cba11
+- **StorageManagement**: 0x6e176218274A7Ef9Fe1B2a3BC040DC6798841EFB
+- **ResourceSpendManagement**: 0x342D94118505E9dd1036e781A27B526dC3387CAb
+- **ResourceFarmingRules**: 0x5711f2B0EB7bd611fc025A2800c59eDBeB042D82
 - **ResourceFarming**: 0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73
 - **IslandManagement**: 0x326E6d79d2d1f9B9476da9863D65596Ca8A6515B
 - **ActivityStats**: 0xf8d6F0bEfeA585d6A2a9f55F4a84E36Bd0268Fd1
@@ -21,13 +21,12 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **GENESIS_PIRATES_COLLECTION_ADDRESS**: 0xbCab2d7264B555227e3B6C1eF686C5FCA3863942
 - **INHABITANTS_COLLECTION_ADDRESS**: 0xFBD5F4Db158125ee6FC69E44CAd77AA01c348654
 
-
 ## Mainnet Deployed Addresses
 
 The following are the addresses of the deployed contracts on the Mainnet:
 
 - **CentralAuthorizationRegistry**: 0xdAf8728C9eD7CBCCf8E24226B0794943E394f778
-- **ResourceTypeManager**: 0x0234DDf078c9D3BF23e4Ca30E13FA73ec4acf255
+- **ResourceTypeManager**: 0xDb715dEbbd982793b9A42080f59669BB6DD09953
 - **ResourceManagement**: 0x526edD73D8f331f7469b36E8485FcE643b09bACB
 - **FeeManagement**: 0xA4C960945F5fa18409D3e52692e10AE408d4AaC2
 - **PirateManagement**: 0x490b32F2Ee77F733F8a143deD9fB1bD8715Af86F
@@ -35,10 +34,12 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **IslandStorage**: 0x5112435C6f6a9Bb10925BCaE523A7E758e45eF2B
 - **IslandManagement**: 0xa28F15cf6F9E616A8870563325A47765B92a0290
 - **InhabitantStorage**: 0xa02cc67D253B22473f5c2cC5E9f5B83eCEc53f7E
-- **StorageManagement**: 0xcb38d3AcC98a4B60dA5a51ab80A9ecF1d150ae09
-- **ResourceSpendManagement**: 0xd64468E3eeFb2719260808969dD502fc5fd65457
-- **ResourceFarmingRules**: 0x3f91573fe369DAD2F40cBCF9f0D44c3d59Dcf233
+- **StorageManagement**: 0xAB0bab7C2f8092ed92332a46BBF6f4766f04aEcb
+- **ResourceSpendManagement**: 0x4b6C9611Fd421Cc1B7F5AcDb282FD5022676F16b
+- **ResourceFarmingRules**: 0x3df78755259A1c608F57cD06407DeCE3A04E3478
 - **ResourceFarming**: 0x2B448C5218c3aABf8517B5B3DE54b0E817231daF
 - **ActivityStats**: 0x047A28670A824307bE2bFFE072246645dEFD5486
 - **BatchFarmingInfo**: 0x5FbDB2315678afecb367f032d93F642f64180aa3
-
+- **ISLANDS_COLLECTION_ADDRESS**: 0xd861ae58f9f098ed0d6fe6347288ff26bda6aad1
+- **GENESIS_PIRATES_COLLECTION_ADDRESS**: 0x5e0a64e69ee74fbaed5e4ec4e4e40cb4a45e3b6c
+- **INHABITANTS_COLLECTION_ADDRESS**: 0xa1b3afc3e025c617bac5bf89ed259fdb789d506c

@@ -5,9 +5,12 @@ interface IStorageManagement {
     event StorageCapacityUpdated(address indexed contractAddress, uint256 indexed tokenId, uint256 newCapacity);
     event StorageContractAdded(address indexed collectionAddress, address indexed contractAddress);
     event StorageContractRemoved(address indexed contractAddress);
+    event ResourceDumped(address indexed collectionAddress, uint256 indexed tokenId, address indexed owner, string resource, uint256 amount);
+    event ResourceTransferred(address indexed fromCollection, uint256 indexed fromTokenId, address toCollection, uint256 toTokenId, string resource, uint256 amount);
 
     function storageContracts(address collectionAddress) external view returns (address);
     function storageContractCount() external view returns (uint256);
+    function registeredStorageAddresses(address contractAddress) external view returns (bool);
 
     function addStorageContract(address collectionAddress, address contractAddress) external;
     function removeStorageContract(address collectionAddress) external;
@@ -26,5 +29,9 @@ interface IStorageManagement {
     function transferResource(address fromCollection, uint256 fromTokenId, address fromOwner, address toCollection, uint256 toTokenId, address toOwner, string memory resource, uint256 amount) external;
     function checkUserOwnsRequiredStorageNFT(address user, address collectionAddress, uint256 tokenId) external view returns (bool);
     function requiresOtherNFTForStorage(address collectionAddress) external view returns (bool);
+    function assignStorageToPrimary(address primaryCollection, uint256 primaryTokenId, uint256 storageTokenId) external;
+    function unassignStorageFromPrimary(address primaryCollection, uint256 primaryTokenId) external;
+    function getPrimaryTokensForStorage(address primaryCollection, uint256 storageTokenId) external view returns (uint256[] memory);
+    function getCollectionAddressByStorageContract(address contractAddress) external view returns (address);
     function getAssignedStorage(address collectionAddress, uint256 tokenId) external view returns (address, uint256);
 }

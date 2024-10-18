@@ -5,7 +5,8 @@ require("@openzeppelin/hardhat-upgrades");
 require('dotenv').config();
 require("hardhat-gas-reporter");
 
-if (!process.env.LOCAL_TEST) {
+
+if (process.env.LOCAL_TEST === "false") {
   require("@secrez/cryptoenv").parse();
 }
 
@@ -44,19 +45,19 @@ module.exports = {
     token: 'MATIC',
     network: 'POLYGON'
   },
-  etherscan: {    
-    apiKey: POLYGONSCAN_API_KEY
-  },
-  customChains: [
-    {
-      network: "amoy",
-      chainId: 80002,
-      urls: {
-        apiURL: "https://api-amoy.polygonscan.com/api",
-        browserURL: "https://amoy.polygonscan.com"
+  etherscan: {
+    apiKey: POLYGONSCAN_API_KEY, // Ensure this is set in your environment variables
+    customChains: [
+      {
+        network: "amoy",
+        chainId: 80002,
+        urls: {
+          apiURL: "https://api-amoy.polygonscan.com/api",
+          browserURL: "https://amoy.polygonscan.com"
+        }
       }
-    }
-  ],
+    ],
+  },
   solidity: {
     version: "0.8.25",
     settings: {

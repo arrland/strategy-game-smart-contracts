@@ -36,11 +36,14 @@ contract StorageManagement is AuthorizationModifiers {
         address _centralAuthorizationRegistry,
         address _genesisPiratesAddress,
         address _genesisIslandsAddress,
+        address _inhabitantsAddress,
         address _pirateStorage,
-        address _islandStorage
+        address _islandStorage,
+        address _inhabitantStorage
     ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IStorageManagement")) {        
         _addStorageContract(_genesisPiratesAddress, _pirateStorage);
-        _addStorageContract(_genesisIslandsAddress, _islandStorage);        
+        _addStorageContract(_genesisIslandsAddress, _islandStorage);
+        _addStorageContract(_inhabitantsAddress, _inhabitantStorage);        
     }
 
     function _addStorageContract(address collectionAddress, address contractAddress) internal {        
@@ -233,5 +236,15 @@ contract StorageManagement is AuthorizationModifiers {
             assigned[i] = StorageAssignment(islandTokenId, getPrimaryTokensForStorage(piratesCollection, islandTokenId));
         }
         return assigned;
+    }
+
+    function getCollectionAddressByStorageContract(address contractAddress) external view returns (address) {        
+        for (uint256 i = 0; i < collectionAddresses.length; i++) {
+            // Directly compare the stored contract address with the provided address
+            if (address(storageContracts[collectionAddresses[i]]) == contractAddress) {
+                return collectionAddresses[i];
+            }
+        }
+        revert("Collection address not found for the given storage contract");
     }
 }

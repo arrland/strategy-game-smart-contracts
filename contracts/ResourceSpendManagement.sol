@@ -5,6 +5,7 @@ import "./AuthorizationModifiers.sol";
 import "./interfaces/IResourceManagement.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "./interfaces/IResourceTypeManager.sol";
+import "./interfaces/IStorageManagement.sol";
 
 
 contract ResourceSpendManagement is AuthorizationModifiers {
@@ -52,8 +53,7 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         lowerFoodResources[1] = ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
         lowerFoodResources[2] = ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay); // 0.25 * ONE_ETHER
         lowerFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
-        lowerFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay); // 0.0001 * ONE_ETHER
-
+        lowerFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 400, CalculationMethod.PerDay); // 0.0025 * ONE_ETHER
 
         ResourceTuple[] memory planksMandatoryResources = new ResourceTuple[](1);
         planksMandatoryResources[0] = ResourceTuple("wood", 2 * 10**18, CalculationMethod.Divide);
@@ -84,18 +84,18 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         bagPackedSugarcaneMandatoryResources[1] = ResourceTuple("bags", 1 * ONE_ETHER, CalculationMethod.Divide);
 
         ResourceTuple[] memory pigMandatoryResources = new ResourceTuple[](1);
-        pigMandatoryResources[0] = ResourceTuple("bag-packed grain", ONE_ETHER / 1000, CalculationMethod.PerDay); // 0.001 * ONE_ETHER
+        pigMandatoryResources[0] = ResourceTuple("bag-packed grain", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
 
         ResourceTuple[] memory wildGameMandatoryResources = new ResourceTuple[](1);
         wildGameMandatoryResources[0] = ResourceTuple("bag-packed tobacco", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
 
         ResourceTuple[] memory coconutLiquorMandatoryResources = new ResourceTuple[](2);
-        coconutLiquorMandatoryResources[0] = ResourceTuple("bag-packed sugarcane", 25 * ONE_ETHER, CalculationMethod.Divide);
-        coconutLiquorMandatoryResources[1] = ResourceTuple("bag-packed coconut", 100 * ONE_ETHER, CalculationMethod.Divide);
+        coconutLiquorMandatoryResources[0] = ResourceTuple("bag-packed sugarcane", 100 * ONE_ETHER, CalculationMethod.Divide);
+        coconutLiquorMandatoryResources[1] = ResourceTuple("crate-packed coconuts", 25 * ONE_ETHER, CalculationMethod.Divide);
 
         ResourceTuple[] memory meatMandatoryResources = new ResourceTuple[](2);
-        meatMandatoryResources[0] = ResourceTuple("pig", ONE_ETHER / 50, CalculationMethod.Divide); // 0.02 * ONE_ETHER
-        meatMandatoryResources[1] = ResourceTuple("wild game", ONE_ETHER / 50, CalculationMethod.Divide); // 0.02 * ONE_ETHER
+        meatMandatoryResources[0] = ResourceTuple("pig", 50 * ONE_ETHER, CalculationMethod.Divide); // 0.02 * ONE_ETHER
+        meatMandatoryResources[1] = ResourceTuple("wild game", 50 * ONE_ETHER, CalculationMethod.Divide); // 0.02 * ONE_ETHER
 
         ResourceTuple[] memory barrelPackedFishMandatoryResources = new ResourceTuple[](3);
         barrelPackedFishMandatoryResources[0] = ResourceTuple("barrels", ONE_ETHER, CalculationMethod.Divide);
@@ -163,6 +163,14 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         return IResourceTypeManager(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceTypeManager")));
     }
 
+    function getStorageManagement() internal view returns (IStorageManagement) {
+        return IStorageManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IStorageManagement")));
+    }   
+
+    function getResourceManagement() internal view returns (IResourceManagement) {
+        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
+    }
+
     modifier validResourceName(string memory resource) {
         IResourceTypeManager resourceTypeManager = getResourceTypeManager();
         require(resourceTypeManager.isValidResourceType(resource), "Invalid resource name");
@@ -222,12 +230,29 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         if (resourceAmount.method == CalculationMethod.PerDay) {            
             return resourceAmount.amount * daysCount;
         } else {          
-            return (resourcesProduced * 10**18) / resourceAmount.amount;
+            return (resourcesProduced * ONE_ETHER) / resourceAmount.amount;
         }
     }
 
     function _burnRequiredResources(address storageContract, uint256 tokenId, address user, string memory resource, string[] memory resourcesToBurn, uint256 daysCount, uint256 resourcesProduced) internal {
-        IResourceManagement resourceManagement = IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
+        
+        IStorageManagement storageManagement = getStorageManagement();
+        address collectionAddress = storageManagement.getCollectionAddressByStorageContract(storageContract);
+        
+        address storageCollectionAddress;
+        uint256 storageTokenId;
+        address storageContractOrExternal;
+        
+        if (storageManagement.requiresOtherNFTForStorage(collectionAddress)) {            
+            (storageCollectionAddress, storageTokenId) = storageManagement.getAssignedStorage(collectionAddress, tokenId);
+            storageContractOrExternal = getStorageManagement().getStorageByCollection(storageCollectionAddress);
+        } else {
+            storageCollectionAddress = collectionAddress;
+            storageTokenId = tokenId;
+            storageContractOrExternal = storageContract;
+        }
+
+        IResourceManagement resourceManagement = getResourceManagement();
         
         ResourceRequirement memory requirement = resourceRequirements[resource];
         
@@ -235,9 +260,9 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         for (uint256 i = 0; i < requirement.mandatoryResources.length; i++) {
             ResourceAmount memory resourceToSpend = requirement.mandatoryResources[i];
             uint256 requiredAmount = _calculateRequiredAmount(resourceToSpend, daysCount, resourcesProduced);
-            uint256 userResourceBalance = resourceManagement.getResourceBalance(storageContract, tokenId, resourceToSpend.resource);
+            uint256 userResourceBalance = storageManagement.getResourceBalance(storageCollectionAddress, storageTokenId, resourceToSpend.resource);
             require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));            
-            resourceManagement.burnResource(storageContract, tokenId, user, resourceToSpend.resource, requiredAmount);
+            resourceManagement.burnResource(storageContractOrExternal, storageTokenId, user, resourceToSpend.resource, requiredAmount);
         }
 
         // Burn optional resources
@@ -247,9 +272,9 @@ contract ResourceSpendManagement is AuthorizationModifiers {
                 if (keccak256(bytes(resourcesToBurn[i])) == keccak256(bytes(requirement.optionalResources[j].resource))) {
                     ResourceAmount memory resourceToSpend = requirement.optionalResources[j];
                     uint256 requiredAmount = _calculateRequiredAmount(resourceToSpend, daysCount, resourcesProduced);
-                    uint256 userResourceBalance = resourceManagement.getResourceBalance(storageContract, tokenId, resourceToSpend.resource);
+                    uint256 userResourceBalance = storageManagement.getResourceBalance(storageCollectionAddress, storageTokenId, resourceToSpend.resource);
                     require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));
-                    resourceManagement.burnResource(storageContract, tokenId, user, resourceToSpend.resource, requiredAmount);
+                    resourceManagement.burnResource(storageContractOrExternal, storageTokenId, user, resourceToSpend.resource, requiredAmount);
                     burnedOptional = true;
                     break;
                 }

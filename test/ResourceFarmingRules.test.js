@@ -57,7 +57,6 @@ describe("ResourceFarmingRules", function () {
         const durationSeconds = 86400n; // 1 day
 
         const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
-        console.log("Output per day for coconut:", Number(output)/10**18);
         expect(output).to.equal(7000000000000000000n);
     });
 
@@ -101,7 +100,6 @@ describe("ResourceFarmingRules", function () {
         const durationSeconds = 86400n; // 1 day
 
         const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
-        console.log("Output per day for fish:", Number(output)/10**18);
         expect(output).to.equal(6500000000000000000n);
     });
 
@@ -144,8 +142,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "wood";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for wood:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(1000000000000000000n);
     });
 
@@ -188,8 +185,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "wood";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for wood without woodcutting skill:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(166666666666666666n); // (3 + 2) / 30 = 0.1666... * 10**18
     });
     it("should calculate resource output for citrus", async function () {
@@ -231,9 +227,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "citrus";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-
-        console.log("Output per day for citrus:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(6000000000000000000n);
     });
     it("should calculate resource output for tobacco", async function () {
@@ -275,8 +269,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "tobacco";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for tobacco:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(1133333333333333333n);
     });
     it("should calculate resource output for cotton", async function () {
@@ -318,8 +311,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "cotton";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for cotton:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(1300000000000000000n);
     });
     it("should calculate resource output for pig with husbandry skill", async function () {
@@ -361,8 +353,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "pig";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for pig with husbandry:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(300000000000000000n);
     });
 
@@ -405,8 +396,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "pig";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for pig without husbandry:",Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(133333333333333333n);
     });
     it("should calculate resource output for sugarcane with harvesting tool", async function () {
@@ -448,8 +438,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "sugarcane";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for sugarcane:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(600000000000000000n);
     });
 
@@ -533,8 +522,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "grain";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for grain:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(2600000000000000000n);
     });
 
@@ -618,8 +606,7 @@ describe("ResourceFarmingRules", function () {
         const resource = "planks";
         const durationSeconds = 86400n; // 1 day
 
-        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
-        console.log("Output per day for planks:", Number(output)/10**18);
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
         expect(output).to.equal(400000000000000000n);
     });
 
