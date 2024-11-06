@@ -5,6 +5,86 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "ResourceDumped",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "fromCollection",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "fromTokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "toCollection",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "toTokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "ResourceTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "contractAddress",
         "type": "address"
       },
@@ -103,6 +183,29 @@
       }
     ],
     "name": "addStorageContract",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "assignStorageToPrimary",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -273,6 +376,49 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "contractAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getCollectionAddressByStorageContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPrimaryTokensForStorage",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
@@ -427,6 +573,25 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "contractAddress",
+        "type": "address"
+      }
+    ],
+    "name": "registeredStorageAddresses",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       }
@@ -531,6 +696,24 @@
       }
     ],
     "name": "transferResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "unassignStorageFromPrimary",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

@@ -25,6 +25,9 @@ describe("IslandStorageMigration", function () {
     let IslandNft, islandNft;
     let admin, owner1, owner2, externalCaller;
     let genesisPiratesAddress, SimpleERC1155, simpleERC1155, resourceManagement, resourceTypeManager, islandManagement
+    let InhabitantNft, inhabitantNft;
+    let InhabitantsAddress;
+    let inhabitantStorage;
 
     beforeEach(async function () {
         [admin, owner1, owner2, externalCaller] = await ethers.getSigners();
@@ -33,6 +36,16 @@ describe("IslandStorageMigration", function () {
         simpleERC1155 = await SimpleERC1155.deploy(admin.address, "https://ipfs.io/ipfs/");
 
         genesisPiratesAddress = await simpleERC1155.getAddress();
+
+        InhabitantNft = await ethers.getContractFactory("SimpleERC721");
+        inhabitantNft = await InhabitantNft.deploy("Inhabitant", "INH", "https://inhabitant.com/", admin.address);
+
+        InhabitantsAddress = await inhabitantNft.getAddress();
+
+        IslandNft = await ethers.getContractFactory("SimpleERC721");
+        islandNft = await IslandNft.deploy("Island", "ISL", "https://island.com/", admin.address);
+        
+        const genesisIslandsAddress = await islandNft.getAddress();
 
         // Deploy the central authorization registry
         const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
@@ -43,13 +56,9 @@ describe("IslandStorageMigration", function () {
         resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthorizationRegistry);
         resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthorizationRegistry);
 
-        const pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
+        const pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
 
-        // Deploy the IslandNft contract
-        IslandNft = await ethers.getContractFactory("SimpleERC721");
-        islandNft = await IslandNft.deploy("Island", "ISL", "https://island.com/", admin.address);
-
-        const genesisIslandsAddress = await islandNft.getAddress();
+        
 
         islandManagement = await deployAndAuthorizeContract("IslandManagement", centralAuthorizationRegistry, genesisIslandsAddress);
 
@@ -62,11 +71,13 @@ describe("IslandStorageMigration", function () {
         NewIslandStorage = await ethers.getContractFactory("IslandStorage");
         newIslandStorage = await NewIslandStorage.deploy(await centralAuthorizationRegistry.getAddress(), genesisIslandsAddress, true);
 
+        inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, genesisIslandsAddress);
+
         await newIslandStorage.initializeIslands(1, { gasLimit: 30000000 });   
 
         // Deploy the StorageManagement contract
         StorageManagement = await ethers.getContractFactory("StorageManagement");
-        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await oldIslandStorage.getAddress());
+        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, InhabitantsAddress, await pirateStorage.getAddress(), await oldIslandStorage.getAddress(), await inhabitantStorage.getAddress());
 
         // Mint some NFTs to owner1
         await islandNft.mint(owner1.address);

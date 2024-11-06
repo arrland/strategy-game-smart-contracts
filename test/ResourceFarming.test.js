@@ -119,7 +119,7 @@ describe("ResourceFarming", function () {
         pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
         
 
-        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
+        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
 
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
         
@@ -128,8 +128,7 @@ describe("ResourceFarming", function () {
         await islandStorage.initializeIslands(1, { gasLimit: 30000000 });        
         await islandStorage.initializeIslands(13, { gasLimit: 30000000 });
         
-        
-        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress());
+        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, InhabitantsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress(), await inhabitantStorage.getAddress());
         
         resourceSpendManagement = await deployAndAuthorizeContract("ResourceSpendManagement", centralAuthorizationRegistry);
 
@@ -633,7 +632,7 @@ describe("ResourceFarming", function () {
                 "fish",
                 ethers.parseEther("1")
             )
-        ).to.be.revertedWith("Caller does not own the 1155 token or it is not staked in ResourceFarming");
+        ).to.be.revertedWith("Caller does not own the NFT or it is not staked in ResourceFarming");
 
         const balance = await storageManagement.getResourceBalance(await simpleERC1155.getAddress(), 1, "fish");
         expect(balance).to.equal(ethers.parseEther("1"));
@@ -1311,6 +1310,109 @@ describe("ResourceFarming", function () {
         // Check if the NFT is unstaked
         const ownerOfToken = await islandNft.ownerOf(tokenId);
         expect(ownerOfToken).to.equal(pirateOwner.address);
+    });
+    it("should not allow Inhabitant to farm when storage is not assigned", async function () {
+        // Mint an Inhabitant NFT to the pirateOwner
+        await inhabitantNFT.connect(admin).mint(pirateOwner.address);
+
+        // Approve the ResourceFarming contract to transfer the NFT
+        await inhabitantNFT.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Attempt to farm resource without assigning storage
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await inhabitantNFT.getAddress(),
+                1,
+                "wood",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).to.be.revertedWith("No storage token assigned");
+    });
+    it("should allow genesis pirate to farm without assigning storage", async function () {
+        // Mint a genesis pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+
+        // Approve the ResourceFarming contract to transfer the NFT
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Farm resource without assigning storage
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.05") } // Adding Matic value to the transaction
+            )
+        ).not.to.be.reverted;
+
+        // Check if the NFT is staked
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+    });
+    it("should allow to farm with genesis pirate and assigned island storage, after claim resources should be added to island storage", async function () {
+        // Mint a genesis pirate NFT to the pirateOwner
+        await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
+
+        // Mint an Island NFT to the pirateOwner
+        await islandNft.connect(admin).mint(pirateOwner.address);
+
+        // Assign storage to primary for the Island NFT
+        await storageManagement.connect(pirateOwner).assignStorageToPrimary(await simpleERC1155.getAddress(), 1, 1);
+
+        // Approve the ResourceFarming contract to transfer the genesis pirate NFT
+        await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
+
+        // Farm resource with assigned storage
+        await expect(
+            resourceFarming.connect(pirateOwner).farmResource(
+                await simpleERC1155.getAddress(),
+                1,
+                "fish",
+                1, // 1 day later
+                false,
+                "",
+                false,
+                { value: ethers.parseEther("0.15") } // Adding Matic value to the transaction
+            )
+        ).not.to.be.reverted;
+
+        // Check if the NFT is staked
+        const workingPirates = await resourceFarming.getWorkingPirates(pirateOwner.address, await simpleERC1155.getAddress());
+        expect(workingPirates.length).to.equal(1);
+        expect(workingPirates[0]).to.equal(1n);
+
+        // Increase time by 1 day
+        await ethers.provider.send("evm_increaseTime", [86402]);
+        await ethers.provider.send("evm_mine");
+
+        // Unstake the NFT
+        const restakeParams = {
+            resource: "",
+            days_count: 0,
+            useRum: false,
+            resourceToBurn: "",
+            isSet: false
+        };
+
+         // Check if the resources are added to the island storage
+        const islandStorageBalanceBefore = await storageManagement.getResourceBalance(await islandNft.getAddress(), 1, "fish");
+        expect(islandStorageBalanceBefore).to.be.equal(0);
+    
+        await expect(resourceFarming.connect(pirateOwner).claimResourcePirate(await simpleERC1155.getAddress(), 1, restakeParams))
+                .to.emit(resourceManagement, 'ResourceAdded');
+
+        // Check if the resources are added to the island storage
+        const islandStorageBalance = await storageManagement.getResourceBalance(await islandNft.getAddress(), 1, "fish");
+        expect(islandStorageBalance).to.be.greaterThan(islandStorageBalanceBefore);
     });
     it("should return correct farming info details for batch of tokenIds", async function () {
         // Deploy the BatchFarmingInfo contract

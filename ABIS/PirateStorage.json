@@ -15,10 +15,40 @@
         "internalType": "bool",
         "name": "_isNft721",
         "type": "bool"
+      },
+      {
+        "internalType": "address",
+        "name": "_optionalStorageContractAddress",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
     "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "StorageAssigned",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -37,6 +67,25 @@
       }
     ],
     "name": "StorageCapacityUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "StorageUnassigned",
     "type": "event"
   },
   {

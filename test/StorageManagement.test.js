@@ -21,6 +21,10 @@ describe("StorageManagement", function () {
     let activityStats;
     let islandManagement;
     let externalCaller;
+    let InhabitantNft;
+    let inhabitantNft;
+    let InhabitantsAddress;
+    let inhabitantStorage;
 
     beforeEach(async function () {
         [admin, addr1, addr2, pirateOwner, externalCaller] = await ethers.getSigners();
@@ -37,6 +41,12 @@ describe("StorageManagement", function () {
 
         genesisIslandsAddress = await islandNft.getAddress();
 
+        InhabitantNft = await ethers.getContractFactory("SimpleERC721");
+        inhabitantNft = await InhabitantNft.deploy("Inhabitant", "INH", "https://inhabitant.com/", admin.address);
+
+        InhabitantsAddress = await inhabitantNft.getAddress();
+
+        await islandNft.mint(pirateOwner.address);
         await islandNft.mint(pirateOwner.address);
         await islandNft.mint(pirateOwner.address);
 
@@ -52,43 +62,46 @@ describe("StorageManagement", function () {
         const DummyERC20Burnable = await ethers.getContractFactory("DummyERC20Burnable");
         rumToken = await DummyERC20Burnable.deploy("RUM Token", "RUM");
 
-        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
+        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
 
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
-        
+
+        inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, genesisIslandsAddress);
+
         resourceFarming = await deployAndAuthorizeContract("ResourceFarming", centralAuthorizationRegistry);
 
-        await islandStorage.initializeIslands(1);        
+        await islandStorage.initializeIslands(1);     
+        await islandStorage.initializeIslands(2);        
         await islandStorage.initializeIslands(13);
         
-        
-        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress());
-    
-        
+        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, InhabitantsAddress, await pirateStorage.getAddress(), await islandStorage.getAddress(), await inhabitantStorage.getAddress());
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
+        //await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(InhabitantsAddress);
+        
 
     });
 
     describe("Deployment", function () {
         it("Should deploy with initial storage contracts", async function () {
-            expect(await storageManagement.storageContractCount()).to.equal(2);
+            expect(await storageManagement.storageContractCount()).to.equal(3);
             expect(await storageManagement.getStorageByCollection(genesisPiratesAddress)).to.equal(await pirateStorage.getAddress());
             expect(await storageManagement.getStorageByCollection(genesisIslandsAddress)).to.equal(await islandStorage.getAddress());
+            expect(await storageManagement.getStorageByCollection(InhabitantsAddress)).to.equal(await inhabitantStorage.getAddress());
         });
     });
 
     describe("Storage Management", function () {
         it("Should add a new storage contract", async function () {
-            const newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, true);
+            const newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, true, genesisIslandsAddress);
             await storageManagement.addStorageContract(addr1.address, await newStorage.getAddress());
-            expect(await storageManagement.storageContractCount()).to.equal(3);
+            expect(await storageManagement.storageContractCount()).to.equal(4);
             expect(await storageManagement.getStorageByCollection(addr1.address)).to.equal(await newStorage.getAddress());
         });
 
         it("Should remove a storage contract", async function () {
             expect(await storageManagement.getStorageByCollection(genesisPiratesAddress)).to.equal(await pirateStorage.getAddress());
             await storageManagement.removeStorageContract(genesisPiratesAddress);
-            expect(await storageManagement.storageContractCount()).to.equal(1);
+            expect(await storageManagement.storageContractCount()).to.equal(2);
             const removed = await storageManagement.getStorageByCollection(genesisPiratesAddress)            
             expect(await storageManagement.getStorageByCollection(genesisPiratesAddress)).to.equal("0x0000000000000000000000000000000000000000");
         });
@@ -161,7 +174,7 @@ describe("StorageManagement", function () {
             // address collectionAddress, uint256 tokenId, string memory resource, uint256 amount)
             await expect(
                 storageManagement.connect(addr2).dumpResource(genesisPiratesAddress, 1, "wood", ethers.parseEther("25"))
-            ).to.be.revertedWith("Caller does not own the 1155 token or it is not staked in ResourceFarming");
+            ).to.be.revertedWith("Caller does not own the NFT or it is not staked in ResourceFarming");
 
             await expect(
                 storageManagement.connect(addr2).dumpResource(genesisIslandsAddress, 1, "wood", ethers.parseEther("25"))
@@ -272,12 +285,14 @@ describe("StorageManagement", function () {
             const AllStorageContracts = await storageManagement.getAllStorageContracts();
             
             const [collectionAddresses, storageAddresses] = await storageManagement.getAllStorageContracts();
-            expect(collectionAddresses.length).to.equal(2);
-            expect(storageAddresses.length).to.equal(2);
+            expect(collectionAddresses.length).to.equal(3);
+            expect(storageAddresses.length).to.equal(3);
             expect(collectionAddresses[0]).to.equal(genesisPiratesAddress);
             expect(storageAddresses[0]).to.equal(await pirateStorage.getAddress());
             expect(collectionAddresses[1]).to.equal(genesisIslandsAddress);
             expect(storageAddresses[1]).to.equal(await islandStorage.getAddress());
+            expect(collectionAddresses[2]).to.equal(InhabitantsAddress);
+            expect(storageAddresses[2]).to.equal(await inhabitantStorage.getAddress());
         });
     });
     
@@ -294,28 +309,7 @@ describe("StorageManagement", function () {
             // Verify the storage assignment
             const assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
             expect(assignedStorageTokenId).to.equal(2);
-        });
-        it("Should assign storage 1155 to primary token", async function () {
-            // Assign storage to primary token using pirateStorage
-            const RequiredNFT1155 = await ethers.getContractFactory("SimpleERC1155");
-            const requiredNFT1155 = await RequiredNFT1155.deploy(admin.address, "https://ipfs.io/ipfs/");
-
-            const requiredNFT1155Address = await requiredNFT1155.getAddress();
-
-            await requiredNFT1155.connect(admin).mint(pirateOwner.address, 1);
-
-            await pirateStorage.connect(externalCaller).setRequiredStorage(true, requiredNFT1155Address);
-
-            const requiredStorageContract = await pirateStorage.getRequiredStorageContract();
-            expect(requiredStorageContract).to.equal(requiredNFT1155Address);
-            
-            await storageManagement.connect(pirateOwner).assignStorageToPrimary(genesisPiratesAddress, 1, 1);
-
-            // Verify the storage assignment
-            const assignedStorageTokenId = await pirateStorage.getAssignedStorage(genesisPiratesAddress, 1);
-            expect(assignedStorageTokenId).to.equal(1);
-        });
-        
+        });        
         it("Should fail if caller does not own the primary token", async function () {
             // Set required storage to true for pirateStorage
             await pirateStorage.connect(externalCaller).setRequiredStorage(true, genesisIslandsAddress);
@@ -370,7 +364,7 @@ describe("StorageManagement", function () {
         // Try to unassign storage from primary token with an unauthorized caller
         await expect(
             storageManagement.connect(addr2).unassignStorageFromPrimary(genesisPiratesAddress, 1)
-        ).to.be.revertedWith("Caller does not own the 1155 token");
+        ).to.be.revertedWith("Caller does not own the required storage NFT or primary token");
     });
 
     it("Should fail to unassign storage if storage does not require other NFT for storage", async function () {

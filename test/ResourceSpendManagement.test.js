@@ -69,7 +69,7 @@ describe("ResourceSpendManagement", function () {
         await centralAuthorizationRegistry.setContractAddress(await resourceSpendManagement.INTERFACE_ID(), await resourceSpendManagement.getAddress());
         await centralAuthorizationRegistry.addAuthorizedContract(await resourceSpendManagement.getAddress());        
 
-        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false);
+        pirateStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
 
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
 

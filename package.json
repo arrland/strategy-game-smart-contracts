@@ -28,6 +28,7 @@
     "@uniswap/v3-periphery": "^1.4.4",
     "alchemy-sdk": "^3.4.1",
     "chai": "^4.3.10",
+    "csv-parse": "^5.5.6",
     "csv-writer": "^1.6.0",
     "dotenv": "^16.4.5",
     "ethereum-waffle": "^4.0.10",

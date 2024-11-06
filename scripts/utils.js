@@ -7,7 +7,7 @@ async function checkContractDeployed(tokenAddress) {
     
     let count = 0;
     while (code === '0x' && count < 36) {
-      await new Promise(resolve => setTimeout(resolve, 6000));
+      await new Promise(resolve => setTimeout(resolve, 12000));
       code = await ethers.provider.getCode(tokenAddress);
       count++;
     }

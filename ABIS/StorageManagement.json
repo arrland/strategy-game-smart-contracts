@@ -18,12 +18,22 @@
       },
       {
         "internalType": "address",
+        "name": "_inhabitantsAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
         "name": "_pirateStorage",
         "type": "address"
       },
       {
         "internalType": "address",
         "name": "_islandStorage",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_inhabitantStorage",
         "type": "address"
       }
     ],
@@ -417,6 +427,52 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "piratesCollections",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address",
+        "name": "islandCollection",
+        "type": "address"
+      }
+    ],
+    "name": "getAllAssignedToStorageMultiCollections",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "storageTokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "collectionAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "primaryTokens",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct StorageManagement.StorageAssignmentCollection[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
@@ -484,6 +540,25 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "contractAddress",
+        "type": "address"
+      }
+    ],
+    "name": "getCollectionAddressByStorageContract",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

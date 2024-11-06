@@ -92,7 +92,7 @@ contract IslandStorage is BaseStorage {
         return islands[tokenId].capacity;
     }
 
-    function getPlotNumber(uint256 tokenId) public view returns (uint256) {
+    function getPlotNumber(uint256 tokenId) public view returns (uint256) {        
         if (islands[tokenId].capacity == 0) {
             return 1;
         }

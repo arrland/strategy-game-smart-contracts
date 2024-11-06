@@ -6,9 +6,11 @@ require('dotenv').config();
 require("hardhat-gas-reporter");
 
 
-if (process.env.LOCAL_TEST === "false") {
-  require("@secrez/cryptoenv").parse();
-}
+//if (process.env.LOCAL_TEST === "false") {
+//  
+//}
+
+require("@secrez/cryptoenv").parse();
 
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
 const POLYGON_RPC = process.env.POLYGON_RPC;
@@ -17,18 +19,18 @@ const POLYGON_AMAY_RPC = process.env.POLYGON_AMAY_RPC;
 module.exports = {
   networks: {
     hardhat: {
-      chainId: 1337,
-      gas: 30000000
+      chainId: 1337
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-      gas: 30000000
+      //gas: 30000000
     },
     // Configuration for the Polygon Mainnet
     polygon: {
       url: POLYGON_RPC,
       accounts: process.env.PRIVATE_KEY_POLYGON ? [process.env.PRIVATE_KEY_POLYGON] : [],
       chainId: 137,
+      gasPrice: 140000000000, // 140 gwei
     },
     amoy: {
       url: POLYGON_AMAY_RPC,
