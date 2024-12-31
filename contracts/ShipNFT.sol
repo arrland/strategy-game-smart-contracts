@@ -124,7 +124,7 @@ contract ShipNFT is ERC721, ERC721Burnable, ERC721Enumerable, AccessControlEnume
         return uniqueOwners;
     }
 
-    function getRoleMembers(bytes32 role) public view returns (address[] memory) {
+    function getRoleMembers(bytes32 role) public view override returns (address[] memory) {
         uint256 count = getRoleMemberCount(role);
         address[] memory members = new address[](count);
         for (uint256 i = 0; i < count; i++) {
