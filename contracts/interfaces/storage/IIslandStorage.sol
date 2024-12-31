@@ -4,7 +4,7 @@ pragma solidity ^0.8.25;
 import "./IBaseStorage.sol";
 
 interface IIslandStorage is IBaseStorage {
-    enum IslandSize { Small, Medium, Large, Huge, ExtraSmall }
+    enum IslandSize { ExtraSmall, Small, Medium, Large, Huge }
 
     struct Island {
         IslandSize size;

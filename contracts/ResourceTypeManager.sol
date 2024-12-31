@@ -45,6 +45,9 @@ contract ResourceTypeManager is AuthorizationModifiers {
         _addResourceType("coconut liquor", true, true); // New resource type
         _addResourceType("crate-packed citrus", true, true); // New resource type
         _addResourceType("crate-packed coconuts", true, true); // New resource type
+        _addResourceType("stone", true, true); // New resource type
+        _addResourceType("bricks", true, true); // New resource type
+        _addResourceType("gold bars", true, true); // New resource type
     }
 
     function addResourceType(

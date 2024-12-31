@@ -8,7 +8,7 @@ import "hardhat/console.sol";
 contract IslandStorage is BaseStorage {
     using Strings for string;
 
-    enum IslandSize { Small, Medium, Large, Huge, ExtraSmall }
+    enum IslandSize { ExtraSmall, Small, Medium, Large, Huge }
 
     struct Island {
         IslandSize size;
@@ -22,30 +22,32 @@ contract IslandStorage is BaseStorage {
     constructor(address _centralAuthorizationRegistry, address _nftCollectionAddress, bool _isNft721) 
         BaseStorage(_centralAuthorizationRegistry, _nftCollectionAddress, _isNft721, keccak256("IIslandStorage")) {
 
+        plotNumbers[IslandSize.ExtraSmall] = 1;
         plotNumbers[IslandSize.Small] = 6;
         plotNumbers[IslandSize.Medium] = 14;
         plotNumbers[IslandSize.Large] = 30;
         plotNumbers[IslandSize.Huge] = 62;
-        plotNumbers[IslandSize.ExtraSmall] = 1;
+        
 
+        defaultCapacities[IslandSize.ExtraSmall] = 50*10**18;
         defaultCapacities[IslandSize.Small] = (8 * 50)*10**18;
         defaultCapacities[IslandSize.Medium] = (24 * 50)*10**18;
         defaultCapacities[IslandSize.Large] = (64 * 50)*10**18;
         defaultCapacities[IslandSize.Huge] = (120 * 50)*10**18;
-        defaultCapacities[IslandSize.ExtraSmall] = 50*10**18;
+        
 
         
     }
 
     function initializeIslands(uint8 part) external onlyAdmin {
         if (part == 1) {
-            _batchSetIslandSize(337, 1086, IslandSize.Small);
+            _batchSetIslandSize(337, 600, IslandSize.Small);
         } else if (part == 2) {
-            _batchSetIslandSize(1423, 2172, IslandSize.Small);
+            _batchSetIslandSize(1423, 1723, IslandSize.Small);
         } else if (part == 3) {
-            _batchSetIslandSize(2509, 3258, IslandSize.Small);
+            _batchSetIslandSize(2809, 3258, IslandSize.Small);
         } else if (part == 4) {
-            _batchSetIslandSize(3595, 4344, IslandSize.Small);
+            _batchSetIslandSize(3595, 3895, IslandSize.Small);
         } else if (part == 5) {
             _batchSetIslandSize(81, 336, IslandSize.Medium);
         } else if (part == 6) {
@@ -70,7 +72,16 @@ contract IslandStorage is BaseStorage {
             _batchSetIslandSize(2173, 2188, IslandSize.Huge);
         } else if (part == 16) {
             _batchSetIslandSize(3259, 3274, IslandSize.Huge);
+        } else if (part == 17) {
+            _batchSetIslandSize(600, 1086, IslandSize.Small);
+        } else if (part == 18) {
+            _batchSetIslandSize(1723, 2172, IslandSize.Small);
+        } else if (part == 19) {
+            _batchSetIslandSize(2509, 2809, IslandSize.Small);
+        } else if (part == 20) {
+            _batchSetIslandSize(3895, 4344, IslandSize.Small);
         }
+
     }
 
     function updateStorageCapacity(uint256 tokenId, uint256 newCapacity) override external onlyAuthorized {
@@ -94,7 +105,7 @@ contract IslandStorage is BaseStorage {
 
     function getPlotNumber(uint256 tokenId) public view returns (uint256) {        
         if (islands[tokenId].capacity == 0) {
-            return 1;
+            return plotNumbers[IslandSize.ExtraSmall];
         }
         return plotNumbers[islands[tokenId].size];
     }

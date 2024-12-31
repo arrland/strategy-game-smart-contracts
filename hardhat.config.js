@@ -4,12 +4,6 @@ require("@nomicfoundation/hardhat-chai-matchers");
 require("@openzeppelin/hardhat-upgrades");
 require('dotenv').config();
 require("hardhat-gas-reporter");
-
-
-//if (process.env.LOCAL_TEST === "false") {
-//  
-//}
-
 require("@secrez/cryptoenv").parse();
 
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
@@ -19,18 +13,21 @@ const POLYGON_AMAY_RPC = process.env.POLYGON_AMAY_RPC;
 module.exports = {
   networks: {
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+      gas: 30000000,
+      blockGasLimit: 30000000,
+      allowUnlimitedContractSize: true,      
     },
     localhost: {
       url: "http://127.0.0.1:8545",
-      //gas: 30000000
     },
-    // Configuration for the Polygon Mainnet
     polygon: {
       url: POLYGON_RPC,
       accounts: process.env.PRIVATE_KEY_POLYGON ? [process.env.PRIVATE_KEY_POLYGON] : [],
       chainId: 137,
-      gasPrice: 140000000000, // 140 gwei
+      //gasPrice: 90000000000, // 90 Gwei = 90 * 10^9 wei,
+      timeout: 9200000      
+      
     },
     amoy: {
       url: POLYGON_AMAY_RPC,
@@ -42,13 +39,12 @@ module.exports = {
     enabled: false,
     currency: 'USD',
     gasPrice: 35,
-    coinmarketcap: process.env.COINMARKETCAP_API_KEY, // Optional: to fetch real-time gas price
-    //outputFile: 'gas-report.txt', // Optional: to save the report to a file    
+    coinmarketcap: process.env.COINMARKETCAP_API_KEY,
     token: 'MATIC',
     network: 'POLYGON'
   },
   etherscan: {
-    apiKey: POLYGONSCAN_API_KEY, // Ensure this is set in your environment variables
+    apiKey: POLYGONSCAN_API_KEY,
     customChains: [
       {
         network: "amoy",

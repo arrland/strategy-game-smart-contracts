@@ -127,10 +127,10 @@ describe("StorageManagement", function () {
             // Verify storage details
             expect(storageDetails.totalResourcesInStorage).to.equal(ethers.parseEther("50"));
             expect(storageDetails.storageCapacity).to.equal(ethers.parseEther("50"));
-            expect(storageDetails.resourceTypes.length).to.equal(24);
+            expect(storageDetails.resourceTypes.length).to.equal(27);
             expect(storageDetails.resourceTypes).to.include("wood");
             expect(storageDetails.resourceTypes).to.include("fish");
-            expect(storageDetails.resourceBalances.length).to.equal(24);            
+            expect(storageDetails.resourceBalances.length).to.equal(27);            
             expect(storageDetails.resourceBalances[2]).to.equal(ethers.parseEther("25"));
             expect(storageDetails.resourceBalances[6]).to.equal(ethers.parseEther("25"));
             

@@ -9,21 +9,19 @@ const csv = require('csv-writer').createObjectCsvWriter;
 async function main() {
     // Contract details
     let contractAddress;
-    let startBlock;
-    let endBlock;
+    let startBlock;    
     
     // Replace with the actual address of your central authorization registry contract
     if (network.name == "amoy") {
         contractAddress = '0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73'; // Replace with actual address
-        startBlock = 9675938;
-        endBlock = 13744496;
+        startBlock = 9675938;        
     } else {
         contractAddress = '0x2B448C5218c3aABf8517B5B3DE54b0E817231daF'; // Replace with actual address
         startBlock = 59559641;
-        endBlock = 63664600;
+        
     }
     
-
+    const endBlock = await ethers.provider.getBlockNumber();
     const batchSize = 10000; // Number of blocks to query at once
 
     // Get contract instance
@@ -86,6 +84,19 @@ async function main() {
         console.error('Error writing to CSV:', error);
     }
 }
+/**
+ * Script to fetch users who have participated in resource farming
+ * 
+ * Usage:
+ * 1. Set the contract address and block range in the network config section
+ * 2. Run using: npx hardhat run scripts/fetch-resource-farming-users.js --network <network_name>
+ * 
+ * The script will:
+ * - Query events from the specified contract and block range
+ * - Extract unique users and their token IDs
+ * - Save results to a CSV file named resource-farming-users-<contractAddress>.csv
+ */
+
 
 main()
     .then(() => process.exit(0))

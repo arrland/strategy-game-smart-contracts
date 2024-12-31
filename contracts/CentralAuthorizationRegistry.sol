@@ -105,7 +105,7 @@ contract CentralAuthorizationRegistry is Initializable, UUPSUpgradeable, AccessC
         return contractAddresses[interfaceId];
     }
 
-    function getRoleMembers(bytes32 role) public view returns (address[] memory) {
+    function getRoleMembers(bytes32 role) public view override returns (address[] memory) {
         uint256 count = getRoleMemberCount(role);
         address[] memory members = new address[](count);
         for (uint256 i = 0; i < count; i++) {
