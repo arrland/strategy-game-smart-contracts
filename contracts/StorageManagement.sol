@@ -7,6 +7,8 @@ import "./AuthorizationModifiers.sol";
 import "@openzeppelin/contracts/interfaces/IERC721.sol";
 import "@openzeppelin/contracts/interfaces/IERC1155.sol";
 import "./interfaces/IIslandNft.sol";
+import "./interfaces/IResourceFarmingRules.sol";
+
 
 contract StorageManagement is AuthorizationModifiers {
     // Central Authorization Registry Contract
@@ -82,8 +84,13 @@ contract StorageManagement is AuthorizationModifiers {
         emit StorageContractRemoved(contractAddress);
     }
 
-    function getResourceFarming() internal view returns (IResourceManagement) {        
-        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
+    function getResourceFarmingRules() internal view returns (IResourceFarmingRules) {        
+        return IResourceFarmingRules(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarmingRules")));
+    }
+
+    function getFarmableResourcesForPirate(address collectionAddress, uint256 pirateTokenId) external view returns (string[] memory, uint256[] memory) {
+        IResourceFarmingRules resourceFarmingRules = getResourceFarmingRules();
+        return resourceFarmingRules.getFarmableResourcesForPirate(collectionAddress, pirateTokenId);
     }
 
     function getStorageCapacity(address collectionAddress, uint256 tokenId) public view returns (uint256) {
@@ -295,5 +302,25 @@ contract StorageManagement is AuthorizationModifiers {
             }
         }
         revert("Collection address not found for the given storage contract");
+    }
+
+    function getStorageContractsForAssignableStorage() external view returns (address[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 0; i < collectionAddresses.length; i++) {
+            if (storageContracts[collectionAddresses[i]].requiresOtherNFTForStorage()) {
+                count++;
+            }
+        }
+
+        address[] memory contracts = new address[](count);
+        uint256 index = 0;
+        for (uint256 i = 0; i < collectionAddresses.length; i++) {
+            if (storageContracts[collectionAddresses[i]].requiresOtherNFTForStorage()) {
+                contracts[index] = address(storageContracts[collectionAddresses[i]]);
+                index++;
+            }
+        }
+        
+        return contracts;
     }
 }

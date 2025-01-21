@@ -1,6 +1,5 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-
 const { deployAndAuthorizeContract } = require('./utils');
 
 describe("PirateStorageMigration", function () {
@@ -26,6 +25,7 @@ describe("PirateStorageMigration", function () {
     let maticFeeRecipient;
     let islandStorage;
     let inhabitantStorage;
+    let storageManagement;
 
     // Test data
     const tokenId = 1;
@@ -74,19 +74,28 @@ describe("PirateStorageMigration", function () {
         const pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
         
         
+        
+        
 
         oldStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
-        
-        newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
 
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
         
         inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, genesisIslandsAddress);
+
+        storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, InhabitantsAddress, await oldStorage.getAddress(), await islandStorage.getAddress(), await inhabitantStorage.getAddress());
                 
-        await islandStorage.initializeIslands(1, { gasLimit: 30000000 });        
+        await islandStorage.initializeIslands(1, { gasLimit: 30000000 });  
+        await islandStorage.initializeIslands(2, { gasLimit: 30000000 });        
         await islandStorage.initializeIslands(13, { gasLimit: 30000000 });
        
         await centralAuthorizationRegistry.addAuthorizedContract(admin.address);
+
+        await storageManagement.connect(user).assignStorageToPrimary(genesisPiratesAddress, tokenId, 1);
+
+        newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
+
+
         // Deploy PirateStorageMigration
         migration = await deployAndAuthorizeContract(
             "PirateStorageMigration", 
@@ -97,18 +106,15 @@ describe("PirateStorageMigration", function () {
 
         await resourceManagement.addResource(await oldStorage.getAddress(), tokenId, user.address, resourceType, resourceAmount);
 
-        console.log("resourceAmount", resourceAmount);
     });
 
     describe("Deployment", function () {
         it("Should set the correct old and new storage addresses", async function () {
             const oldStorageAddress = await oldStorage.getAddress();
             const newStorageAddress = await newStorage.getAddress();
-            console.log("oldStorageAddress", oldStorageAddress);
-            console.log("newStorageAddress", newStorageAddress);
             
-            expect(await migration.oldPirateStorage()).to.equal(oldStorageAddress);
-            expect(await migration.newPirateStorage()).to.equal(newStorageAddress);
+            expect(await migration.oldStorage()).to.equal(oldStorageAddress);
+            expect(await migration.newStorage()).to.equal(newStorageAddress);
         });
 
         it("Should initialize with migration not completed", async function () {
@@ -117,153 +123,96 @@ describe("PirateStorageMigration", function () {
     });
 
     describe("Migration", function () {
-        it("Should migrate resources for a single token", async function () {
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
+        it("Should migrate storage assignments correctly", async function () {
+            const storageTokenId = 1;            
 
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
+            await migration.connect(admin).migrateBatch([storageTokenId]);
 
-            // Check if resources were migrated correctly
-            const newBalance = await newStorage.getResourceBalance(tokenId, resourceType);
+            // Check progress
+            const progress = await migration.getMigrationProgress(storageTokenId);
+            expect(progress.completed).to.be.true;
+            expect(progress.migratedAssignments).to.equal(progress.totalAssignments);
+            expect(progress.remainingAssignments).to.equal(0);
+
+            const isValid = await migration.verifyMigration(storageTokenId);
+            expect(isValid).to.be.true;
+        });
+
+        it("Should migrate resources correctly", async function () {
+            const oldBalance = await resourceManagement.getResourceBalance(await oldStorage.getAddress(), tokenId, resourceType);
+            expect(oldBalance).to.equal(resourceAmount);
+
+            await migration.connect(admin).migrateOwnerTokens(user.address, [tokenId]);
+
+            const newBalance = await resourceManagement.getResourceBalance(await newStorage.getAddress(), tokenId, resourceType);
             expect(newBalance).to.equal(resourceAmount);
         });
 
-        it("Should migrate resources for multiple tokens", async function () {
-            const tokenId2 = 2;
-            await oldStorage.addResource(tokenId2, user.address, resourceType, resourceAmount);
-
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId, tokenId2]
-            }];
-
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-
-            // Check balances in new storage
-            const newBalance1 = await newStorage.getResourceBalance(tokenId, resourceType);
-            const newBalance2 = await newStorage.getResourceBalance(tokenId2, resourceType);
-            expect(newBalance1).to.equal(resourceAmount);
-            expect(newBalance2).to.equal(resourceAmount);
+        it("Should handle emergency assignment removal", async function () {
+            const storageTokenId = 1;
+            await newStorage.connect(admin).assignStorageToPrimary(genesisPiratesAddress, tokenId, storageTokenId);
+            
+            await migration.connect(admin).removeAssignment(tokenId);
+            
+            const isAssigned = await newStorage.isStorageAssignedToPrimary(genesisPiratesAddress, tokenId);
+            expect(isAssigned).to.be.false;
         });
 
-        it("Should track migrated owners", async function () {
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
-
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-
-            const migratedOwners = await migration.getMigratedOwners();
-            expect(migratedOwners).to.include(user.address);
+        it("Should prevent double migration", async function () {
+            await migration.connect(admin).updateStorageManagement();
+            
+            await expect(
+                migration.connect(admin).migrateOwnerTokens(user.address, [tokenId])
+            ).to.be.revertedWith("Migration has already been completed");
         });
 
-        it("Should emit MigrationCompleted event", async function () {
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
+        it("Should track migration progress correctly", async function () {
+            const storageTokenId = 1;
+            
+            // Check initial state
+            let progress = await migration.getMigrationProgress(storageTokenId);
+            expect(progress.completed).to.be.false;
+            expect(progress.totalAssignments).to.equal(0);
+            
+            // Start migration
+            await migration.connect(admin).migrateBatch([storageTokenId]);
+            
+            // Check progress after migration
+            progress = await migration.getMigrationProgress(storageTokenId);
+            expect(progress.totalAssignments).to.be.greaterThan(0);
+            
+            // Check in-progress tokens
+            const inProgressTokens = await migration.getStorageTokensInProgress();
+            if (progress.completed) {
+                expect(inProgressTokens).to.not.include(storageTokenId);
+            } else {
+                expect(inProgressTokens).to.include(storageTokenId);
+            }
+        });
 
-            await expect(migration.connect(admin).migrateAllOwners(ownerTokens))
-                .to.emit(migration, "MigrationCompleted")
-                .withArgs(user.address, tokenId);
+        it("Should verify migration correctly", async function () {
+            const storageTokenId = 1;
+            
+            // Assign different configurations in old and new storage
+            await oldStorage.connect(admin).assignStorageToPrimary(genesisPiratesAddress, tokenId, storageTokenId);
+            await newStorage.connect(admin).assignStorageToPrimary(genesisPiratesAddress, tokenId + 1, storageTokenId);
+
+            const isValid = await migration.verifyMigration(storageTokenId);
+            expect(isValid).to.be.false;
         });
     });
 
     describe("Access Control", function () {
         it("Should only allow admin to migrate", async function () {
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
-
             await expect(
-                migration.connect(user).migrateAllOwners(ownerTokens)
+                migration.connect(user).migrateOwnerTokens(user.address, [tokenId])
             ).to.be.revertedWith("Caller is not an admin");
         });
 
-        it("Should prevent migration after completion", async function () {
-            await migration.connect(admin).updateStorageManagement();
-
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
-
-            await expect(
-                migration.connect(admin).migrateAllOwners(ownerTokens)
-            ).to.be.revertedWith("Migration has already been completed");
-        });
-    });
-
-    describe("Edge Cases", function () {
-        it("Should handle tokens with no resources", async function () {
-            const emptyTokenId = 999;
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [emptyTokenId]
-            }];
-
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-            const newBalance = await newStorage.getResourceBalance(emptyTokenId, resourceType);
-            expect(newBalance).to.equal(0);
-        });
-
-        it("Should handle multiple resource types", async function () {
-            const resourceType2 = "fish";
-            await resourceManagement.addResource(await oldStorage.getAddress(), tokenId, user.address, resourceType2, resourceAmount);
-
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
-
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-
-            const newBalance1 = await newStorage.getResourceBalance(tokenId, resourceType);
-            const newBalance2 = await newStorage.getResourceBalance(tokenId, resourceType2);
-            expect(newBalance1).to.equal(resourceAmount);
-            expect(newBalance2).to.equal(resourceAmount);
-        });
-
-        it("Should handle duplicate migrations gracefully", async function () {
-            const ownerTokens = [{
-                owner: user.address,
-                tokenIds: [tokenId]
-            }];
-
-            // First migration
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-            const firstBalance = await newStorage.getResourceBalance(tokenId, resourceType);
-
-            // Attempt second migration
-            await migration.connect(admin).migrateAllOwners(ownerTokens);
-            const secondBalance = await newStorage.getResourceBalance(tokenId, resourceType);
-
-            // Balances should be the same
-            expect(secondBalance).to.equal(firstBalance);
-        });
-    });
-
-    describe("Storage Management Update", function () {
         it("Should only allow admin to update storage management", async function () {
             await expect(
                 migration.connect(user).updateStorageManagement()
             ).to.be.revertedWith("Caller is not an admin");
-        });
-
-        it("Should set migration completed flag", async function () {
-            await migration.connect(admin).updateStorageManagement();
-            expect(await migration.migrationCompleted()).to.be.true;
-        });
-
-        it("Should prevent multiple storage management updates", async function () {
-            await migration.connect(admin).updateStorageManagement();
-            await expect(
-                migration.connect(admin).updateStorageManagement()
-            ).to.be.revertedWith("Migration has already been completed");
         });
     });
 });

@@ -186,4 +186,17 @@ abstract contract BaseStorage is AuthorizationModifiers {
     function getResourceFarming() internal view returns (IResourceFarming) {        
         return IResourceFarming(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarming")));
     }
+
+    function _getTotalAssignmentsForStorage(uint256 storageTokenId) internal view returns (uint256) {
+        address[] memory storageContracts = getStorageManagement().getStorageContractsForAssignableStorage();
+        
+        uint256 totalAssignments = 0;
+        for (uint256 i = 0; i < storageContracts.length; i++) {
+            BaseStorage storageContract = BaseStorage(storageContracts[i]);
+            uint256[] memory primaryTokens = storageContract.getPrimaryTokensForStorage(storageTokenId);
+            totalAssignments += primaryTokens.length;
+        }
+        
+        return totalAssignments;
+    }
 }
