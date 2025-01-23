@@ -1,4 +1,45 @@
-# strategy-game-smart-contracts
+# Arrland - Blockchain Strategy Game
+
+## Overview
+
+Arrland is an on-chain strategy game built on the Polygon blockchain where players manage islands, construct buildings, farm resources, and engage in various strategic missions. The game combines NFT ownership, resource management, and complex building mechanics to create an immersive blockchain gaming experience.
+
+### Key Features
+
+- **Island Management**: Own and develop different types of islands (NFT and non-NFT) with varying sizes and capabilities
+- **Building System**: Construct and upgrade various buildings including:
+  - Governor's Headquarters
+  - Trading Posts
+  - Resource Production Facilities
+  - Maritime Buildings
+  - Industrial Complexes
+  - Special Licensed Facilities
+
+- **Resource System**: 
+  - Complex resource farming mechanics
+  - Skill-based resource production
+  - Strategic resource management
+  - Multi-tier storage system
+
+- **Mission System**:
+  - Resource Transfer Missions
+  - Trade Missions
+  - Combat Missions
+  - Exploration Missions
+
+- **NFT Integration**:
+  - Island NFTs
+  - Pirate NFTs
+  - Inhabitant NFTs
+  - NFT staking mechanics
+
+## Technical Stack
+
+- **Blockchain**: Polygon (Mainnet and Mumbai Testnet)
+- **Smart Contracts**: Solidity 0.8.25+
+- **Development Framework**: Hardhat
+- **Testing**: Chai/Mocha
+- **Security**: OpenZeppelin contracts
 
 ## Deploying Smart Contracts
 
