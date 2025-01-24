@@ -5,6 +5,7 @@ require("@openzeppelin/hardhat-upgrades");
 require('dotenv').config();
 require("hardhat-gas-reporter");
 require("@secrez/cryptoenv").parse();
+const { ethers } = require("ethers");
 
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY;
 const POLYGON_RPC = process.env.POLYGON_RPC;
@@ -25,14 +26,16 @@ module.exports = {
       url: POLYGON_RPC,
       accounts: process.env.PRIVATE_KEY_POLYGON ? [process.env.PRIVATE_KEY_POLYGON] : [],
       chainId: 137,
-      //gasPrice: 90000000000, // 90 Gwei = 90 * 10^9 wei,
+      maxFeePerGas: 100_000_000_000,  // 100 Gwei
+      maxPriorityFeePerGas: 25_000_000_000, // 25 Gwei
+      // Fallback for legacy transactions
+      gasPrice: 100_000_000_000, // 100 Gwei
       timeout: 9200000      
-      
     },
     amoy: {
       url: POLYGON_AMAY_RPC,
       accounts: process.env.PRIVATE_KEY_AMAY ? [process.env.PRIVATE_KEY_AMAY] : [],
-      chainId: 80002,
+      chainId: 80002
     },
   },
   gasReporter: {

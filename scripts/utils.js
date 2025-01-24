@@ -20,7 +20,8 @@ async function checkContractDeployed(tokenAddress) {
     const ContractFactory = await ethers.getContractFactory(contractName);
     const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args);
     const contractAddress = await contractInstance.getAddress();
-  
+    console.log(`Contract ${contractName} deployed at: ${contractAddress}`);
+    console.log(`Checking contract deployment...`);
     await checkContractDeployed(contractAddress);
   
     try {
@@ -29,6 +30,7 @@ async function checkContractDeployed(tokenAddress) {
     } catch (error) {
       console.log(error);
     }
+    console.log(`Adding contract to authorized contracts...`);
     await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
   
     // Log deployed contract
@@ -41,6 +43,31 @@ async function checkContractDeployed(tokenAddress) {
     fs.appendFileSync('.env', envVariables);
   
     return contractInstance;
+  }
+
+  async function authorizeDeployedContract(contractName, contractAddress, centralAuthorizationRegistry) {
+    // Get contract instance at deployed address
+    const ContractFactory = await ethers.getContractFactory(contractName);
+    const contractInstance = ContractFactory.attach(contractAddress);
+
+    console.log(`Authorizing deployed contract ${contractName} at ${contractAddress}...`);
+
+    try {
+      // Get interface ID and set contract address in registry
+      const interfaceId = await contractInstance.INTERFACE_ID();
+      await centralAuthorizationRegistry.setContractAddress(interfaceId, contractAddress);
+    } catch (error) {
+      console.log(error);
+    }
+
+    // Add to authorized contracts
+    console.log(`Adding contract to authorized contracts...`);
+    await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
+
+    // Log the authorized contract
+    const logMessage = `${contractName} authorized at: ${contractAddress}`;
+    console.log(logMessage);
+    fs.appendFileSync('deployed_contracts.log', logMessage + '\n');
   }
   
   async function verifyContract(address, contractName, constructorArguments) {
@@ -56,4 +83,4 @@ async function checkContractDeployed(tokenAddress) {
     }
   }
 
-  module.exports = { checkContractDeployed, deployAndAuthorizeContract, verifyContract };
+  module.exports = { checkContractDeployed, deployAndAuthorizeContract, verifyContract, authorizeDeployedContract };
