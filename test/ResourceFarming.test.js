@@ -1448,6 +1448,89 @@ describe("ResourceFarming", function () {
         expect(farmingInfoDetailsArray.length).to.equal(tokenIds.length);
     });
     
+    it("should get farmable resources for pirate through StorageManagement", async function () {
+        // Setup pirate with required skills
+        const pirateSkills = {
+            characterSkills: {
+                strength: 3n * 10n**18n,
+                stamina: 0n,
+                swimming: 0n,
+                melee: 0n,
+                shooting: 0n,
+                cannons: 0n,
+                agility: 2n * 10n**18n,
+                engineering: 0n,
+                wisdom: 0n,
+                luck: 0n,
+                health: 0n,
+                speed: 0n
+            },
+            specialSkills: {
+                fruitPicking: 1n * 10n**18n,
+                fishing: 0n,
+                building: 0n,
+                crafting: 0n
+            },
+            toolsSkills: {
+                harvest: 0n,
+                mining: 0n,
+                quarrying: 4n * 10n**18n,
+                excavation: 5n * 10n**18n,
+                husbandry: 0n,
+                woodcutting: 0n,
+                slaughter: 0n,
+                hunting: 0n,
+                cultivation: 0n
+            },
+            added: true
+        };
 
+        // Update pirate skills
+        await pirateManagement.connect(admin).batchUpdatePirateAttributes(
+            genesisPiratesAddress,
+            [{ tokenIds: [1], skills: pirateSkills }]
+        );
+
+        // Get farmable resources through StorageManagement
+        const [farmable, unfarmable] = await storageManagement.getFarmableResourcesForPirate(
+            genesisPiratesAddress,
+            1
+        );
+
+        // Verify farmable resources
+        expect(farmable).to.not.be.empty;
+        
+        // Check if new resources are included
+        const resourceNames = farmable.map(r => r.name);
+        expect(resourceNames).to.include('clay'); // Should be farmable with excavation level 5
+        expect(resourceNames).to.include('stone'); // Should be farmable with quarrying level 4
+        expect(resourceNames).to.include('bricks'); // Should be farmable with agility
+
+        // Verify requirements
+        const clayResource = farmable.find(r => r.name === 'clay');
+        expect(clayResource.requirements[0][0].skillName).to.equal('Excavation');
+        expect(clayResource.requirements[0][0].value).to.equal(1n * 10n**18n);
+
+        const stoneResource = farmable.find(r => r.name === 'stone');
+        expect(stoneResource.requirements[0][0].skillName).to.equal('Quarrying');
+        expect(stoneResource.requirements[0][0].value).to.equal(1n * 10n**18n);
+
+        // Bricks should have no requirements
+        const bricksResource = farmable.find(r => r.name === 'bricks');
+        expect(bricksResource.requirements).to.be.empty;
+
+        // Check unfarmable resources
+        expect(unfarmable).to.not.be.empty;
+        const unfarmableNames = unfarmable.map(r => r.name);
+        expect(unfarmableNames).to.have.members([
+            'sugarcane',
+            'grain', 
+            'planks',
+            'meat',
+            'crates',
+            'barrels',
+            'wild game'
+        ]);            
+    });
 
 });

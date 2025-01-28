@@ -300,6 +300,93 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "piratesCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "islandCollection",
+        "type": "address"
+      }
+    ],
+    "name": "getAllAssignedToStorage",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "storageTokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "primaryTokens",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct IStorageManagement.StorageAssignment[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "address[]",
+        "name": "piratesCollections",
+        "type": "address[]"
+      },
+      {
+        "internalType": "address",
+        "name": "islandCollection",
+        "type": "address"
+      }
+    ],
+    "name": "getAllAssignedToStorageMultiCollections",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "storageTokenId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "address",
+            "name": "collectionAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "primaryTokens",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct IStorageManagement.StorageAssignmentCollection[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "collectionAddress",
         "type": "address"
       },
@@ -488,6 +575,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getStorageContractsForAssignableStorage",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -503,24 +603,31 @@
     "name": "getStorageDetails",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "totalResourcesInStorage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "storageCapacity",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string[]",
-        "name": "resourceTypes",
-        "type": "string[]"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "resourceBalances",
-        "type": "uint256[]"
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "totalResourcesInStorage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "storageCapacity",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string[]",
+            "name": "resourceTypes",
+            "type": "string[]"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "resourceBalances",
+            "type": "uint256[]"
+          }
+        ],
+        "internalType": "struct IStorageManagement.StorageDetails",
+        "name": "",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",

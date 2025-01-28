@@ -42,11 +42,18 @@ contract ResourceSpendManagement is AuthorizationModifiers {
 
     function _initializeResourceRequirements() internal {
         ResourceTuple[] memory higherFoodResources = new ResourceTuple[](5);
-        higherFoodResources[0] = ResourceTuple("fish", ONE_ETHER, CalculationMethod.PerDay);
-        higherFoodResources[1] = ResourceTuple("coconut", 2 * ONE_ETHER, CalculationMethod.PerDay);
-        higherFoodResources[2] = ResourceTuple("meat", ONE_ETHER / 2, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
-        higherFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
-        higherFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 200, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
+        higherFoodResources[0] = ResourceTuple("fish", 2 * ONE_ETHER, CalculationMethod.PerDay);
+        higherFoodResources[1] = ResourceTuple("coconut", 4 * ONE_ETHER, CalculationMethod.PerDay);
+        higherFoodResources[2] = ResourceTuple("meat", ONE_ETHER, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
+        higherFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 50, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
+        higherFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
+
+        ResourceTuple[] memory middleFoodResources = new ResourceTuple[](5);
+        middleFoodResources[0] = ResourceTuple("fish", ONE_ETHER, CalculationMethod.PerDay);
+        middleFoodResources[1] = ResourceTuple("coconut", 2 * ONE_ETHER, CalculationMethod.PerDay);
+        middleFoodResources[2] = ResourceTuple("meat", ONE_ETHER / 2, CalculationMethod.PerDay); // 0.5 * ONE_ETHER
+        middleFoodResources[3] = ResourceTuple("barrel-packed fish", ONE_ETHER / 100, CalculationMethod.PerDay); // 0.01 * ONE_ETHER
+        middleFoodResources[4] = ResourceTuple("barrel-packed meat", ONE_ETHER / 200, CalculationMethod.PerDay); // 0.005 * ONE_ETHER
 
         ResourceTuple[] memory lowerFoodResources = new ResourceTuple[](5);
         lowerFoodResources[0] = ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay);  
@@ -115,10 +122,23 @@ contract ResourceSpendManagement is AuthorizationModifiers {
         cratePackedCoconutsMandatoryResources[0] = ResourceTuple("crates", ONE_ETHER, CalculationMethod.Divide);
         cratePackedCoconutsMandatoryResources[1] = ResourceTuple("coconut", ONE_ETHER / 25, CalculationMethod.Divide); // 0.04 * ONE_ETHER
 
+        // Add clay requirements (no resources needed to farm)
+        _setResourceRequirements("clay", _createResourceAmounts(higherFoodResources), new ResourceAmount[](0));
 
-        _setResourceRequirements("planks", _createResourceAmounts(higherFoodResources), _createResourceAmounts(planksMandatoryResources));
+        // Add stone requirements (no resources needed to farm)
+        _setResourceRequirements("stone", _createResourceAmounts(higherFoodResources), new ResourceAmount[](0));
 
-        _setResourceRequirements("wood", _createResourceAmounts(higherFoodResources), new ResourceAmount[](0));
+        // Add bricks requirements (requires clay and stone)
+        ResourceTuple[] memory bricksMandatoryResources = new ResourceTuple[](3);
+        bricksMandatoryResources[0] = ResourceTuple("clay", 100 * ONE_ETHER, CalculationMethod.Divide); // 100 brics from 1 clay
+        bricksMandatoryResources[1] = ResourceTuple("wood", 100 * ONE_ETHER, CalculationMethod.Divide); // 100 brics from 1 wood
+        bricksMandatoryResources[2] = ResourceTuple("planks", 100 * ONE_ETHER, CalculationMethod.Divide); // 100 brics from 1 plank
+
+        _setResourceRequirements("bricks", _createResourceAmounts(middleFoodResources), _createResourceAmounts(bricksMandatoryResources));
+
+        _setResourceRequirements("planks", _createResourceAmounts(middleFoodResources), _createResourceAmounts(planksMandatoryResources));
+
+        _setResourceRequirements("wood", _createResourceAmounts(middleFoodResources), new ResourceAmount[](0));
 
         _setResourceRequirements("crates", _createResourceAmounts(lowerFoodResources), _createResourceAmounts(crateMandatoryResources));
 
@@ -281,7 +301,9 @@ contract ResourceSpendManagement is AuthorizationModifiers {
             }
             if (burnedOptional) break;
         }
-        require(burnedOptional, "At least one optional resource must be burned");
+        if (requirement.optionalResources.length > 0) {
+            require(burnedOptional, "At least one optional resource must be burned");
+        }
     }
 
     function handleResourceBurning(

@@ -88,7 +88,9 @@ contract StorageManagement is AuthorizationModifiers {
         return IResourceFarmingRules(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceFarmingRules")));
     }
 
-    function getFarmableResourcesForPirate(address collectionAddress, uint256 pirateTokenId) external view returns (string[] memory, uint256[] memory) {
+    function getFarmableResourcesForPirate(address collectionAddress, uint256 pirateTokenId) 
+        external view returns (IResourceFarmingRules.ResourceInfo[] memory farmable, IResourceFarmingRules.ResourceInfo[] memory unfarmable) 
+    {
         IResourceFarmingRules resourceFarmingRules = getResourceFarmingRules();
         return resourceFarmingRules.getFarmableResourcesForPirate(collectionAddress, pirateTokenId);
     }

@@ -24,8 +24,8 @@ describe("ResourceTypeManager", function () {
     it("should add a new resource type", async function () {
         await resourceTypeManager.connect(admin).addResourceType("gold", true, true);
         const resourceTypes = await resourceTypeManager.getResourceTypes();
-        expect(resourceTypes.length).to.equal(28); // Updated expected length
-        expect(resourceTypes[27].name).to.equal("gold"); // Updated index
+        expect(resourceTypes.length).to.equal(29); // Updated expected length
+        expect(resourceTypes[28].name).to.equal("gold"); // Updated index
     });
 
     it("should update an existing resource type", async function () {
@@ -38,7 +38,7 @@ describe("ResourceTypeManager", function () {
     it("should remove an existing resource type", async function () {
         await resourceTypeManager.connect(admin).removeResourceType("coconut");
         const resourceTypes = await resourceTypeManager.getResourceTypes();
-        expect(resourceTypes.length).to.equal(26);
+        expect(resourceTypes.length).to.equal(27);
         expect(resourceTypes.some(rt => rt.name === "coconut")).to.equal(false);
     });
 
@@ -54,7 +54,7 @@ describe("ResourceTypeManager", function () {
 
     it("should return all resource type names", async function () {
         const names = await resourceTypeManager.getResourceTypeNames();        
-        expect(names.length).to.equal(27); // Updated expected length
+        expect(names.length).to.equal(28); // Updated expected length
         [
             'coconut', 'citrus',
             'fish',    'tobacco',

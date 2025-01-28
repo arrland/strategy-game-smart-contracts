@@ -491,6 +491,29 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "nftCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "primaryTokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "storageTokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "migrateStorageAssignmentsBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "nftCollection1155",
     "outputs": [

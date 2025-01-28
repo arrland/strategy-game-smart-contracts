@@ -1,0 +1,52 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

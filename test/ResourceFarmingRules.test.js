@@ -243,9 +243,9 @@ describe("ResourceFarmingRules", function () {
                 agility: 0n,
                 engineering: 0n,
                 wisdom: 0n,
-                luck: 2n*10n**18n,
+                luck: 0,
                 health: 0n,
-                speed: 0n
+                speed: 2n*10n**18n
             },
             specialSkills: {
                 fruitPicking: 0n,
@@ -784,7 +784,7 @@ describe("ResourceFarmingRules", function () {
         const [farmable, unfarmable] = await resourceFarmingRules.getFarmableResourcesForPirate(genesisPiratesAddress, 0);
         
         // Should only have access to free resources
-        expect(farmable.length).to.equal(17); // Number of free resources
+        expect(farmable.length).to.equal(18); // Number of free resources
         expect(farmable.map(r => r.name)).to.include.members([
             "coconut",
             "citrus",
@@ -823,7 +823,7 @@ describe("ResourceFarmingRules", function () {
                 wisdom: 2n * 10n**18n,
                 luck: 2n * 10n**18n,
                 health: 0n,
-                speed: 0n
+                speed: 2n * 10n**18n,
             },
             specialSkills: {
                 fruitPicking: 2n * 10n**18n,
@@ -833,8 +833,8 @@ describe("ResourceFarmingRules", function () {
             },
             toolsSkills: {
                 harvest: 2n * 10n**18n,
-                mining: 0n,
-                quarrying: 0n,
+                mining: 8n * 10n**18n,
+                quarrying: 8n * 10n**18n,
                 excavation: 8n * 10n**18n,
                 husbandry: 8n * 10n**18n,
                 woodcutting: 4n * 10n**18n,
@@ -854,22 +854,36 @@ describe("ResourceFarmingRules", function () {
         );
 
         const [farmable, unfarmable] = await resourceFarmingRules.getFarmableResourcesForPirate(genesisPiratesAddress, 0);
-
         // Should have access to all resources
         expect(farmable.length).to.be.greaterThan(17); // More than free resources
         expect(farmable.map(r => r.name)).to.include.members([
-            // Free resources
             "coconut",
             "citrus",
-            // ... rest of free resources
-            // Skill-required resources
+            "fish",
+            "tobacco", 
+            "cotton",
+            "pig",
+            "wood",
             "sugarcane",
             "grain",
             "planks",
             "meat",
             "crates",
             "barrels",
-            "wild game"
+            "wild game",
+            "coconut liquor",
+            "crate-packed citrus",
+            "crate-packed coconuts",
+            "barrel-packed fish",
+            "barrel-packed meat",
+            "bags",
+            "bag-packed tobacco",
+            "bag-packed grain", 
+            "bag-packed cotton",
+            "bag-packed sugarcane",
+            "clay",
+            "stone",
+            "bricks"
         ]);
 
         // Should have no unfarmable resources since pirate has all skills
@@ -946,11 +960,16 @@ describe("ResourceFarmingRules", function () {
             "wild game",
             "coconut liquor",
             "crate-packed citrus",
-            "crate-packed coconuts"
+            "crate-packed coconuts",
+            "stone",
+            "clay",
+            "bricks"
         ];
 
         // Convert farmable resources to array of names for easier checking
         const farmableNames = farmable.map(r => r.name);
+
+        console.log(farmableNames);
         
         // Verify each expected resource is in the farmable list
         for (const resource of expectedResources) {
@@ -1002,7 +1021,7 @@ describe("ResourceFarmingRules", function () {
         const durationSeconds = 86400n; // 1 day
 
         const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);        
-        expect(output).to.equal(1000000000000000000n); // (2 + 3) / 5 = 1
+        expect(output).to.equal(500000000000000000n); // (2 + 3) / 5 = 1
     });
 
     it("should revert if pirate does not have required woodcutting skill for barrels", async function () {
@@ -1563,5 +1582,177 @@ describe("ResourceFarmingRules", function () {
 
         const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
         expect(output).to.be.greaterThan(0);
+    });
+
+    it("should calculate resource output for clay", async function () {
+        const pirateSkills = {
+            characterSkills: {
+                strength: 3n * 10n**18n,
+                stamina: 0n,
+                swimming: 0n,
+                melee: 0n,
+                shooting: 0n,
+                cannons: 0n,
+                agility: 0n,
+                engineering: 0n,
+                wisdom: 0n,
+                luck: 0n,
+                health: 0n,
+                speed: 0n
+            },
+            specialSkills: {
+                fruitPicking: 0n,
+                fishing: 0n,
+                building: 0n,
+                crafting: 0n
+            },
+            toolsSkills: {
+                harvest: 0n,
+                mining: 0n,
+                quarrying: 0n,
+                excavation: 5n * 10n**18n,
+                husbandry: 0n,
+                woodcutting: 0n,
+                slaughter: 0n,
+                hunting: 0n,
+                cultivation: 0n
+            },
+            added: true
+        };
+
+        const resource = "clay";
+        const durationSeconds = 86400n; // 1 day
+
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
+        expect(output).to.equal((8n * 10n**18n)/40n); // Expected output based on strength + excavation
+    });
+
+    it("should calculate resource output for stone", async function () {
+        const pirateSkills = {
+            characterSkills: {
+                strength: 2n * 10n**18n,
+                stamina: 0n,
+                swimming: 0n,
+                melee: 0n,
+                shooting: 0n,
+                cannons: 0n,
+                agility: 0n,
+                engineering: 0n,
+                wisdom: 0n,
+                luck: 0n,
+                health: 0n,
+                speed: 0n
+            },
+            specialSkills: {
+                fruitPicking: 1n * 10n**18n,
+                fishing: 0n,
+                building: 0n,
+                crafting: 0n
+            },
+            toolsSkills: {
+                harvest: 0n,
+                mining: 0n,
+                quarrying: 5n * 10n**18n,
+                excavation: 0n,
+                husbandry: 0n,
+                woodcutting: 0n,
+                slaughter: 0n,
+                hunting: 0n,
+                cultivation: 0n
+            },
+            added: true
+        };
+
+        const resource = "stone";
+        const durationSeconds = 86400n; // 1 day
+
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
+        expect(output).to.equal(8n * 10n**18n / 40n); // (strength + quarrying + fruitPicking) / 40
+    });
+
+    it("should calculate resource output for bricks", async function () {
+        const pirateSkills = {
+            characterSkills: {
+                strength: 0n,
+                stamina: 0n,
+                swimming: 0n,
+                melee: 0n,
+                shooting: 0n,
+                cannons: 0n,
+                agility: 3n * 10n**18n,
+                engineering: 0n,
+                wisdom: 0n,
+                luck: 0n,
+                health: 0n,
+                speed: 0n
+            },
+            specialSkills: {
+                fruitPicking: 0n,
+                fishing: 0n,
+                building: 0n,
+                crafting: 0n
+            },
+            toolsSkills: {
+                harvest: 0n,
+                mining: 0n,
+                quarrying: 0n,
+                excavation: 5n * 10n**18n, // Test with excavation level 5
+                husbandry: 0n,
+                woodcutting: 0n,
+                slaughter: 0n,
+                hunting: 0n,
+                cultivation: 0n
+            },
+            added: true
+        };
+
+        const resource = "bricks";
+        const durationSeconds = 86400n; // 1 day
+
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
+        expect(output).to.equal(5n * 10n**18n); // agility + 2 when excavation is 5
+    });
+
+    it("should calculate resource output for bricks with different excavation level", async function () {
+        const pirateSkills = {
+            characterSkills: {
+                strength: 0n,
+                stamina: 0n,
+                swimming: 0n,
+                melee: 0n,
+                shooting: 0n,
+                cannons: 0n,
+                agility: 3n * 10n**18n,
+                engineering: 0n,
+                wisdom: 0n,
+                luck: 0n,
+                health: 0n,
+                speed: 0n
+            },
+            specialSkills: {
+                fruitPicking: 0n,
+                fishing: 0n,
+                building: 0n,
+                crafting: 0n
+            },
+            toolsSkills: {
+                harvest: 0n,
+                mining: 0n,
+                quarrying: 0n,
+                excavation: 6n * 10n**18n, // Test with excavation level 6
+                husbandry: 0n,
+                woodcutting: 0n,
+                slaughter: 0n,
+                hunting: 0n,
+                cultivation: 0n
+            },
+            added: true
+        };
+
+        const resource = "bricks";
+        const durationSeconds = 86400n; // 1 day
+
+        const output = await resourceFarmingRules.calculateResourceOutput(pirateSkills, resource, durationSeconds);
+        expect(output).to.equal(3n * 10n**18n); // normal agility output when excavation is not 5 or 8
     });
 });

@@ -84,6 +84,71 @@ The [ResourceFarming](https://github.com/arrland/strategy-game-smart-contracts/t
     - **Access**: Public.
     - **Link**: [getFarmingInfo](https://github.com/arrland/strategy-game-smart-contracts/tree/main/contracts/ResourceFarming.sol#L265)
 
+9. **getFarmableResourcesForPirate**
+    - **Description**: Returns two arrays of resources: those that the pirate can farm and those they cannot farm yet.
+    - **Parameters**:
+      - `collectionAddress` (address): The address of the pirate collection.
+      - `tokenId` (uint256): The ID of the pirate token.
+    - **Returns**: Two arrays of ResourceInfo structs:
+      - `farmable`: Array of resources the pirate can currently farm
+      - `unfarmable`: Array of resources the pirate cannot farm yet
+    - **ResourceInfo struct**:
+      ```solidity
+      struct ResourceInfo {
+          string name;             // Name of the resource (e.g., "wood", "fish")
+          SkillRequirement[][] requirements;  // Array of skill requirement groups
+      }
+
+      struct SkillRequirement {
+          string skillName;     // Name of the skill needed
+          uint256 value;       // Required skill value
+          bool exactMatch;     // If true, skill must exactly match value
+                              // If false, skill must be >= value
+      }
+      ```
+    - **exactMatch Behavior**:
+      - When `exactMatch = false` (most common):
+        - Pirate needs skill level greater than or equal to the requirement
+        - Example: `{skillName: "woodcutting", value: "1000000000000000000", exactMatch: false}`
+        - Means: Woodcutting skill must be ≥ 1
+      - When `exactMatch = true`:
+        - Pirate needs skill level exactly matching the requirement
+        - Example: `{skillName: "harvest", value: "2000000000000000000", exactMatch: true}`
+        - Means: Harvest skill must be exactly 2, not more or less
+    - **Access**: Public view.
+    - **Example Usage**:
+      ```javascript
+      // Get farmable and unfarmable resources for a pirate
+      const [farmable, unfarmable] = await resourceFarmingRules.getFarmableResourcesForPirate(
+          pirateCollectionAddress,
+          pirateTokenId
+      );
+
+      // Example response:
+      // farmable = [
+      //   {
+      //     name: "coconut",
+      //     requirements: []  // Empty array means no requirements
+      //   },
+      //   {
+      //     name: "wood",
+      //     requirements: [[{ skillName: "woodcutting", value: "1000000000000000000", exactMatch: false }]]
+      //     // Pirate needs woodcutting >= 1
+      //   }
+      // ]
+      // unfarmable = [
+      //   {
+      //     name: "sugarcane",
+      //     requirements: [[{ skillName: "harvest", value: "1000000000000000000", exactMatch: false }]]
+      //     // Pirate needs harvest >= 1
+      //   }
+      // ]
+      ```
+    - **Note**: Requirements are grouped in arrays where:
+      - Inner arrays represent AND conditions (all requirements must be met)
+      - Outer array represents OR conditions (any group of requirements can be met)
+      - Empty requirements array means the resource can be farmed without any skill requirements
+
 #### Internal Functions
 
 1. **getResourceManagement**

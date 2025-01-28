@@ -7,24 +7,96 @@
         "type": "uint256"
       },
       {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
         "internalType": "uint256",
         "name": "amount",
         "type": "uint256"
       }
     ],
-    "name": "decreaseStorageCapacity",
+    "name": "addResource",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getDefaultStorageCapacity",
-    "outputs": [
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "primaryTokenId",
         "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "assignStorageToPrimary",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "dumpResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getAllResourceBalances",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -60,6 +132,49 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPrimaryTokensForStorage",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      }
+    ],
+    "name": "getResourceBalance",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       }
@@ -81,6 +196,110 @@
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
+      }
+    ],
+    "name": "getTotalResourcesInStorage",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "isStorageAssignedToPrimary",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "nftCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "primaryTokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "storageTokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "migrateStorageAssignmentsBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "nftCollectionAddress",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "fromTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "fromOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toTokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "toOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "toStorageContract",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
       },
       {
         "internalType": "uint256",
@@ -88,7 +307,25 @@
         "type": "uint256"
       }
     ],
-    "name": "increaseStorageCapacity",
+    "name": "transferResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "unassignStorageFromPrimary",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -102,11 +339,11 @@
       },
       {
         "internalType": "uint256",
-        "name": "capacity",
+        "name": "newCapacity",
         "type": "uint256"
       }
     ],
-    "name": "setStorageCapacity",
+    "name": "updateStorageCapacity",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

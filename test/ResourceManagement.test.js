@@ -63,7 +63,7 @@ describe("ResourceManagement", function () {
             0n, 0n, 0n, 0n, 0n, 0n,   0n,
             0n, 0n, 0n, 0n, 0n, 0n,   0n,
             0n, 0n, 0n, 0n, 0n, 0n,   0n,
-            0n, 0n, 0n, 0n, 0n, 0n, 100n,
+            0n, 0n, 0n, 0n, 0n, 0n, 0n, 100n,
           200n
         ]);
     });

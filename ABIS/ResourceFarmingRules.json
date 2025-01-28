@@ -202,7 +202,7 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "pure",
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -213,6 +213,135 @@
         "internalType": "contract ICentralAuthorizationRegistry",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllResources",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "skillName",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "exactMatch",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct ResourceFarmingRules.SkillRequirement[][]",
+            "name": "requirements",
+            "type": "tuple[][]"
+          }
+        ],
+        "internalType": "struct ResourceFarmingRules.ResourceInfo[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "collectionAddress",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getFarmableResourcesForPirate",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "skillName",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "exactMatch",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct ResourceFarmingRules.SkillRequirement[][]",
+            "name": "requirements",
+            "type": "tuple[][]"
+          }
+        ],
+        "internalType": "struct ResourceFarmingRules.ResourceInfo[]",
+        "name": "farmable",
+        "type": "tuple[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "components": [
+              {
+                "internalType": "string",
+                "name": "skillName",
+                "type": "string"
+              },
+              {
+                "internalType": "uint256",
+                "name": "value",
+                "type": "uint256"
+              },
+              {
+                "internalType": "bool",
+                "name": "exactMatch",
+                "type": "bool"
+              }
+            ],
+            "internalType": "struct ResourceFarmingRules.SkillRequirement[][]",
+            "name": "requirements",
+            "type": "tuple[][]"
+          }
+        ],
+        "internalType": "struct ResourceFarmingRules.ResourceInfo[]",
+        "name": "unfarmable",
+        "type": "tuple[]"
       }
     ],
     "stateMutability": "view",
