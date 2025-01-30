@@ -3,16 +3,16 @@
 The following are the addresses of the deployed contracts on the Amoy testnet:
 
 - **CentralAuthorizationRegistry**: 0x99a764fd156083aA343e2577C348c8cF110C7141
-- **ResourceTypeManager**: 0x8C6F2881a25a1b699ccC1A728901fefD6811b2aa
+- **ResourceTypeManager**: 0xd5bB9410d928C6De6Dd75C989bA306726b005342
 - **ResourceManagement**: 0x52b107ECd25148239A827FDE5b39246516825657 
 - **FeeManagement**: 0x9f9582f104e352528BDd4B4af1CCe5577B5A9A2b
-- **PirateManagement**: 0xE7039a9e36f0facf3d9815564C3a5a97728E52DE
+- **PirateManagement**: 0x5fFAc2B667520Dfe41F54B62511aCb290955E0a0
 - **PirateStorage**: 0x64F40B91051DEeD155a0Af295B4a41445bD6764b
 - **InhabitantStorage**: 0x54E18DB386854D9f1D60eaA15355380334ba5d13
 - **IslandStorage**: 0x82A5Da5aDAd824fC542249523dfAB837a8E332ef
-- **StorageManagement**: 0xefc4F81Bc0aaD3dcFa468294Acd0835226D1525e
-- **ResourceSpendManagement**: 0xa2AFac25393749C3e6b094637A6138837A033266
-- **ResourceFarmingRules**: 0x044F5C6b18Ce43646670c119C56db19D16e12479
+- **StorageManagement**: 0x0b51B4f42a5676c923D58D3488a243Af1286743D
+- **ResourceSpendManagement**: 0x44F46BFC66A10D932083432513a640ce1222b422
+- **ResourceFarmingRules**: 0x95f7aE421D517E5993Dd349C5eA5bBBea61eF114
 - **ResourceFarming**: 0xFA5b69f4ee36f0a6AED92F7e4b4ff35C19642B73
 - **IslandManagement**: 0x326E6d79d2d1f9B9476da9863D65596Ca8A6515B
 - **ActivityStats**: 0xf8d6F0bEfeA585d6A2a9f55F4a84E36Bd0268Fd1
@@ -30,17 +30,17 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 The following are the addresses of the deployed contracts on the Mainnet:
 
 - **CentralAuthorizationRegistry**: 0xdAf8728C9eD7CBCCf8E24226B0794943E394f778
-- **ResourceTypeManager**: 0xdFfc81c94Db8BAfa755545F7164F924c1aBf0125
+- **ResourceTypeManager**: 0xA35FC33434152819007c08a4b63adAd3D8D09440
 - **ResourceManagement**: 0x526edD73D8f331f7469b36E8485FcE643b09bACB
 - **FeeManagement**: 0xA4C960945F5fa18409D3e52692e10AE408d4AaC2
-- **PirateManagement**: 0x5d2E328Ac00043e17D539984082b38661595E34b
+- **PirateManagement**: 0xE56BEf6F3Ec16006a71830498117c616feBF804c
 - **PirateStorage**: 0xf50b600dF45182A8ABD9a19fa823871A0f26Bf70
 - **IslandStorage**: 0xbeB04A176c8a5EC72C79c2E53C884Cf8722dF9B3
 - **IslandManagement**: 0xa28F15cf6F9E616A8870563325A47765B92a0290
 - **InhabitantStorage**: 0xDf8d9FCE7B4AAA064b8A5C3AF362241b707091a4
-- **StorageManagement**: 0x437Ff60E6b79Da4983B3Ea2306848F87064C92E4
-- **ResourceSpendManagement**: 0x3fcB8A2EB956F21b81559BBF83A8A584725C3EB6
-- **ResourceFarmingRules**: 0x1261B1A877E14a0fF05a0e4191bE55f3dD7E4134
+- **StorageManagement**: 0x9E01862A7Ec1865e047834356B19d8E81111C45D
+- **ResourceSpendManagement**: 0x4F27F9dFe1bFc128B932242827281b5dC513b4FE
+- **ResourceFarmingRules**: 0xBeD197703b89a31586ec6B5E942134a85383D7A1
 - **ResourceFarming**: 0x2B448C5218c3aABf8517B5B3DE54b0E817231daF
 - **ActivityStats**: 0x047A28670A824307bE2bFFE072246645dEFD5486
 - **BatchFarmingInfo**: 0xB3Ac4dF1dCb0102881548E76c2AAA053431ad85c
