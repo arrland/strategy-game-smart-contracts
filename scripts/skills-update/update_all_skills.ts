@@ -49,56 +49,81 @@ async function batchUpdateWithRetry(pirateManagement, deployer, collectionAddres
 async function verifySkills(pirateManagement: any, collectionAddress: string, data: any[]) {
     console.log(`\n${chalk.blue('🔍 Starting Verification Process...')}`);
     
-    for (let i = 0; i < data.length; i++) {
-        const tokenSkillSet = data[i];
+    // Create a map of tokenId to expected skills for efficient lookup
+    const tokenIdToSkillsMap: { [key: number]: any } = {};
+    for (const tokenSkillSet of data) {
         const tokenIds = tokenSkillSet.tokenIds.map(id => parseInt(id));
-        const expectedSkills = tokenSkillSet.skills;
+        for (const tokenId of tokenIds) {
+            tokenIdToSkillsMap[tokenId] = tokenSkillSet.skills;
+        }
+    }
+
+    // Get all token IDs from the data
+    const allTokenIds = Object.keys(tokenIdToSkillsMap).map(Number);
+    
+    // Use the same batch size as findSkillMismatches
+    const verificationBatchSize = 100;
+    let totalMismatches = 0;
+
+    // Process in batches
+    for (let i = 0; i < allTokenIds.length; i += verificationBatchSize) {
+        const tokenBatch = allTokenIds.slice(i, i + verificationBatchSize);
+        console.log(`${chalk.cyan('📦 Verifying batch')} ${Math.floor(i/verificationBatchSize) + 1}/${Math.ceil(allTokenIds.length/verificationBatchSize)}`);
         
-        // Reduced batch size from 500 to 100 for verification
-        const verificationBatchSize = 100;
-        for (let j = 0; j < tokenIds.length; j += verificationBatchSize) {
-            const tokenBatch = tokenIds.slice(j, j + verificationBatchSize);
-            console.log(`${chalk.cyan('📦 Verifying batch')} ${Math.floor(j/verificationBatchSize) + 1}/${Math.ceil(tokenIds.length/verificationBatchSize)} ${chalk.cyan('of skill set')} ${i + 1}/${data.length}`);
-            
-            const actualSkills = await pirateManagement.getManyPirateSkills(collectionAddress, tokenBatch);
-            
-            // Verify each token's skills
-            for (let k = 0; k < tokenBatch.length; k++) {
-                const tokenId = tokenBatch[k];
-                const actual = actualSkills[k];
-                
-                if (!actual.added) {
-                    console.error(`${chalk.red('❌ Error:')} Token ${chalk.yellow(tokenId)} skills not added`);
-                    continue;
-                }
+        // Get skills for the entire batch
+        const actualSkills = await pirateManagement.getManyPirateSkills(collectionAddress, tokenBatch);
 
-                // Verify character skills
-                for (const [skill, value] of Object.entries(expectedSkills.characterSkills)) {
-                    if (actual.characterSkills[skill] !== BigInt(value as number)) {
-                        console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} character skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.characterSkills[skill])}`);
-                    }
-                }
+        // Verify each token in the batch
+        for (let j = 0; j < tokenBatch.length; j++) {
+            const tokenId = tokenBatch[j];
+            const actual = actualSkills[j];
+            const expectedSkills = tokenIdToSkillsMap[tokenId];
+            let hasMismatch = false;
 
-                // Verify tools skills
-                for (const [skill, value] of Object.entries(expectedSkills.toolsSkills)) {
-                    if (actual.toolsSkills[skill] !== BigInt(value as number)) {
-                        console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} tools skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.toolsSkills[skill])}`);
-                    }
-                }
+            if (!actual.added) {
+                console.error(`${chalk.red('❌ Error:')} Token ${chalk.yellow(tokenId)} skills not added`);
+                totalMismatches++;
+                continue;
+            }
 
-                // Verify special skills
-                for (const [skill, value] of Object.entries(expectedSkills.specialSkills)) {
-                    if (actual.specialSkills[skill] !== BigInt(value as number)) {
-                        console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} special skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.specialSkills[skill])}`);
-                    }
+            // Verify character skills
+            for (const [skill, value] of Object.entries(expectedSkills.characterSkills)) {
+                if (actual.characterSkills[skill] !== BigInt(value as number)) {
+                    console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} character skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.characterSkills[skill])}`);
+                    hasMismatch = true;
                 }
             }
+
+            // Verify tools skills
+            for (const [skill, value] of Object.entries(expectedSkills.toolsSkills)) {
+                if (actual.toolsSkills[skill] !== BigInt(value as number)) {
+                    console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} tools skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.toolsSkills[skill])}`);
+                    hasMismatch = true;
+                }
+            }
+
+            // Verify special skills
+            for (const [skill, value] of Object.entries(expectedSkills.specialSkills)) {
+                if (actual.specialSkills[skill] !== BigInt(value as number)) {
+                    console.error(`${chalk.red('⚠️  Mismatch:')} Token ${chalk.yellow(tokenId)} special skill ${chalk.cyan(skill)}: expected ${chalk.green(value)}, got ${chalk.red(actual.specialSkills[skill])}`);
+                    hasMismatch = true;
+                }
+            }
+
+            if (hasMismatch) {
+                totalMismatches++;
+            }
         }
-        
-        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Add a small delay between batches to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    console.log(`\n${chalk.green('✅ Verification complete!')}`);
+    if (totalMismatches > 0) {
+        console.log(`\n${chalk.red(`❌ Verification complete with ${totalMismatches} mismatches!`)}`);
+    } else {
+        console.log(`\n${chalk.green('✅ Verification complete! All skills match!')}`);
+    }
 }
 
 // Add this helper function for console input
@@ -114,19 +139,107 @@ async function askQuestion(query: string): Promise<string> {
     }));
 }
 
+// Add this helper function to compare skills and find mismatches
+async function findSkillMismatches(
+    pirateManagement: any,
+    collectionAddress: string,
+    tokenIds: number[],
+    TokenIdToSkillsMap: { [key: number]: any },
+    batchSize: number = 100
+): Promise<number[]> {
+    const mismatchedTokens: number[] = [];
+
+    const displayDiff = false;
+    // Process in batches to avoid hitting gas limits
+    for (let i = 0; i < tokenIds.length; i += batchSize) {
+        const tokenBatch = tokenIds.slice(i, i + batchSize);
+        console.log(`${chalk.cyan('📊 Checking batch')} ${Math.floor(i/batchSize) + 1}/${Math.ceil(tokenIds.length/batchSize)}`);
+        console.log(`${chalk.yellow('🔍 Found')} ${mismatchedTokens.length} tokens with mismatched skills...`);
+        
+        const onChainSkills = await pirateManagement.getManyPirateSkills(collectionAddress, tokenBatch);
+
+        
+        
+        // Compare each token's skills
+        for (let j = 0; j < tokenBatch.length; j++) {
+            const tokenId = tokenBatch[j];
+            const actualSkills = onChainSkills[j];
+            const expectedSkills = TokenIdToSkillsMap[tokenId];
+            let hasMismatch = false;
+
+            // Compare character skills
+            for (const [skill, value] of Object.entries(expectedSkills.characterSkills)) {
+                if (actualSkills.characterSkills[skill] !== BigInt(value as number)) {
+                    if (displayDiff) {
+                        console.log(`${chalk.red('⚠️  Character Skill Mismatch:')} Token ${chalk.yellow(tokenId)} skill ${chalk.cyan(skill)}`);
+                        console.log(`  Actual: ${chalk.red(actualSkills.characterSkills[skill])}`);
+                        console.log(`  Expected: ${chalk.green(value)}`);
+                    }
+                    hasMismatch = true;
+                }
+            }
+
+            // Compare tools skills
+            for (const [skill, value] of Object.entries(expectedSkills.toolsSkills)) {
+                if (actualSkills.toolsSkills[skill] !== BigInt(value as number)) {
+                    if (displayDiff) {
+                        console.log(`${chalk.red('⚠️  Tools Skill Mismatch:')} Token ${chalk.yellow(tokenId)} skill ${chalk.cyan(skill)}`);
+                        console.log(`  Expected: ${chalk.green(value)}`);
+                        console.log(`  Actual: ${chalk.red(actualSkills.toolsSkills[skill])}`);
+                    }
+                    hasMismatch = true;
+                }
+            }
+
+            // Compare special skills
+            for (const [skill, value] of Object.entries(expectedSkills.specialSkills)) {
+                if (actualSkills.specialSkills[skill] !== BigInt(value as number)) {
+                    if (displayDiff) {
+                        console.log(`${chalk.red('⚠️  Special Skill Mismatch:')} Token ${chalk.yellow(tokenId)} skill ${chalk.cyan(skill)}`);
+                        console.log(`  Expected: ${chalk.green(value)}`);
+                        console.log(`  Actual: ${chalk.red(actualSkills.specialSkills[skill])}`);
+                    }
+                    hasMismatch = true;
+                }
+            }
+
+            if (hasMismatch) {
+                mismatchedTokens.push(tokenId);
+            }
+            // wait 5 seconds before checking the next batch
+            if (displayDiff) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.log("Waiting 2 seconds...");
+            }
+        }
+        
+        // Add a small delay between batches to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    return mismatchedTokens;
+}
+
 async function main() {
     // Get command line arguments from environment variables
     const characterType = process.env.CHARACTER_TYPE;
     const isTestMode = process.env.TEST_MODE === 'true';
     const clearLogs = process.env.CLEAR_LOGS === 'true';
+    const onlyMismatches = process.env.ONLY_MISMATCHES === 'true';
     
     // Print usage instructions if no character type provided
     if (!characterType) {
-        console.log("\nUsage: CHARACTER_TYPE=<type> TEST_MODE=<bool> CLEAR_LOGS=<bool> npx hardhat run scripts/skills-update/update_all_skills.ts --network [network]");
+        console.log("\nUsage: CHARACTER_TYPE=<type> TEST_MODE=<bool> CLEAR_LOGS=<bool> ONLY_MISMATCHES=<bool> npx hardhat run scripts/skills-update/update_all_skills.ts --network [network]");
         console.log("\nEnvironment Variables:");
         console.log("  CHARACTER_TYPE: 'pirates' or 'inhabitants' (required)");
         console.log("  TEST_MODE: 'true' or 'false' (optional)"); 
         console.log("  CLEAR_LOGS: 'true' or 'false' (optional)");
+        console.log("  ONLY_MISMATCHES: 'true' or 'false' (optional)");
+        console.log("\nExample:");
+        console.log("  # Update all pirates on Polygon:");
+        console.log("  CHARACTER_TYPE=pirates CLEAR_LOGS=true ONLY_MISMATCHES=true npx hardhat run scripts/skills-update/update_all_skills.ts --network polygon");
+        console.log("\n  # Update all inhabitants on Amoy testnet in test mode:");
+        console.log("  CHARACTER_TYPE=inhabitants TEST_MODE=true ONLY_MISMATCHES=false npx hardhat run scripts/skills-update/update_all_skills.ts --network amoy");
         process.exit(1);
     }
 
@@ -223,6 +336,16 @@ async function main() {
     console.log(`${chalk.cyan('🔢 Batch Size:')} ${currentConfig.batchSize}`);
     console.log(chalk.blue('----------------------------------------\n'));
 
+    const feeData = await ethers.provider.getFeeData();
+    console.log("\nCurrent Gas Prices:");
+    console.log("-------------------");
+    console.log("🏷️  Gas Price:", ethers.formatUnits(feeData.gasPrice, "gwei"), "gwei");
+    if (feeData.maxFeePerGas) {
+        console.log("💰 Max Fee:", ethers.formatUnits(feeData.maxFeePerGas, "gwei"), "gwei");
+        console.log("💎 Max Priority Fee:", ethers.formatUnits(feeData.maxPriorityFeePerGas, "gwei"), "gwei");
+    }
+    console.log("-------------------\n");
+
     // Wait 5 seconds before proceeding
     console.log("Waiting 5 seconds...");
     await new Promise(resolve => setTimeout(resolve, 5000));
@@ -258,11 +381,12 @@ async function main() {
 
     console.log(`${chalk.blue('📋 Previously updated:')} ${chalk.yellow(updatedTokenIds.size)} tokens`);
 
-    const [deployer] = await ethers.getSigners();
-    let totalGasSpent = ethers.parseEther("0");
-    let totalTransactions = 0;
-    
-    console.log("Deployer address:", deployer.address);
+    const [signer] = await ethers.getSigners();
+    if (!signer) {
+        throw new Error('No signer available');
+    }
+
+    const signerAddress = await signer.getAddress();
 
     // Read and process data
     let data = JSON.parse(fs.readFileSync(
@@ -299,7 +423,7 @@ async function main() {
             skillSet.tokenIds.map(id => parseInt(id.toString()))
         ));
         
-        console.log(`${chalk.green('✅ Found tokens:')} ${chalk.yellow(Array.from(foundTokens).sort((a,b) => a-b).join(', '))}`);
+        console.log(`${chalk.green('✅ Found tokens:')} ${chalk.yellow(Array.from(foundTokens).map(Number).sort((a, b) => a-b).join(', '))}`);
         
         // Verify all requested tokens were found
         const missingTokens = specificTokenIds.filter(id => !foundTokens.has(id));
@@ -335,6 +459,12 @@ async function main() {
 
     let allBatchUpdates: BatchUpdate[] = [];
 
+    let newTokenIds: number[] = [];
+    let TokenIdToSkillsMap: { [key: number]: { characterSkills: any, toolsSkills: any, specialSkills: any } } = {};
+
+    let totalGasSpent = BigInt(0);
+    let totalTransactions = 0;
+
     // First step: Collect all batches
     for (let i = 0; i < data.length; i++) {
         const tokenSkillSet = data[i];
@@ -350,36 +480,87 @@ async function main() {
         }
 
         console.log(`\n${chalk.blue('🎭 Processing Skill Set')} ${chalk.yellow(i + 1)}/${chalk.yellow(data.length)}`);
-        console.log(`${chalk.cyan('💪 Skills:')} ${chalk.gray('Character:')} ${Object.entries(skills.characterSkills).map(([k,v]) => `${k}=${v}`).join(', ')}`);
-        console.log(`${chalk.gray('           Tools:')} ${Object.entries(skills.toolsSkills).map(([k,v]) => `${k}=${v}`).join(', ')}`);
-        console.log(`${chalk.gray('           Special:')} ${Object.entries(skills.specialSkills).map(([k,v]) => `${k}=${v}`).join(', ')}\n`);
+        //console.log(`${chalk.cyan('💪 Skills:')} ${chalk.gray('Character:')} ${Object.entries(skills.characterSkills).map(([k,v]) => `${k}=${v}`).join(', ')}`);
+        //console.log(`${chalk.gray('           Tools:')} ${Object.entries(skills.toolsSkills).map(([k,v]) => `${k}=${v}`).join(', ')}`);
+        //console.log(`${chalk.gray('           Special:')} ${Object.entries(skills.specialSkills).map(([k,v]) => `${k}=${v}`).join(', ')}\n`);
 
         // Filter out already updated tokens
-        const newTokenIds = tokenSkillSet.tokenIds
+        const newTokenIdsToAdd = tokenSkillSet.tokenIds
             .map(id => parseInt(id))
             .filter(id => !updatedTokenIds.has(id));
 
-        if (newTokenIds.length === 0) {
+        if (newTokenIdsToAdd.length === 0) {
             console.log(`${chalk.gray('⏭️  Skipping skill set - all tokens already updated')}`);
             continue;
         }
 
-        // Create batches of up to 500 tokens with the same skills
-        for (let j = 0; j < newTokenIds.length; j += currentConfig.batchSize) {
-            const tokenBatch = newTokenIds.slice(j, j + currentConfig.batchSize);
+        for (const tokenId of newTokenIdsToAdd) {
+            TokenIdToSkillsMap[tokenId] = skills;
+        }
+
+        newTokenIds = newTokenIds.concat(newTokenIdsToAdd);
+
+    }
+
+    // If onlyMismatches is true, check all tokens' current skills in batches
+    let tokensToUpdate = newTokenIds;
+    if (onlyMismatches) {
+        console.log(`${chalk.blue('🔍 Checking for skill mismatches...')}`);
+        
+        tokensToUpdate = await findSkillMismatches(
+            pirateManagement,
+            collectionAddress,
+            newTokenIds,
+            TokenIdToSkillsMap
+        );
+        
+        console.log(`${chalk.cyan('Found')} ${chalk.yellow(tokensToUpdate.length)} ${chalk.cyan('tokens with mismatched skills')}`);
+        
+        if (tokensToUpdate.length > 0) {
+            console.log(`${chalk.yellow('Mismatched Token IDs:')} ${tokensToUpdate.slice(0, 10).join(', ')}${tokensToUpdate.length > 10 ? '...' : ''}`);
+        }
+
+        console.log("Waiting 5 seconds...");
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log("Wait complete, proceeding with updates");
+    }
+
+    // Create batches for tokens that need updates
+    for (let j = 0; j < tokensToUpdate.length; j += currentConfig.batchSize) {
+        const tokenBatch = tokensToUpdate.slice(j, j + currentConfig.batchSize);
+        
+        // Group tokens by identical skill sets
+        const skillGroups = new Map();
+        
+        for (const tokenId of tokenBatch) {
+            const skills = TokenIdToSkillsMap[tokenId];
+            // Create a key from the skills to group identical ones
+            const skillKey = JSON.stringify(skills);
+            
+            if (!skillGroups.has(skillKey)) {
+                skillGroups.set(skillKey, {
+                    tokenIds: [],
+                    skills: skills
+                });
+            }
+            skillGroups.get(skillKey).tokenIds.push(tokenId);
+        }
+
+        // Create batch updates for each group of tokens with identical skills
+        for (const group of skillGroups.values()) {
             allBatchUpdates.push({
-                tokenIds: tokenBatch,
+                tokenIds: group.tokenIds,
                 skills: {
                     characterSkills: Object.fromEntries(
-                        Object.entries(skills.characterSkills)
+                        Object.entries(group.skills.characterSkills)
                             .map(([key, value]) => [key, BigInt(value as number)])
                     ),
                     toolsSkills: Object.fromEntries(
-                        Object.entries(skills.toolsSkills)
+                        Object.entries(group.skills.toolsSkills)
                             .map(([key, value]) => [key, BigInt(value as number)])
                     ),
                     specialSkills: Object.fromEntries(
-                        Object.entries(skills.specialSkills)
+                        Object.entries(group.skills.specialSkills)
                             .map(([key, value]) => [key, BigInt(value as number)])
                     ),
                     added: true
@@ -387,9 +568,8 @@ async function main() {
             });
         }
     }
-
     // Second step: Process all collected batches in groups
-    const batchSize = 50;
+    const batchSize = 25;
     const totalBatchGroups = Math.ceil(allBatchUpdates.length/batchSize);
     console.log(`\n${chalk.blue('📊 Processing Updates:')} ${chalk.yellow(allBatchUpdates.length)} total batches in ${chalk.yellow(totalBatchGroups)} groups\n`);
 
@@ -408,7 +588,7 @@ async function main() {
 
         const tx = await batchUpdateWithRetry(
             pirateManagement,
-            deployer,
+            signer,
             collectionAddress,
             currentBatchGroup
         );
@@ -417,7 +597,7 @@ async function main() {
         
         // Track gas usage
         const gasSpent = receipt.gasUsed * receipt.gasPrice;
-        totalGasSpent += gasSpent;
+        totalGasSpent += BigInt(gasSpent);
         totalTransactions++;
         
         console.log(`${chalk.yellow('⛽ Gas used:')} ${ethers.formatEther(gasSpent)} MATIC`);
