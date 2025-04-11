@@ -42,6 +42,18 @@ interface IShipAndPirateStaking {
         uint256[] memory crewIds,
         uint256 stakingTime
     );
+    function getShipCaptainAndCollection(uint256 shipId) external view returns (uint256, address);
+    function getStakedPiratesByCollection(address owner, address collection) external view returns (
+        uint256[] memory stakedPirates,
+        uint256[] memory assignedShips,
+        bool[] memory isCaptain
+    );
+    function getShipCrewDetails(uint256 shipId) external view returns (
+        uint256 captain,
+        address captainCollection,
+        uint256[] memory genesisCrew,
+        uint256[] memory inhabitantsCrew
+    );
 
     // State-Changing Functions
     function stakeShipWithPirates(StakingData memory stakingData) external;

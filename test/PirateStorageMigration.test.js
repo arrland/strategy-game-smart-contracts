@@ -1,6 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
-const { deployAndAuthorizeContract } = require('./utils');
+const { deployAndAuthorizeContract, setupTokenInfrastructure } = require('./utils');
 
 describe("PirateStorageMigration", function () {
     let PirateStorageMigration;
@@ -22,6 +22,8 @@ describe("PirateStorageMigration", function () {
     let resourceTypeManager;
     let resourceManagement;
     let rumToken;
+    let arrcToken;
+    let feeManagement;
     let maticFeeRecipient;
     let islandStorage;
     let inhabitantStorage;
@@ -40,62 +42,71 @@ describe("PirateStorageMigration", function () {
         const CentralAuthRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
         centralAuthorizationRegistry = await CentralAuthRegistry.deploy();
         await centralAuthorizationRegistry.initialize(admin.address);
+        
+        // Deploy contracts
         resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthorizationRegistry);        
         resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthorizationRegistry);
         
-
+        // Deploy SimpleERC1155 for pirates
         SimpleERC1155 = await ethers.getContractFactory("SimpleERC1155");
         simpleERC1155 = await SimpleERC1155.deploy(admin.address, "https://ipfs.io/ipfs/");
-
         genesisPiratesAddress = await simpleERC1155.getAddress();
-
-        const DummyERC20Burnable = await ethers.getContractFactory("DummyERC20Burnable");
-        rumToken = await DummyERC20Burnable.deploy("RUM Token", "RUM");
-
+        
+        // Deploy SimpleERC721 for islands
         SimpleERC721 = await ethers.getContractFactory("SimpleERC721");
         islandNft = await SimpleERC721.deploy("Island", "ISL", "https://island.com/", admin.address);
-
+        
+        // Mint NFTs to user
         await islandNft.mint(user.address);
         await islandNft.mint(user.address);
         await islandNft.mint(user.address);
-
+        
         await simpleERC1155.connect(admin).mint(user.address, 1);
         await simpleERC1155.connect(admin).mint(user.address, 2);
         await simpleERC1155.connect(admin).mint(user.address, 3);
-
+        
         genesisIslandsAddress = await islandNft.getAddress();
-
+        
+        // Deploy Inhabitant NFT
         const InhabitantNFT = await ethers.getContractFactory("SimpleERC721");
         const inhabitantNFT = await InhabitantNFT.deploy("Inhabitant", "INH", "https://inhabitant.com/", admin.address);
         const InhabitantsAddress = await inhabitantNFT.getAddress();
-
-        const feeManagement = await deployAndAuthorizeContract("FeeManagement", centralAuthorizationRegistry, await rumToken.getAddress(), maticFeeRecipient.address);
-  
+        
+        // Use setupTokenInfrastructure to deploy tokens and FeeManagement
+        const users = [user, owner];
+        const tokenAmount = "1000000"; // Provide enough tokens for tests
+        
+        const { arrcToken: setupArrcToken, rumToken: setupRumToken, feeManagement: setupFeeManagement } = 
+            await setupTokenInfrastructure(centralAuthorizationRegistry, admin, users, tokenAmount);
+        
+        // Assign the returned contracts to the test variables
+        rumToken = setupRumToken;
+        arrcToken = setupArrcToken;
+        feeManagement = setupFeeManagement;
+        
+        // Set maticFeeRecipient in the FeeManagement contract
+        await feeManagement.connect(admin).setMaticFeeRecipient(maticFeeRecipient.address);
+        
         const pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
         
-        
-        
-        
-
         oldStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
-
+        
         islandStorage = await deployAndAuthorizeContract("IslandStorage", centralAuthorizationRegistry, genesisIslandsAddress, true);
         
         inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, genesisIslandsAddress);
-
+        
         storageManagement = await deployAndAuthorizeContract("StorageManagement", centralAuthorizationRegistry, genesisPiratesAddress, genesisIslandsAddress, InhabitantsAddress, await oldStorage.getAddress(), await islandStorage.getAddress(), await inhabitantStorage.getAddress());
-                
+        
         await islandStorage.initializeIslands(1, { gasLimit: 30000000 });  
         await islandStorage.initializeIslands(2, { gasLimit: 30000000 });        
         await islandStorage.initializeIslands(13, { gasLimit: 30000000 });
        
         await centralAuthorizationRegistry.addAuthorizedContract(admin.address);
-
+        
         await storageManagement.connect(user).assignStorageToPrimary(genesisPiratesAddress, tokenId, 1);
-
-        newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
-
-
+        
+        newStorage = await deployAndAuthorizeContract("PirateStorage", centralAuthorizationRegistry, genesisPiratesAddress, false, genesisIslandsAddress);
+        
         // Deploy PirateStorageMigration
         migration = await deployAndAuthorizeContract(
             "PirateStorageMigration", 
@@ -103,9 +114,8 @@ describe("PirateStorageMigration", function () {
             oldStorage.getAddress(), // old storage
             newStorage.getAddress(), // new storage   
         );
-
+        
         await resourceManagement.addResource(await oldStorage.getAddress(), tokenId, user.address, resourceType, resourceAmount);
-
     });
 
     describe("Deployment", function () {

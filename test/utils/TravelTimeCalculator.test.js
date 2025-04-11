@@ -503,6 +503,337 @@ describe("TravelTimeCalculator", function () {
                 throw error;
             }
         });
+        describe("Captain Skill Influence", function() {
+            it("should reduce travel time based on wisdom skill", async function() {
+                try {
+                    const { 
+                        travelTimeCalculator, 
+                        config, 
+                        shipAndPirateStaking, 
+                        pirateSkills, 
+                        pirateSkillsReader, 
+                        user
+                    } = state;
+                    
+                    const { genesisPiratesAddress } = state.nfts;
+                    
+                    // Setup - Get ship and captain IDs
+                    const shipId = config.ships.FAST.id;
+                    const captainId = config.pirates.WISDOM_CAPTAIN.id;
+                    
+                    // Calculate base travel time with no captain assigned
+                    const noSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Set wisdom skill for the captain (CHARACTER category, WISDOM skill ID = 8)
+                    const wisdomSkillLevel = 40; // 40% reduction
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress,
+                        captainId, 
+                        0, // CHARACTER category
+                        8, // WISDOM skill ID
+                        wisdomSkillLevel
+                    );
+                    
+                    // Stake the ship with captain
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                        shipId,
+                        captainId,
+                        captainCollection: genesisPiratesAddress,
+                        genesisPirateIds: [],
+                        inhabitantIds: []
+                    });
+                    
+                    // Calculate travel time with captain assigned (with wisdom skill)
+                    const withWisdomSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Verify that travel time is reduced with wisdom skill
+                    expect(withWisdomSkillTime).to.be.lessThan(noSkillTime);
+                    
+                    // Calculate the actual reduction percentage
+                    const actualReduction = noSkillTime - withWisdomSkillTime;
+                    const reductionPercentage = (Number(actualReduction) * 100) / Number(noSkillTime);
+                    
+           
+                    
+                    // Wisdom skill halves the percentage (per contract logic)
+                    // So a 40% wisdom skill should give approximately 20% reduction
+                    const expectedReductionPercentage = wisdomSkillLevel / 2;
+                    
+                    // Verify the reduction is in a reasonable range around the expected value
+                    expect(reductionPercentage).to.be.greaterThan(expectedReductionPercentage * 0.5); // At least half expected
+                    expect(reductionPercentage).to.be.lessThan(expectedReductionPercentage * 1.5); // Not more than 150% expected
+                    
+                    // Clean up - unstake the ship with all pirates (including captain)
+                    await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+                    
+                } catch (error) {
+                    console.error("Error in wisdom skill test:", error);
+                    throw error;
+                }
+            });
+            
+            it("should reduce travel time based on navigation skill", async function() {
+                try {
+                    const { 
+                        travelTimeCalculator, 
+                        config, 
+                        shipAndPirateStaking, 
+                        pirateSkills, 
+                        pirateSkillsReader, 
+                        user
+                    } = state;
+                    
+                    const { genesisPiratesAddress } = state.nfts;
+                    
+                    // Setup - Get ship and captain IDs
+                    const shipId = config.ships.FAST.id;
+                    const captainId = config.pirates.NAVIGATION_CAPTAIN.id;
+                    
+                    // Calculate base travel time with no captain assigned
+                    const noSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Set navigation skill for the navigation captain
+                    const navigationSkillLevel = 30; // 30% reduction
+                    // Navigation is in SHIP category (3) with ID NAVIGATION (0)
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress, // Use the collection address extracted from state
+                        captainId, 
+                        3, // SHIP category
+                        0, // NAVIGATION skill ID
+                        navigationSkillLevel
+                    );
+                    
+                    // Stake the ship with captain
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                        shipId,
+                        captainId,
+                        captainCollection: genesisPiratesAddress,
+                        genesisPirateIds: [],
+                        inhabitantIds: []
+                    });
+                    
+                    // Calculate travel time with captain assigned
+                    const withNavigationSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Verify that navigation skill has reduced the travel time
+                    expect(withNavigationSkillTime).to.be.lessThan(noSkillTime);
+                    
+                    // Calculate the expected reduction percentage (approximately navigation skill %)
+                    const actualReduction = noSkillTime - withNavigationSkillTime;
+                    const reductionPercentage = (Number(actualReduction) * 100) / Number(noSkillTime);
+                
+                    
+                    // Verify the reduction is significant (close to navigation skill level)
+                    // We use a range check instead of exact equality due to rounding and other factors
+                    expect(reductionPercentage).to.be.greaterThan(navigationSkillLevel * 0.5); // At least half the expected reduction
+                    expect(reductionPercentage).to.be.lessThan(navigationSkillLevel * 1.5); // Not more than 150% of expected
+                    
+                    // Clean up - unstake the ship with all pirates (including captain)
+                    await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+                    
+                } catch (error) {
+                    console.error("Error in navigation skill test:", error);
+                    throw error;
+                }
+            });
+            
+            it("should apply combined effect of wisdom and navigation skills", async function() {
+                try {
+                    const { 
+                        travelTimeCalculator, 
+                        config, 
+                        shipAndPirateStaking, 
+                        pirateSkills, 
+                        pirateSkillsReader, 
+                        user
+                    } = state;
+                    
+                    const { genesisPiratesAddress } = state.nfts;
+                    
+                    // Setup - Get ship and captain IDs
+                    const shipId = config.ships.FAST.id;
+                    const captainId = config.pirates.BASIC_CAPTAIN.id;
+                    
+                    // Calculate base travel time with no captain assigned
+                    const noSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Set wisdom skill for the captain (CHARACTER category, WISDOM skill ID = 8)
+                    const wisdomSkillLevel = 20; // 20% reduction
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress,
+                        captainId, 
+                        0, // CHARACTER category
+                        8, // WISDOM skill ID
+                        wisdomSkillLevel
+                    );
+                    
+                    // Set navigation skill for the captain (SHIP category, NAVIGATION skill ID = 0)
+                    const navigationSkillLevel = 30; // 30% reduction
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress,
+                        captainId, 
+                        3, // SHIP category
+                        0, // NAVIGATION skill ID
+                        navigationSkillLevel
+                    );
+                    
+                    // Stake the ship with captain
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                        shipId,
+                        captainId,
+                        captainCollection: genesisPiratesAddress,
+                        genesisPirateIds: [],
+                        inhabitantIds: []
+                    });
+                    
+                    // Calculate travel time with captain assigned (both skills)
+                    const withBothSkillsTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Verify that travel time is reduced with both skills
+                    expect(withBothSkillsTime).to.be.lessThan(noSkillTime);
+                    
+                    // Calculate the actual reduction percentage
+                    const actualReduction = noSkillTime - withBothSkillsTime;
+                    const reductionPercentage = (Number(actualReduction) * 100) / Number(noSkillTime);
+                    
+                    
+                    // Expected combined effect should be greater than either skill alone
+                    // With wisdom 20% and navigation 30%, we should see more than 30% reduction
+                    expect(reductionPercentage).to.be.greaterThan(Math.max(wisdomSkillLevel, navigationSkillLevel));
+                    
+                    // But not more than both skills simply added (some reasonable upper bound)
+                    expect(reductionPercentage).to.be.lessThan(wisdomSkillLevel + navigationSkillLevel + 20); // Added buffer
+                    
+                    // Clean up - unstake the ship with all pirates (including captain)
+                    await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+                    
+                } catch (error) {
+                    console.error("Error in combined skills test:", error);
+                    throw error;
+                }
+            });
+            
+            it("should respect minimum travel duration when skills reduce time significantly", async function() {
+                try {
+                    const { 
+                        travelTimeCalculator, 
+                        config, 
+                        shipAndPirateStaking, 
+                        pirateSkills, 
+                        pirateSkillsReader, 
+                        user
+                    } = state;
+                    
+                    const { genesisPiratesAddress } = state.nfts;
+                    
+                    // Setup - Get ship and captain IDs
+                    const shipId = config.ships.FAST.id;
+                    const captainId = config.pirates.BASIC_CAPTAIN.id;
+                    
+                    // Get minimum travel duration from contract
+                    const minimumTravelDuration = await travelTimeCalculator.MIN_TRAVEL_DURATION();
+                    
+                    // Calculate base travel time with no captain assigned
+                    const noSkillTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Set extremely high wisdom skill (CHARACTER category, WISDOM skill ID = 8)
+                    const wisdomSkillLevel = 95; // 95% reduction
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress,
+                        captainId, 
+                        0, // CHARACTER category
+                        8, // WISDOM skill ID
+                        wisdomSkillLevel
+                    );
+                    
+                    // Set extremely high navigation skill (SHIP category, NAVIGATION skill ID = 0)
+                    const navigationSkillLevel = 95; // 95% reduction
+                    await pirateSkills.updateSkill(
+                        genesisPiratesAddress,
+                        captainId, 
+                        3, // SHIP category
+                        0, // NAVIGATION skill ID
+                        navigationSkillLevel
+                    );
+                    
+                    // Stake the ship with captain
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                        shipId,
+                        captainId,
+                        captainCollection: genesisPiratesAddress,
+                        genesisPirateIds: [],
+                        inhabitantIds: []
+                    });
+                    
+                    // Calculate travel time with captain assigned (both high skills)
+                    const withHighSkillsTime = await travelTimeCalculator.calculateTravelTime(
+                        config.islands.ISLAND_1.id,
+                        config.islands.ISLAND_2.id,
+                        shipId,
+                        false // don't use cache
+                    );
+                    
+                    // Calculate the reduction
+                    const actualReduction = noSkillTime - withHighSkillsTime;
+                    const reductionPercentage = (Number(actualReduction) * 100) / Number(noSkillTime);
+                    
+                    // Verify that travel time doesn't go below minimum
+                    expect(withHighSkillsTime).to.be.at.least(minimumTravelDuration);
+                    
+                    // Also verify that the high skills caused a significant reduction
+                    expect(withHighSkillsTime).to.be.lessThan(noSkillTime);
+                    expect(reductionPercentage).to.be.greaterThan(50); // Should have at least 50% reduction
+                    
+                    // In extreme cases with very high skills, the final time should be exactly the minimum
+                    // But only confirm this if the base time is high enough that high skills would reduce it below minimum
+                    if (noSkillTime > minimumTravelDuration * 20n) { // Only if base time is at least 20x the minimum
+                        expect(withHighSkillsTime).to.equal(minimumTravelDuration);
+                    }
+                    
+                    // Clean up - unstake the ship with all pirates (including captain)
+                    await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+                    
+                } catch (error) {
+                    console.error("Error in minimum duration test:", error);
+                    throw error;
+                }
+            });
+        });
     });
 
     describe("Cache Management", function() {

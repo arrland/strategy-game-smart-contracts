@@ -7,24 +7,35 @@ import "./AuthorizationModifiers.sol";
 
 contract FeeManagement is AuthorizationModifiers {
     ERC20Burnable public immutable rumToken;
+    ERC20Burnable public immutable arrcToken;
     uint256 public rumFeePerDay;
     uint256 public maticFeePerDay;
+    uint256 public stakePirateArrcFee; // Fee in ARRC per pirate staked
     address public maticFeeRecipient;
 
     event RumUsed(address indexed user, uint256 amount);
     event MaticUsed(address indexed user, uint256 amount);
+    event ArrcBurned(address indexed user, uint256 amount);
     event RumFeePerDayUpdated(uint256 newFee);
     event MaticFeePerDayUpdated(uint256 newFee);
+    event StakePirateArrcFeeUpdated(uint256 newFee);
     event MaticFeeRecipientUpdated(address newRecipient);
 
-    constructor(address _centralAuthorizationRegistry, address _rumTokenAddress, address _maticFeeRecipient) 
-    
-    AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IFeeManagement")) {
-        require(_rumTokenAddress != address(0), "Invalid token address");
+    constructor(
+        address _centralAuthorizationRegistry, 
+        address _rumTokenAddress, 
+        address _arrcTokenAddress,
+        address _maticFeeRecipient
+    ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IFeeManagement")) {
+        require(_rumTokenAddress != address(0), "Invalid RUM token address");
+        require(_arrcTokenAddress != address(0), "Invalid ARRC token address");
         require(_maticFeeRecipient != address(0), "Invalid recipient address");
+        
         rumToken = ERC20Burnable(_rumTokenAddress);
+        arrcToken = ERC20Burnable(_arrcTokenAddress);
         rumFeePerDay = 1 * 10**18;
         maticFeePerDay = 50000000000000000; // 0.05 MATIC in wei
+        stakePirateArrcFee = 1e17; // 0.1 ARRC
         maticFeeRecipient = _maticFeeRecipient;
     }
 
@@ -40,12 +51,33 @@ contract FeeManagement is AuthorizationModifiers {
         emit RumUsed(user, amount);
     }
 
+    function burnArrcForStaking(address user, uint256 pirateCount) external onlyAuthorized {
+        require(user != address(0), "Invalid user address");
+        require(pirateCount > 0, "Pirate count must be greater than zero");
+
+        uint256 amount = calculateStakingArrcFee(pirateCount);
+        require(arrcToken.balanceOf(user) >= amount, "Insufficient ARRC balance");
+        require(arrcToken.allowance(user, address(this)) >= amount, "Insufficient ARRC allowance");
+
+        arrcToken.transferFrom(user, address(this), amount);
+        arrcToken.burn(amount);
+        emit ArrcBurned(user, amount);
+    }
+
     function calculateRumFee(uint256 days_count) public view returns (uint256) {
         return days_count * rumFeePerDay;
     }
 
     function calculateMaticFee(uint256 days_count) public view returns (uint256) {
         return days_count * maticFeePerDay;
+    }
+
+    function calculateStakingArrcFee(uint256 pirateCount) public view returns (uint256) {
+        return pirateCount * stakePirateArrcFee;
+    }
+
+    function getPirateBoardingCost(uint256 pirateCount) external view returns (uint256) {
+        return calculateStakingArrcFee(pirateCount);
     }
 
     function setRumFeePerDay(uint256 newFee) external onlyAdmin {
@@ -59,6 +91,12 @@ contract FeeManagement is AuthorizationModifiers {
         require(newFee > 0, "Fee must be greater than zero");
         maticFeePerDay = newFee;
         emit MaticFeePerDayUpdated(newFee);
+    }
+
+    function setStakePirateArrcFee(uint256 newFee) external onlyAdmin {
+        require(newFee > 0, "Fee must be greater than zero");
+        stakePirateArrcFee = newFee;
+        emit StakePirateArrcFeeUpdated(newFee);
     }
 
     function setMaticFeeRecipient(address newRecipient) external onlyAdmin {

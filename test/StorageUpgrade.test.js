@@ -116,9 +116,20 @@ describe("StorageUpgrade", function () {
         await centralAuthRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
         await centralAuthRegistry.connect(admin).registerPirateNftContract(inhabitantsAddress);
 
-        // Deploy RUM token
-        const DummyERC20Burnable = await ethers.getContractFactory("DummyERC20Burnable");
-        rumToken = await DummyERC20Burnable.deploy("RUM Token", "RUM");
+        // Use setupTokenInfrastructure to deploy tokens and FeeManagement
+        const { setupTokenInfrastructure } = require('./utils');
+        const users = [user, addr1, addr2];
+        const tokenAmount = "1000000"; // Provide enough tokens for tests
+        
+        const { arrcToken, rumToken: setupRumToken, feeManagement: setupFeeManagement } = 
+            await setupTokenInfrastructure(centralAuthRegistry, admin, users, tokenAmount);
+        
+        // Assign the returned contracts to the test variables
+        rumToken = setupRumToken;
+        feeManagement = setupFeeManagement;
+        
+        // Set maticFeeRecipient in the FeeManagement contract
+        await feeManagement.connect(admin).setMaticFeeRecipient(maticFeeRecipient.address);
 
         // Deploy PirateManagement first
         pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthRegistry);
@@ -158,12 +169,8 @@ describe("StorageUpgrade", function () {
         // Deploy other required contracts
         resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthRegistry);
         resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthRegistry);
-        feeManagement = await deployAndAuthorizeContract(
-            "FeeManagement",
-            centralAuthRegistry,
-            await rumToken.getAddress(),
-            maticFeeRecipient.address
-        );
+        
+        // FeeManagement is now deployed via setupTokenInfrastructure
         upgradeConstructionTime = await deployAndAuthorizeContract("UpgradeConstructionTime", centralAuthRegistry);
 
         // Deploy StorageManagement with all required parameters

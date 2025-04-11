@@ -75,7 +75,7 @@ describe("ResourceFarming", function () {
     let genesisIslandsAddress;
     let inhabitantStorage, inhabitantNFT, InhabitantsAddress, InhabitantNFT;
 
-    const { deployAndAuthorizeContract } = require('./utils');
+    const { deployAndAuthorizeContract, setupTokenInfrastructure } = require('./utils');
 
     beforeEach(async function () {
         [admin, user, pirateOwner, contractAddress1, contractAddress2, externalCaller, maticFeeRecipient] = await ethers.getSigners();
@@ -110,11 +110,19 @@ describe("ResourceFarming", function () {
         resourceTypeManager = await deployAndAuthorizeContract("ResourceTypeManager", centralAuthorizationRegistry);
         resourceManagement = await deployAndAuthorizeContract("ResourceManagement", centralAuthorizationRegistry);
         
-        const DummyERC20Burnable = await ethers.getContractFactory("DummyERC20Burnable");
-        rumToken = await DummyERC20Burnable.deploy("RUM Token", "RUM");
+        // Use setupTokenInfrastructure to deploy tokens and FeeManagement
+        const users = [pirateOwner, user];
+        const tokenAmount = "1000000"; // Provide enough tokens for tests
         
-        // Deploy the FeeManagement contract
-        feeManagement = await deployAndAuthorizeContract("FeeManagement", centralAuthorizationRegistry, await rumToken.getAddress(), maticFeeRecipient.address);
+        const { arrcToken, rumToken: setupRumToken, feeManagement: setupFeeManagement } = 
+            await setupTokenInfrastructure(centralAuthorizationRegistry, admin, users, tokenAmount);
+        
+        // Assign the returned contracts to the test variables
+        rumToken = setupRumToken;
+        feeManagement = setupFeeManagement;
+        
+        // Set maticFeeRecipient in the FeeManagement contract
+        await feeManagement.connect(admin).setMaticFeeRecipient(maticFeeRecipient.address);
   
         pirateManagement = await deployAndAuthorizeContract("PirateManagement", centralAuthorizationRegistry);
         
@@ -145,8 +153,6 @@ describe("ResourceFarming", function () {
 
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(genesisPiratesAddress);
         await centralAuthorizationRegistry.connect(admin).registerPirateNftContract(InhabitantsAddress);
-
-        await rumToken.mint(pirateOwner.address, ethers.parseEther("10"));
 
         storageManagement.addStorageContract(InhabitantsAddress, await inhabitantStorage.getAddress());
 
@@ -641,10 +647,10 @@ describe("ResourceFarming", function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 1);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
     
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
     
         const initialRumBalance = await rumToken.balanceOf(pirateOwner.address);
-        expect(initialRumBalance).to.equal(ethers.parseEther("10"));
+        expect(initialRumBalance).to.equal(ethers.parseEther("1000000"));
 
         await expect(
             resourceFarming.connect(pirateOwner).farmResource(
@@ -727,7 +733,7 @@ describe("ResourceFarming", function () {
         
         const initialWoodBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "wood");
         const initialFishBalance = await resourceManagement.getResourceBalance(await pirateStorage.getAddress(), 2, "fish");
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
 
         await resourceFarming.connect(pirateOwner).farmResource(
             await simpleERC1155.getAddress(),
@@ -806,7 +812,7 @@ describe("ResourceFarming", function () {
     it("should allow restaking a pirate with new parameters", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
         await resourceManagement.connect(externalCaller).addResource(await pirateStorage.getAddress(), 2, pirateOwner.address, "fish", ethers.parseEther("10"));
         // Initial staking
         await resourceFarming.connect(pirateOwner).farmResource(
@@ -867,7 +873,7 @@ describe("ResourceFarming", function () {
     it("should revert farming with zero days", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 2);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
 
         // Attempt to simulate resource production with zero days
         const daysCount = 0n;
@@ -909,7 +915,7 @@ describe("ResourceFarming", function () {
     it("should revert farming with invalid resource name", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 3);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
 
         const invalidResource = "invalidResource";
 
@@ -948,7 +954,7 @@ describe("ResourceFarming", function () {
     it("should revert farming with invalid token ID", async function () {
         await simpleERC1155.connect(admin).mint(pirateOwner.address, 4);
         await simpleERC1155.connect(pirateOwner).setApprovalForAll(await resourceFarming.getAddress(), true);
-        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("10"));
+        await rumToken.connect(pirateOwner).approve(await feeManagement.getAddress(), ethers.parseEther("1000000"));
 
         const invalidTokenId = 9999;
         const resource = "fish";

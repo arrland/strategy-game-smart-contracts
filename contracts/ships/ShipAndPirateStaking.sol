@@ -106,10 +106,8 @@ contract ShipAndPirateStaking is
         return IShipMetadata(centralAuthorizationRegistry.getContractAddress(keccak256("IShipMetadata")));
     }
 
-    function validateShipClassRequirements(
-        uint256 shipId,
-        uint256 captainId
-    ) internal view {
+    function validateShipRequirements(uint256 shipId, uint256 captainId, address captainCollection) internal {
+        // Get ship metadata
         IShipMetadata shipMetadata = getShipMetadata();
         IShipMetadata.ShipAttributes memory shipAttributes = shipMetadata.getShipMetadata(shipId);
         
@@ -117,7 +115,7 @@ contract ShipAndPirateStaking is
         PirateSkillsReader pirateSkills = PirateSkillsReader(
             centralAuthorizationRegistry.getContractAddress(keccak256("IPirateSkillsReader"))
         );
-        uint256 respectLevel = pirateSkills.getRespectSkill(captainId);
+        uint256 respectLevel = pirateSkills.getRespectSkillForCollection(captainCollection, captainId);
         
         // Validate based on ship class
         bytes32 classHash = keccak256(abi.encodePacked(shipAttributes.class));
@@ -778,6 +776,10 @@ contract ShipAndPirateStaking is
 
     function shipToCaptain(uint256 shipId) external view override returns (uint256) {
         return ships[shipId].captainId;
+    }
+
+    function getShipCaptainAndCollection(uint256 shipId) external view override returns (uint256, address) {
+        return (ships[shipId].captainId, ships[shipId].captainCollection);
     }
 
     function getPirateCollection(uint256 pirateId) external view returns (address) {
