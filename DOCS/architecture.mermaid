@@ -1,0 +1,150 @@
+flowchart TD
+  %% Core Game Entities
+  subgraph GameEntities[Game Entities]
+    Player((Player))
+    PirateNFT["Pirate NFT (ERC721/1155)"]
+    ShipNFT["Ship NFT (ERC721)"]
+    Island["Island"]
+    Building["Building"]
+    Resource["Resource"]
+  end
+
+  %% Core Contracts
+  subgraph CoreContracts[Core Contracts]
+    CAR["CentralAuthorizationRegistry"]
+    FeeManagement
+    ActivityStats
+    PirateManagement
+    CrewManagement
+    CrewTypeManager
+    ShipAndPirateStaking
+    IslandRegionManagement
+    StorageManagement
+    ResourceSpendManagement
+    ResourceFarming
+    IslandTrading
+    TravelTimeCalculator
+  end
+
+  %% Resource/Building System
+  subgraph ResourceBuilding[Resource & Building System]
+    ResourceSpendManagement
+    StorageManagement
+    ResourceFarming
+    Building
+    Resource
+  end
+
+  %% Mission/Combat System
+  subgraph MissionCombat[Mission & Combat System]
+    ShipAndPirateStaking
+    IslandTrading
+    TravelTimeCalculator
+    ActivityStats
+    PirateManagement
+    CrewManagement
+  end
+
+  %% NFT and Token Standards
+  subgraph Tokens[NFT & Token Standards]
+    ERC20["ARRC, RUM (ERC20)"]
+    ERC721["Pirate, Ship (ERC721)"]
+    ERC1155["Genesis Pirates (ERC1155)"]
+  end
+
+  %% External
+  subgraph External[External]
+    Randomness["Randomness/Oracle (Commit-Reveal)"]
+  end
+
+  %% Relationships
+  Player-->|"Owns"|PirateNFT
+  Player-->|"Owns"|ShipNFT
+  Player-->|"Owns/Manages"|Island
+  Player-->|"Owns/Builds"|Building
+  Player-->|"Holds/Spends"|ERC20
+
+  PirateNFT-->|"Assigned as Crew/Captain"|ShipAndPirateStaking
+  ShipNFT-->|"Staked for Missions"|ShipAndPirateStaking
+  ShipNFT-->|"Docked at"|Island
+  ShipNFT-->|"Has Crew"|PirateNFT
+  ShipNFT-->|"Has Crew"|CrewManagement
+
+  ShipAndPirateStaking-->|"Manages Staking, Missions"|CAR
+  ShipAndPirateStaking-->|"Checks Crew"|CrewManagement
+  ShipAndPirateStaking-->|"Checks Crew Types"|CrewTypeManager
+  ShipAndPirateStaking-->|"Checks Island Regions"|IslandRegionManagement
+  ShipAndPirateStaking-->|"Calculates Travel"|TravelTimeCalculator
+  ShipAndPirateStaking-->|"Handles Fees"|FeeManagement
+  ShipAndPirateStaking-->|"Updates Activity"|ActivityStats
+  ShipAndPirateStaking-->|"Updates Reputation"|PirateManagement
+  ShipAndPirateStaking-->|"Handles Resource Spend"|ResourceSpendManagement
+  ShipAndPirateStaking-->|"Handles Resource Farming"|ResourceFarming
+  ShipAndPirateStaking-->|"Handles Storage"|StorageManagement
+  ShipAndPirateStaking-->|"Handles Trading"|IslandTrading
+
+  CrewManagement-->|"Assigns Crew"|PirateNFT
+  CrewManagement-->|"Assigns Crew"|ShipNFT
+  CrewManagement-->|"Checks Crew Types"|CrewTypeManager
+
+  CrewTypeManager-->|"Defines Crew Types"|PirateNFT
+  CrewTypeManager-->|"Defines Crew Types"|ShipNFT
+
+  PirateManagement-->|"Tracks Skills, Reputation"|PirateNFT
+  PirateManagement-->|"Updates Activity"|ActivityStats
+
+  ActivityStats-->|"Tracks Player Activity"|Player
+  ActivityStats-->|"Affects Rewards"|FeeManagement
+
+  FeeManagement-->|"Handles Fees"|ERC20
+
+  StorageManagement-->|"Stores Resources"|Resource
+  StorageManagement-->|"Stores Building Output"|Building
+
+  ResourceSpendManagement-->|"Consumes Resources"|Resource
+  ResourceSpendManagement-->|"Checks Storage"|StorageManagement
+
+  ResourceFarming-->|"Produces Resources"|Resource
+  ResourceFarming-->|"Uses Crew"|PirateNFT
+  ResourceFarming-->|"Uses Crew"|CrewManagement
+
+  IslandTrading-->|"Executes Trades"|Resource
+  IslandTrading-->|"Executes Trades"|Player
+  IslandTrading-->|"Uses Ships"|ShipNFT
+  IslandTrading-->|"Uses Storage"|StorageManagement
+
+  TravelTimeCalculator-->|"Calculates Travel Time"|ShipNFT
+  TravelTimeCalculator-->|"Uses Island Regions"|IslandRegionManagement
+  TravelTimeCalculator-->|"Uses Captain Skills"|PirateNFT
+  TravelTimeCalculator-->|"Uses Randomness"|Randomness
+
+  CAR-->|"Authorizes"|CoreContracts
+  CAR-->|"Authorizes"|ResourceBuilding
+  CAR-->|"Authorizes"|MissionCombat
+
+  %% NFT/Token standards
+  PirateNFT-->|"ERC721/1155"|ERC721
+  ShipNFT-->|"ERC721"|ERC721
+  FeeManagement-->|"Uses Tokens"|ERC20
+
+  %% External
+  MissionCombat-->|"Uses Randomness"|Randomness
+
+  %% Flows
+  Player-->|"Stakes Ship/Pirate"|ShipAndPirateStaking
+  Player-->|"Assigns Crew"|CrewManagement
+  Player-->|"Starts Mission"|ShipAndPirateStaking
+  Player-->|"Trades Resources"|IslandTrading
+  Player-->|"Farms Resources"|ResourceFarming
+  Player-->|"Builds/Upgrades"|Building
+  Player-->|"Claims Rewards"|FeeManagement
+
+  %% Grouping
+  classDef contract fill:#f9f,stroke:#333,stroke-width:2px;
+  classDef entity fill:#bbf,stroke:#333,stroke-width:2px;
+  class CoreContracts contract;
+  class GameEntities entity;
+  class ResourceBuilding contract;
+  class MissionCombat contract;
+  class Tokens entity;
+  class External entity;

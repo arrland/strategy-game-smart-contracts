@@ -54,6 +54,8 @@ interface IShipAndPirateStaking {
         uint256[] memory genesisCrew,
         uint256[] memory inhabitantsCrew
     );
+    function getGenesisPiratesAddress() external view returns (address);
+    function getInhabitantsAddress() external view returns (address);
 
     // State-Changing Functions
     function stakeShipWithPirates(StakingData memory stakingData) external;

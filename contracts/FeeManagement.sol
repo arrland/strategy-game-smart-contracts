@@ -35,7 +35,7 @@ contract FeeManagement is AuthorizationModifiers {
         arrcToken = ERC20Burnable(_arrcTokenAddress);
         rumFeePerDay = 1 * 10**18;
         maticFeePerDay = 50000000000000000; // 0.05 MATIC in wei
-        stakePirateArrcFee = 1e17; // 0.1 ARRC
+        stakePirateArrcFee = 5e17; // 0.5 ARRC
         maticFeeRecipient = _maticFeeRecipient;
     }
 

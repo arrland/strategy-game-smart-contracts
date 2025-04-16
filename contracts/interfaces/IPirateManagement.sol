@@ -60,4 +60,8 @@ interface IPirateManagement {
     function addSkillSet(PirateSkills calldata newSkills) external returns (uint256);
     function upgradeSkillSet(address collectionAddress, uint256 tokenId, PirateSkills calldata newSkills) external returns (uint256);
     function updateSingleSkill(address collectionAddress, uint256 tokenId, SkillType skillType, uint256 skillIndex, int256 value, bool isAddition) external;
+    
+    // Added functions
+    function isInhabitantPirate(uint256 tokenId) external view returns (bool);
+    function getRespectPoints(address collectionAddress, uint256 tokenId) external view returns (uint256);
 }

@@ -16,7 +16,6 @@ import "../interfaces/ICrewTypeManager.sol";
 import "../interfaces/IShipMetadata.sol";
 import "../interfaces/IFeeManagement.sol";
 import "../missions/PirateSkillsReader.sol";
-import "hardhat/console.sol";
 
 /**
  * @title ShipAndPirateStaking
@@ -135,34 +134,22 @@ contract ShipAndPirateStaking is
         uint256[] memory crewIds,
         address[] memory collectionAddresses
     ) internal {
-        console.log("validateCrewRequirements - shipId:", shipId, "captainId:", captainId);
-        
         IShipMetadata shipMetadata = getShipMetadata();
-        console.log("Ship metadata contract retrieved");
-        
         IShipMetadata.ShipAttributes memory shipAttributes = shipMetadata.getShipMetadata(shipId);
-        console.log("Ship attributes - crewMin:", shipAttributes.crewMin, "crewMax:", shipAttributes.crewMax);
-        
         ICrewManagement crewManagement = getCrewManagement();
-        console.log("Crew management contract retrieved");
-        
         ICrewTypeManager crewTypeManager = getCrewTypeManager();
-        console.log("Crew type manager contract retrieved");
         
         uint256 essentialCrewCount = 0;
         uint256 allCrewCount = 1; // Start with 1 for the captain
-        console.log("Initial counts - essentialCrewCount:", essentialCrewCount, "allCrewCount:", allCrewCount);
         
         // Count captain's essential crew
         string[] memory captainCrewTypes;
         uint256[] memory captainCrewCounts;
-        console.log("About to check captain's crew types");
         (captainCrewTypes, captainCrewCounts) = crewManagement.getAllCrewCountsForShip(
             collectionAddresses[0], 
             captainId
         );
         
-        console.log("Captain crew types:");
         for (uint256 i = 0; i < captainCrewTypes.length; i++) {
             if (bytes(captainCrewTypes[i]).length > 0) {
                 bool canBeEssential = crewTypeManager.canBeEssentialCrew(captainCrewTypes[i]);
@@ -205,74 +192,45 @@ contract ShipAndPirateStaking is
     }
 
     function stakeShipWithPirates(StakingData memory stakingData) public nonReentrant whenNotPaused {
-        console.log("Starting stakeShipWithPirates for shipId:", stakingData.shipId);
-        console.log("Caller:", msg.sender);
-        
         // Validate captain's collection
-        console.log("Captain collection:", stakingData.captainCollection);
-        console.log("Genesis pirates address:", genesisPiratesAddress);
-        console.log("Inhabitants address:", inhabitantsAddress);
-        
         if (stakingData.captainCollection != genesisPiratesAddress && stakingData.captainCollection != inhabitantsAddress) {
-            console.log("Invalid collection!");
             revert InvalidCollection();
         }
         
-        console.log("Checking if ship is already staked");
         if (ships[stakingData.shipId].isStaked) {
-            console.log("Ship already staked!");
             revert ShipAlreadyStaked();
         }
 
-        console.log("Checking if pirate is already staked");
         if (pirateToShip[stakingData.captainId] != 0) {
-            console.log("Pirate already staked!");
             revert PirateAlreadyStaked();
         }
         
-        console.log("Checking ship ownership");
         try shipNft.ownerOf(stakingData.shipId) returns (address owner) {
-            console.log("Ship owner:", owner);
-            console.log("Message sender:", msg.sender);
             if (owner != msg.sender) {
-                console.log("Not ship owner!");
                 revert NotShipOwner();
             }
         } catch {
-            console.log("Invalid ship ID!");
             revert InvalidShipId();
         }
         
-        console.log("Ship validation passed, transferring ship NFT");
         // Transfer ship NFT
         shipNft.transferFrom(msg.sender, address(this), stakingData.shipId);
         
         // Validate captain
-        console.log("Validating captain with ID:", stakingData.captainId);
-        console.log("Captain collection:", stakingData.captainCollection);
-        
         if (stakingData.captainCollection == genesisPiratesAddress) {            
             // For Genesis Pirates (ERC1155), we can only check balanceOf
-            console.log("Checking Genesis Pirate balance for captain");
             uint256 balance = IERC1155(genesisPiratesAddress).balanceOf(msg.sender, stakingData.captainId);
-            console.log("Genesis Pirate balance:", balance);
             if (balance == 0) {
-                console.log("Not pirate owner!");
                 revert NotPirateOwner();
             }
             
         } else {
             // For Inhabitants (ERC721)
-            console.log("Checking Inhabitant ownership for captain");
             try IERC721(inhabitantsAddress).ownerOf(stakingData.captainId) returns (address owner) {
-                console.log("Inhabitant owner:", owner);
-                console.log("Message sender:", msg.sender);
                 if (owner != msg.sender) {
-                    console.log("Not pirate owner!");
                     revert NotPirateOwner();
                 }
             } catch {
-                console.log("Invalid inhabitant ID or error calling ownerOf");
                 revert NotPirateOwner();
             }
         }
@@ -280,113 +238,79 @@ contract ShipAndPirateStaking is
        
         // Calculate total pirates for fee
         uint256 totalPirates = 1 + stakingData.genesisPirateIds.length + stakingData.inhabitantIds.length;
-        console.log("Total pirates for fee calculation:", totalPirates);
         
         // Burn ARRC fee
-        console.log("Getting fee management contract");
         IFeeManagement feeManagement = getFeeManagement();
-        console.log("Burning ARRC tokens for staking");
         feeManagement.burnArrcForStaking(msg.sender, totalPirates);
-        console.log("ARRC tokens burned successfully");
                 
         // Transfer captain NFT from either Genesis Pirates or Inhabitants collection
         if (stakingData.captainCollection == genesisPiratesAddress) {
-            console.log("Transferring Genesis Pirate captain with ID:", stakingData.captainId);
             IERC1155(genesisPiratesAddress).safeTransferFrom(msg.sender, address(this), stakingData.captainId, 1, "");
-            console.log("Genesis Pirate captain transferred successfully");
         } else {
             // Must be inhabitantsAddress based on earlier validation
-            console.log("Transferring Inhabitant captain with ID:", stakingData.captainId);
             IERC721(inhabitantsAddress).transferFrom(msg.sender, address(this), stakingData.captainId);
-            console.log("Inhabitant captain transferred successfully");
         }
         // Process Genesis Pirates (ERC1155)
         for (uint256 i = 0; i < stakingData.genesisPirateIds.length; i++) {
-            console.log("Processing Genesis Pirate ID:", stakingData.genesisPirateIds[i]);
             // Validate ownership and staking status
             if (pirateToShip[stakingData.genesisPirateIds[i]] != 0) {
-                console.log("Pirate already staked on another ship");
                 revert PirateAlreadyStaked();
             }
-            console.log("Checking Genesis Pirate balance");
             if (IERC1155(genesisPiratesAddress).balanceOf(msg.sender, stakingData.genesisPirateIds[i]) == 0) {
-                console.log("User does not own this Genesis Pirate");
                 revert NotPirateOwner();
             }
             
-            console.log("Transferring Genesis Pirate to contract");
             IERC1155(genesisPiratesAddress).safeTransferFrom(msg.sender, address(this), stakingData.genesisPirateIds[i], 1, "");
-            console.log("Genesis Pirate transferred successfully");
             
             // Store pirate staking details
-            console.log("Storing pirate staking details");
             pirateToShip[stakingData.genesisPirateIds[i]] = stakingData.shipId;
             pirateCollections[stakingData.genesisPirateIds[i]] = genesisPiratesAddress;
             ships[stakingData.shipId].genesisPirateIds.push(stakingData.genesisPirateIds[i]);
-            console.log("Genesis Pirate staking details stored");
         }
         
         // Process Inhabitants (ERC721)
-        console.log("Processing Inhabitant pirates");
         for (uint256 i = 0; i < stakingData.inhabitantIds.length; i++) {
             uint256 pirateId = stakingData.inhabitantIds[i];
-            console.log("Processing Inhabitant ID:", pirateId);
             
             // Check if pirate is already staked
             uint256 existingShip = pirateToShip[pirateId];
-            console.log("Checking if Inhabitant is already staked");
             
             if (existingShip != 0) {
-                console.log("Inhabitant already staked on ship:", existingShip);
                 revert PirateAlreadyStaked();
             }
             
             // Validate ownership
-            console.log("Validating Inhabitant ownership");
             try IERC721(inhabitantsAddress).ownerOf(pirateId) returns (address owner) {
-                console.log("Inhabitant owner:", owner);
-                console.log("Message sender:", msg.sender);
                 if (owner != msg.sender) {
-                    console.log("User is not the owner of this Inhabitant");
                     revert NotPirateOwner();
                 }
             } catch {
-                console.log("Error checking Inhabitant ownership");
                 revert NotPirateOwner();
             }
             
             // Transfer inhabitant NFT
-            console.log("Transferring Inhabitant to contract");
             IERC721(inhabitantsAddress).transferFrom(msg.sender, address(this), pirateId);
-            console.log("Inhabitant transferred successfully");
             
             // Store pirate staking details
-            console.log("Storing Inhabitant staking details");
             pirateToShip[pirateId] = stakingData.shipId;
             pirateCollections[pirateId] = inhabitantsAddress;
             ships[stakingData.shipId].inhabitantIds.push(pirateId);
-            console.log("Inhabitant staking details stored");
         }
         
         // Combine all crew IDs
-        console.log("Combining all crew IDs for validation");
         uint256 totalCrewCount = stakingData.genesisPirateIds.length + stakingData.inhabitantIds.length;
-        console.log("Total crew count:", totalCrewCount);
         uint256[] memory allCrewIds = new uint256[](totalCrewCount);
         address[] memory allCollections = new address[](totalCrewCount + 1);
         
         allCollections[0] = stakingData.captainCollection;
-        console.log("Captain collection set:", stakingData.captainCollection);
         
         uint256 currentIndex = 0;
-        console.log("Adding Genesis Pirates to crew array");
         for (uint256 i = 0; i < stakingData.genesisPirateIds.length; i++) {
             allCrewIds[currentIndex] = stakingData.genesisPirateIds[i];
             allCollections[currentIndex + 1] = genesisPiratesAddress;
             currentIndex++;
         }
         
-        console.log("Adding Inhabitants to crew array");
         for (uint256 i = 0; i < stakingData.inhabitantIds.length; i++) {
             allCrewIds[currentIndex] = stakingData.inhabitantIds[i];
             allCollections[currentIndex + 1] = inhabitantsAddress;
@@ -394,12 +318,9 @@ contract ShipAndPirateStaking is
         }
         
         // Validate crew requirements
-        console.log("Validating crew requirements");
         validateCrewRequirements(stakingData.shipId, stakingData.captainId, allCrewIds, allCollections);
-        console.log("Crew requirements validated successfully");
         
         // Stake ship
-        console.log("Creating ship staking record");
         ships[stakingData.shipId] = ShipInfo({
             owner: msg.sender,
             isStaked: true,
@@ -409,50 +330,37 @@ contract ShipAndPirateStaking is
             inhabitantIds: stakingData.inhabitantIds,
             stakingTime: block.timestamp
         });
-        console.log("Ship staking record created");
         
         // Update pirate mappings
-        console.log("Updating pirate mappings");
-        console.log("Setting captain mapping");
         pirateToShip[stakingData.captainId] = stakingData.shipId;
         pirateCollections[stakingData.captainId] = stakingData.captainCollection;
         
-        console.log("Setting Genesis Pirates mappings");
         for (uint256 i = 0; i < stakingData.genesisPirateIds.length; i++) {
             pirateToShip[stakingData.genesisPirateIds[i]] = stakingData.shipId;
             pirateCollections[stakingData.genesisPirateIds[i]] = genesisPiratesAddress;
         }
         
-        console.log("Setting Inhabitants mappings");
         for (uint256 i = 0; i < stakingData.inhabitantIds.length; i++) {
             pirateToShip[stakingData.inhabitantIds[i]] = stakingData.shipId;
             pirateCollections[stakingData.inhabitantIds[i]] = inhabitantsAddress;
         }
         
         // Update user active ships
-        console.log("Updating user active ships");
         uint256 index = userActiveShips[msg.sender].length;
         userActiveShips[msg.sender].push(stakingData.shipId);
         shipToUserActiveIndex[stakingData.shipId] = index;
-        console.log("User active ships updated, index:", index);
         
         // Emit events
-        console.log("Emitting events");
         emit ShipStaked(stakingData.shipId, msg.sender, block.timestamp);
-        console.log("ShipStaked event emitted");
         emit PirateStaked(stakingData.captainId, stakingData.shipId, true, block.timestamp, stakingData.captainCollection);
-        console.log("Captain PirateStaked event emitted");
         
-        console.log("Emitting Genesis Pirates staking events");
         for (uint256 i = 0; i < stakingData.genesisPirateIds.length; i++) {
             emit PirateStaked(stakingData.genesisPirateIds[i], stakingData.shipId, false, block.timestamp, genesisPiratesAddress);
         }
         
-        console.log("Emitting Inhabitants staking events");
         for (uint256 i = 0; i < stakingData.inhabitantIds.length; i++) {
             emit PirateStaked(stakingData.inhabitantIds[i], stakingData.shipId, false, block.timestamp, inhabitantsAddress);
         }
-        console.log("All staking events emitted");
     }
 
     function unstakeShip(uint256 shipId) external override {
@@ -460,21 +368,16 @@ contract ShipAndPirateStaking is
     }
 
     function stakePirate(uint256 shipId, uint256 pirateId, address collectionAddress) public {
-        console.log("stakePirate called: shipId=%s, pirateId=%s, collection=%s", shipId, pirateId, collectionAddress);
-        
         // Validate collection
         if (collectionAddress != genesisPiratesAddress && collectionAddress != inhabitantsAddress) {
-            console.log("Invalid collection address: %s", collectionAddress);
             revert InvalidCollection();
         }
         
         ShipInfo storage ship = ships[shipId];
         if (!ship.isStaked) {
-            console.log("Ship not staked: %s", shipId);
             revert ShipNotStaked();
         }
         if (ship.owner != msg.sender) {
-            console.log("Not ship owner. Ship owner: %s, caller: %s", ship.owner, msg.sender);
             revert NotShipOwner();
         }
 
@@ -482,23 +385,19 @@ contract ShipAndPirateStaking is
         
         // Check if ship is on mission
         if (missionsStorage.getMissionInfo(shipId).isActive) {
-            console.log("Ship is on mission: %s", shipId);
             revert ShipOnMission();
         }
         
         // Validate pirate ownership and staking status
         if (collectionAddress == genesisPiratesAddress) {
             uint256 balance = IERC1155(genesisPiratesAddress).balanceOf(msg.sender, pirateId);
-            console.log("Genesis pirate balance: %s", balance);
             if (balance == 0) revert NotPirateOwner();
         } else {
             address owner = IERC721(inhabitantsAddress).ownerOf(pirateId);
-            console.log("Inhabitant owner: %s", owner);
             if (owner != msg.sender) revert NotPirateOwner();
         }
         
         if (pirateToShip[pirateId] != 0) {
-            console.log("Pirate already staked on ship: %s", pirateToShip[pirateId]);
             revert PirateAlreadyStaked();
         }
         
@@ -508,40 +407,33 @@ contract ShipAndPirateStaking is
         
         // Add captain
         allCollections[0] = ship.captainCollection;
-        console.log("Added captain collection: %s", ship.captainCollection);
         
         // Add existing crew
         uint256 currentIndex = 0;
         for (uint256 i = 0; i < ship.genesisPirateIds.length; i++) {
             allCrewIds[currentIndex] = ship.genesisPirateIds[i];
             allCollections[currentIndex + 1] = genesisPiratesAddress;
-            console.log("Added genesis pirate: %s", ship.genesisPirateIds[i]);
             currentIndex++;
         }
         
         for (uint256 i = 0; i < ship.inhabitantIds.length; i++) {
             allCrewIds[currentIndex] = ship.inhabitantIds[i];
             allCollections[currentIndex + 1] = inhabitantsAddress;
-            console.log("Added inhabitant: %s", ship.inhabitantIds[i]);
             currentIndex++;
         }
         
         // Add new pirate
         allCrewIds[currentIndex] = pirateId;
         allCollections[currentIndex + 1] = collectionAddress;
-        console.log("Added new pirate: %s from collection: %s", pirateId, collectionAddress);
         
         // Validate crew requirements with new crew
-        console.log("Validating crew requirements");
         validateCrewRequirements(shipId, ship.captainId, allCrewIds, allCollections);
         
         // Transfer the pirate NFT
         if (collectionAddress == genesisPiratesAddress) {
-            console.log("Transferring genesis pirate: %s", pirateId);
             IERC1155(genesisPiratesAddress).safeTransferFrom(msg.sender, address(this), pirateId, 1, "");
             ship.genesisPirateIds.push(pirateId);
         } else {
-            console.log("Transferring inhabitant: %s", pirateId);
             IERC721(inhabitantsAddress).transferFrom(msg.sender, address(this), pirateId);
             ship.inhabitantIds.push(pirateId);
         }
@@ -549,12 +441,10 @@ contract ShipAndPirateStaking is
         // Update pirate mapping
         pirateToShip[pirateId] = shipId;
         pirateCollections[pirateId] = collectionAddress;
-        console.log("Updated pirate mappings for pirate: %s", pirateId);
         
         // Emit events
         emit CrewUpdated(shipId, ship.captainId, _getShipStakedPirates(shipId), block.timestamp);
         emit PirateStaked(pirateId, shipId, false, block.timestamp, collectionAddress);
-        console.log("Pirate staking complete: %s on ship: %s", pirateId, shipId);
     }
 
     function unstakePirate(uint256 shipId, uint256 pirateId) public {
@@ -992,6 +882,14 @@ contract ShipAndPirateStaking is
             ship.genesisPirateIds,
             ship.inhabitantIds
         );
+    }
+
+    function getGenesisPiratesAddress() external view override returns (address) {
+        return genesisPiratesAddress;
+    }
+
+    function getInhabitantsAddress() external view override returns (address) {
+        return inhabitantsAddress;
     }
 
 }

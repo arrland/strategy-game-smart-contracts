@@ -37,8 +37,14 @@ interface IResourceManagement {
     function burnResource(
         address contractAddress,
         uint256 tokenId,
-        address owner,
-        string memory resource,
+        address player,
+        string memory resourceType,
+        uint256 amount
+    ) external;
+
+    function consumeResources(
+        address player,
+        string memory resourceType,
         uint256 amount
     ) external;
 
