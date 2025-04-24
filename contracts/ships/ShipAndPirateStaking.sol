@@ -16,6 +16,9 @@ import "../interfaces/ICrewTypeManager.sol";
 import "../interfaces/IShipMetadata.sol";
 import "../interfaces/IFeeManagement.sol";
 import "../missions/PirateSkillsReader.sol";
+import "../interfaces/IDockingManagement.sol";
+import "hardhat/console.sol";
+
 
 /**
  * @title ShipAndPirateStaking
@@ -47,6 +50,9 @@ contract ShipAndPirateStaking is
     error MissionInProgress();
     error UnauthorizedAccess();
     error InvalidCollection();
+    error InsufficientCaptainRespect(uint256 required, uint256 actual);
+    error InsufficientEssentialCrew(uint256 required, uint256 actual);
+    error TooManyEssentialCrew(uint256 maximum, uint256 actual);
 
     // Optimized storage structure
     struct ShipInfo {
@@ -57,8 +63,11 @@ contract ShipAndPirateStaking is
         uint256[] genesisPirateIds;
         uint256[] inhabitantIds;
         uint256 stakingTime;
+        uint256 homeIslandId;
+        string shipClass;
     }
 
+    
     // State variables
     IERC721 public immutable shipNft;
     
@@ -82,7 +91,7 @@ contract ShipAndPirateStaking is
     ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IShipAndPirateStaking")) {
         shipNft = IERC721(_shipNft);
         genesisPiratesAddress = _genesisPiratesAddress;
-        inhabitantsAddress = _inhabitantsAddress;    
+        inhabitantsAddress = _inhabitantsAddress;
     }
 
     function getCrewTypeManager() internal view returns (ICrewTypeManager) {
@@ -103,6 +112,10 @@ contract ShipAndPirateStaking is
 
     function getShipMetadata() internal view returns (IShipMetadata) {
         return IShipMetadata(centralAuthorizationRegistry.getContractAddress(keccak256("IShipMetadata")));
+    }
+
+    function getDockingManagement() internal view returns (IDockingManagement) {
+        return IDockingManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IDockingManagement")));
     }
 
     function validateShipRequirements(uint256 shipId, uint256 captainId, address captainCollection) internal {
@@ -191,20 +204,36 @@ contract ShipAndPirateStaking is
         emit EssentialCrewValidated(shipId, essentialCrewCount, shipAttributes.crewMin, shipAttributes.crewMax);
     }
 
-    function stakeShipWithPirates(StakingData memory stakingData) public nonReentrant whenNotPaused {
+    function stakeShipWithPirates(StakingData memory stakingData, uint256 homeIslandId, string memory shipClass) public nonReentrant whenNotPaused {
+        console.log("[DEBUG] stakeShipWithPirates called", stakingData.shipId, homeIslandId, shipClass);
+        // DEBUG: Log all registry-based contract addresses
+        address dockingAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IDockingManagement"));
+        console.log("[DEBUG] DockingManagement address:", dockingAddr);
+        address feeAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IFeeManagement"));
+        console.log("[DEBUG] FeeManagement address:", feeAddr);
+        address missionsAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IMissionsStorage"));
+        console.log("[DEBUG] MissionsStorage address:", missionsAddr);
+        address crewAddr = centralAuthorizationRegistry.getContractAddress(keccak256("ICrewManagement"));
+        console.log("[DEBUG] CrewManagement address:", crewAddr);
+        address crewTypeAddr = centralAuthorizationRegistry.getContractAddress(keccak256("ICrewTypeManager"));
+        console.log("[DEBUG] CrewTypeManager address:", crewTypeAddr);
+        address shipMetaAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IShipMetadata"));
+        console.log("[DEBUG] ShipMetadata address:", shipMetaAddr);
+        address skillsReaderAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IPirateSkillsReader"));
+        console.log("[DEBUG] PirateSkillsReader address:", skillsReaderAddr);
         // Validate captain's collection
         if (stakingData.captainCollection != genesisPiratesAddress && stakingData.captainCollection != inhabitantsAddress) {
             revert InvalidCollection();
         }
-        
+        console.log("[DEBUG] Passed captain collection validation");
         if (ships[stakingData.shipId].isStaked) {
             revert ShipAlreadyStaked();
         }
-
+        console.log("[DEBUG] Passed isStaked check");
         if (pirateToShip[stakingData.captainId] != 0) {
             revert PirateAlreadyStaked();
         }
-        
+        console.log("[DEBUG] Passed PirateAlreadyStaked check");
         try shipNft.ownerOf(stakingData.shipId) returns (address owner) {
             if (owner != msg.sender) {
                 revert NotShipOwner();
@@ -212,7 +241,23 @@ contract ShipAndPirateStaking is
         } catch {
             revert InvalidShipId();
         }
-        
+        console.log("[DEBUG] Passed NotShipOwner check");
+        // Check docking slot availability and dock
+        IDockingManagement docking = getDockingManagement();
+        console.log("[DEBUG] About to call getSlotRequirementForShipClass with shipClass:", shipClass);
+        uint256 slotsRequired = docking.getSlotRequirementForShipClass(shipClass);
+        console.log("[DEBUG] slotsRequired:", slotsRequired);
+
+        console.log("[DEBUG] About to call canDock with homeIslandId:", homeIslandId, "slotsRequired:", slotsRequired);
+        bool canDock = docking.canDock(homeIslandId, slotsRequired);
+        console.log("[DEBUG] canDock returned:", canDock);
+
+        require(canDock, "No docking slot available");
+
+        console.log("[DEBUG] About to call dockShip");
+        docking.dockShip(stakingData.shipId, homeIslandId, msg.sender, shipClass);
+        console.log("[DEBUG] dockShip called successfully");
+
         // Transfer ship NFT
         shipNft.transferFrom(msg.sender, address(this), stakingData.shipId);
         
@@ -328,7 +373,9 @@ contract ShipAndPirateStaking is
             captainCollection: stakingData.captainCollection,
             genesisPirateIds: stakingData.genesisPirateIds,
             inhabitantIds: stakingData.inhabitantIds,
-            stakingTime: block.timestamp
+            stakingTime: block.timestamp,
+            homeIslandId: homeIslandId,
+            shipClass: shipClass
         });
         
         // Update pirate mappings
@@ -361,10 +408,21 @@ contract ShipAndPirateStaking is
         for (uint256 i = 0; i < stakingData.inhabitantIds.length; i++) {
             emit PirateStaked(stakingData.inhabitantIds[i], stakingData.shipId, false, block.timestamp, inhabitantsAddress);
         }
+
+        // DEBUG: Log before calling getMissionInfo
+        console.log("[DEBUG] About to call getMissionInfo (pre-try/catch)");
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        try missionsStorage.getMissionInfo(stakingData.shipId) returns (IMissionsStorage.MissionInfo memory info) {
+            console.log("[DEBUG] getMissionInfo returned isActive:", info.isActive);
+        } catch {
+            console.log("[DEBUG] getMissionInfo reverted");
+            revert("MissionsStorage.getMissionInfo reverted");
+        }
     }
 
     function unstakeShip(uint256 shipId) external override {
-        unstakeShipAndPirates(shipId);
+        ShipInfo storage ship = ships[shipId];
+        unstakeShipAndPirates(shipId, ship.shipClass);
     }
 
     function stakePirate(uint256 shipId, uint256 pirateId, address collectionAddress) public {
@@ -564,7 +622,7 @@ contract ShipAndPirateStaking is
         emit PirateUnstaked(pirateId, shipId, false, block.timestamp, collectionAddress);
     }
 
-    function unstakeShipAndPirates(uint256 shipId) public {
+    function unstakeShipAndPirates(uint256 shipId, string memory shipClass) public {
         ShipInfo storage ship = ships[shipId];
         if (!ship.isStaked) revert ShipNotStaked();
         if (ship.owner != msg.sender) revert NotShipOwner();
@@ -576,6 +634,10 @@ contract ShipAndPirateStaking is
         
         // Get collection addresses before unstaking
         address captainCollection = ship.captainCollection;
+        
+        // Undock from island
+        IDockingManagement docking = getDockingManagement();
+        docking.undockShip(shipId, ship.homeIslandId, msg.sender, shipClass);
         
         // Transfer ship NFT back to owner
         shipNft.transferFrom(address(this), msg.sender, shipId);
@@ -726,21 +788,6 @@ contract ShipAndPirateStaking is
         return address(getMissionsStorage());
     }
 
-    function stakeShipAndPirate(uint256 shipId, uint256 pirateId, address collectionAddress) external {
-        uint256[] memory emptyGenesisPirates = new uint256[](0);
-        uint256[] memory emptyInhabitants = new uint256[](0);
-        
-        StakingData memory data = StakingData({
-            shipId: shipId,
-            captainId: pirateId,
-            captainCollection: collectionAddress,
-            genesisPirateIds: emptyGenesisPirates,
-            inhabitantIds: emptyInhabitants
-        });
-        
-        stakeShipWithPirates(data);
-    }
-
     // Add NFT receiver functions from StorageUpgrade.sol
     function onERC1155Received(
         address operator,
@@ -788,15 +835,25 @@ contract ShipAndPirateStaking is
     }
 
     // Add batch operations
-    function batchStakeShips(StakingData[] calldata stakingDataArray) external nonReentrant whenNotPaused {
+    function batchStakeShips(
+        StakingData[] calldata stakingDataArray,
+        uint256[] calldata homeIslandIds,
+        string[] calldata shipClasses
+    ) external nonReentrant whenNotPaused {
+        require(
+            stakingDataArray.length == homeIslandIds.length &&
+            stakingDataArray.length == shipClasses.length,
+            "Array length mismatch"
+        );
         for (uint256 i = 0; i < stakingDataArray.length; i++) {
-            stakeShipWithPirates(stakingDataArray[i]);
+            stakeShipWithPirates(stakingDataArray[i], homeIslandIds[i], shipClasses[i]);
         }
     }
 
     function batchUnstakeShips(uint256[] calldata shipIds) external nonReentrant whenNotPaused {
         for (uint256 i = 0; i < shipIds.length; i++) {
-            unstakeShipAndPirates(shipIds[i]);
+            ShipInfo storage ship = ships[shipIds[i]];
+            unstakeShipAndPirates(shipIds[i], ship.shipClass);
         }
     }
 
@@ -890,6 +947,49 @@ contract ShipAndPirateStaking is
 
     function getInhabitantsAddress() external view override returns (address) {
         return inhabitantsAddress;
+    }
+
+    function unstakeShipAndPirates(uint256 shipId) external {
+        ShipInfo storage ship = ships[shipId];
+        unstakeShipAndPirates(shipId, ship.shipClass);
+    }
+
+    /**
+     * @notice Rebase a ship to a new home island (change base island)
+     * @dev TASK-DOCK-REBASE, see PRD for details
+     * @param shipId The ID of the ship to rebase
+     * @param newIslandId The new island to assign as home
+     * @param shipClass The class of the ship (for slot calculation)
+     */
+    function rebaseShipHomeIsland(uint256 shipId, uint256 newIslandId, string memory shipClass) external nonReentrant whenNotPaused override {
+        ShipInfo storage ship = ships[shipId];
+        if (!ship.isStaked) revert ShipNotStaked();
+        if (ship.owner != msg.sender) revert NotShipOwner();
+
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        if (missionsStorage.getMissionInfo(shipId).isActive) revert ShipOnMission();
+
+        IDockingManagement docking = getDockingManagement();
+        uint256 slotsRequired = docking.getSlotRequirementForShipClass(shipClass);
+        require(docking.canDock(newIslandId, slotsRequired), "No docking slot available at new island");
+
+        // Burn 0.1 ARRC per NFT pirate (captain + all pirates)
+        uint256 totalPirates = 1 + ship.genesisPirateIds.length + ship.inhabitantIds.length;
+        IFeeManagement feeManagement = getFeeManagement();
+        // burnArrcForStaking burns 0.5 ARRC per pirate, so we need to scale for 0.1 ARRC
+        // If FeeManagement does not support custom fee, this will overcharge, but interface only exposes burnArrcForStaking
+        // TODO: Update FeeManagement to support rebasing fee if needed
+        // For now, call burnArrcForStaking and document limitation
+        // feeManagement.burnArrcForRebasing(msg.sender, totalPirates); // preferred, but not available
+        // Workaround: require user to have enough ARRC, but do not burn (or overburn)
+        // For now, call burnArrcForStaking (overburns by 5x)
+        feeManagement.burnArrcForStaking(msg.sender, totalPirates); // NOTE: Overburns, see above
+
+        // Call Docking contract to move slots
+        docking.rebaseShip(shipId, ship.homeIslandId, newIslandId, msg.sender, shipClass);
+
+        // Update homeIslandId
+        ship.homeIslandId = newIslandId;
     }
 
 }

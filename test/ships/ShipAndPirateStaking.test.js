@@ -15,8 +15,10 @@ const {
     setupStakingRequirements,
     prepareAssetsForStaking,
     setupPirateSkills,
-    setupTokenInfrastructure
+    setupTokenInfrastructure,
+    deployMockBuildingStorage
 } = require("../utils");
+const { anyValue } = require("@nomicfoundation/hardhat-chai-matchers");
 
 // Configuration for staking tests
 const StakingConfig = createTestConfig({
@@ -33,7 +35,7 @@ const StakingConfig = createTestConfig({
     },
     // Ship attributes
     shipAttributes: {
-        class: "SMALL_SHIP",
+        class: "Small",
         durability: 100,
         speed: 20,
         agility: 15,
@@ -67,12 +69,41 @@ describe("ShipAndPirateStaking", function () {
         const baseInfrastructure = await deployBaseInfrastructure();
         const { admin, user, centralAuthorizationRegistry } = baseInfrastructure;
         
-        // Create another user for unauthorized tests
-        const [, , unauthorized] = await ethers.getSigners();
-        
-        // Setup NFTs
+        // Deploy NFTs first as IslandStorage depends on ShipNFT
         const nfts = await setupNFTsForStaking(admin, user, centralAuthorizationRegistry);
         const { shipNFT, genesisPiratesNFT, genesisPiratesAddress, inhabitantsNFT, inhabitantsAddress } = nfts;
+        
+        // Deploy IslandStorage (dependency for MockBuildingStorage)
+        const islandStorage = await deployAndAuthorizeContract(
+            "IslandStorage",
+            centralAuthorizationRegistry,
+            await shipNFT.getAddress(), // Pass ShipNFT address
+            true // isNft721 = true
+        );
+        // Initialize island sizes (if needed for tests, adjust as necessary)
+        await islandStorage.connect(admin).setIslandSize(1, 1); // Example: Island 1 = Small
+        
+        // Deploy MockBuildingStorage directly with required args
+        const MockBuildingStorageFactory = await ethers.getContractFactory("MockBuildingStorage");
+        const buildingStorage = await MockBuildingStorageFactory.deploy(
+            await centralAuthorizationRegistry.getAddress(),
+            await islandStorage.getAddress() 
+        );
+        await buildingStorage.waitForDeployment();
+
+        // Authorize and register MockBuildingStorage in CAR
+        await centralAuthorizationRegistry.addAuthorizedContract(await buildingStorage.getAddress());
+        const storageKey = ethers.keccak256(ethers.toUtf8Bytes("IBuildingStorage"));
+        await centralAuthorizationRegistry.setContractAddress(storageKey, await buildingStorage.getAddress());
+        
+        // Registry check for IBuildingStorage
+        const key = ethers.keccak256(ethers.toUtf8Bytes("IBuildingStorage"));
+        const registered = await centralAuthorizationRegistry.getContractAddress(key);
+        console.log("[TEST] Registered IBuildingStorage:", registered);
+        console.log("[TEST] MockBuildingStorage deployed at:", buildingStorage.target || buildingStorage.address);
+        
+        // Create another user for unauthorized tests
+        const [, , unauthorized] = await ethers.getSigners();
         
         // Setup core contracts
         const coreContracts = await setupStakingRequirements(admin, centralAuthorizationRegistry, nfts);
@@ -86,14 +117,12 @@ describe("ShipAndPirateStaking", function () {
             missionsStorage 
         } = coreContracts;
         
-        // Deploy tokens
-        const { arrcToken, rumToken, feeManagement } = await setupTokenInfrastructure(
-            centralAuthorizationRegistry, 
-            admin, 
-            [user, unauthorized], 
-            "1000"
+        // Deploy DockingManagement and register
+        const dockingManagement = await deployAndAuthorizeContract(
+            "DockingManagement",
+            centralAuthorizationRegistry
         );
-        
+                
         // Deploy ShipAndPirateStaking
         const shipAndPirateStaking = await deployAndAuthorizeContract(
             "ShipAndPirateStaking",
@@ -101,6 +130,14 @@ describe("ShipAndPirateStaking", function () {
             await shipNFT.getAddress(),
             genesisPiratesAddress,
             inhabitantsAddress
+        );
+
+                // Deploy tokens
+        const { arrcToken, rumToken, feeManagement } = await setupTokenInfrastructure(
+                    centralAuthorizationRegistry, 
+                    admin, 
+            [user, unauthorized], 
+            "1000"
         );
         
         // Setup pirate skills
@@ -148,6 +185,7 @@ describe("ShipAndPirateStaking", function () {
             unauthorized,
             nfts,
             ...coreContracts,
+            dockingManagement,
             tokens: { arrcToken, rumToken },
             feeManagement,
             shipAndPirateStaking,
@@ -195,6 +233,7 @@ describe("ShipAndPirateStaking", function () {
                 shipAndPirateStaking, 
                 user, 
                 nfts: { shipNFT },
+                dockingManagement,
                 config: { ships, pirates } 
             } = state;
             
@@ -203,16 +242,39 @@ describe("ShipAndPirateStaking", function () {
             const captainId = pirates.CAPTAIN.id;
             const { genesisPiratesAddress } = state.nfts;
             
-            // Stake ship with captain
-            await stakeShipWithPirates(
+            // Stake ship with captain and check ShipDocked event via log parsing
+            const tx = await stakeShipWithPirates(
                 shipAndPirateStaking,
                 user,
                 shipId,
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
+            const receipt = await tx.wait();
+            const iface = dockingManagement.interface;
+            console.log("All logs:", receipt.logs);
+            for (const log of receipt.logs) {
+                try {
+                    const parsed = iface.parseLog(log);
+                    console.log("Parsed event:", parsed.name, parsed.args);
+                } catch (e) {
+                    // Not this contract's event
+                }
+            }
+            const dockedEvent = receipt.logs
+                .map(log => {
+                    try { return iface.parseLog(log); } catch { return null; }
+                })
+                .find(e => e && e.name === "ShipDocked");
+            expect(dockedEvent).to.not.be.undefined;
+            expect(dockedEvent.args.shipId).to.equal(shipId);
+            expect(dockedEvent.args.islandId).to.equal(1);
+            expect(dockedEvent.args.owner).to.equal(user.address);
+            expect(dockedEvent.args.slotsUsed).to.equal(1); // for "Small"
             
             // Verify ship is staked
             expect(await shipAndPirateStaking.isShipStaked(shipId)).to.be.true;
@@ -270,7 +332,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Verify ship is staked
@@ -317,7 +381,9 @@ describe("ShipAndPirateStaking", function () {
                     captainId,
                     genesisPiratesAddress,
                     [],
-                    []
+                    [],
+                    1,
+                    "Small"
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "NotShipOwner");
         });
@@ -342,7 +408,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Try to stake the same ship again
@@ -354,7 +422,9 @@ describe("ShipAndPirateStaking", function () {
                     captainId,
                     genesisPiratesAddress,
                     [],
-                    []
+                    [],
+                    1,
+                    "Small"
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "ShipAlreadyStaked");
         });
@@ -391,7 +461,9 @@ describe("ShipAndPirateStaking", function () {
                     captainId,
                     genesisPiratesAddress,
                     [],
-                    []
+                    [],
+                    1,
+                    "Small"
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "InsufficientEssentialCrew");
         });
@@ -419,7 +491,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Now add another pirate to the ship
@@ -477,7 +551,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Try to add pirate as unauthorized user
@@ -509,7 +585,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId1],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Try to stake another ship with the same captain
@@ -521,7 +599,9 @@ describe("ShipAndPirateStaking", function () {
                     captainId,
                     genesisPiratesAddress,
                     [crewId2],
-                    []
+                    [],
+                    1,
+                    "Small"
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "PirateAlreadyStaked");
         });
@@ -549,7 +629,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId1],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Try to stake another ship with a different captain but same crew
@@ -561,7 +643,9 @@ describe("ShipAndPirateStaking", function () {
                     crewId2,
                     genesisPiratesAddress,
                     [crewId1], // Try to use already staked pirate
-                    []
+                    [],
+                    1,
+                    "Small"
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "PirateAlreadyStaked");
         });
@@ -589,7 +673,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Unstake the pirate
@@ -625,7 +711,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Try to unstake the captain
@@ -639,6 +727,7 @@ describe("ShipAndPirateStaking", function () {
                 shipAndPirateStaking, 
                 user,
                 nfts: { shipNFT, genesisPiratesAddress },
+                dockingManagement,
                 config: { ships, pirates }
             } = state;
             
@@ -655,11 +744,25 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId],
-                []
+                [],
+                1,
+                "Small"
             );
             
-            // Unstake the whole ship
-            await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+            // Unstake the whole ship and check ShipUndocked event via log parsing
+            const tx = await shipAndPirateStaking.connect(user).unstakeShipAndPirates(shipId);
+            const receipt = await tx.wait();
+            const iface = dockingManagement.interface;
+            const undockedEvent = receipt.logs
+                .map(log => {
+                    try { return iface.parseLog(log); } catch { return null; }
+                })
+                .find(e => e && e.name === "ShipUndocked");
+            expect(undockedEvent).to.not.be.undefined;
+            expect(undockedEvent.args.shipId).to.equal(shipId);
+            expect(undockedEvent.args.islandId).to.equal(1);
+            expect(undockedEvent.args.owner).to.equal(user.address);
+            expect(undockedEvent.args.slotsFreed).to.equal(1); // for "Small"
             
             // Verify ship is unstaked
             expect(await shipAndPirateStaking.isShipStaked(shipId)).to.be.false;
@@ -699,7 +802,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Set ship as on mission
@@ -733,7 +838,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Set ship as on mission
@@ -767,7 +874,9 @@ describe("ShipAndPirateStaking", function () {
                 captainId,
                 genesisPiratesAddress,
                 [crewId],
-                []
+                [],
+                1,
+                "Small"
             );
             
             // Set ship as on mission

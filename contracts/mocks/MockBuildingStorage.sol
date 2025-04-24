@@ -2,13 +2,14 @@
 pragma solidity ^0.8.25;
 
 import "../interfaces/IBuildingStorage.sol";
+import "../interfaces/IIslandStorage.sol";
 import "../AuthorizationModifiers.sol";
+import "hardhat/console.sol";
 
 /**
  * @title MockBuildingStorage
- * @notice Mock implementation of IBuildingStorage that always returns operational buildings
- * @dev This mock implements only functions used by mission contracts and always returns 
- *      operational buildings with level 10 to satisfy any requirements
+ * @notice Mock implementation of IBuildingStorage that uses IslandStorage for base docking slots
+ * @dev This mock implements only functions used by mission contracts and DockingManagement.
  */
 contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
     // Constants
@@ -16,13 +17,19 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
     uint256 private constant GOVERNOR_HQ_TYPE = 1;
     uint256 private constant MAX_TRADE_OFFERS = 2;
 
+    IIslandStorage public islandStorage;
+
     /**
      * @notice Constructor for MockBuildingStorage
      * @param _centralAuthorizationRegistry Address of the central authorization registry
+     * @param _islandStorageAddress Address of the deployed IslandStorage contract
      */
-    constructor(address _centralAuthorizationRegistry) 
+    constructor(address _centralAuthorizationRegistry, address _islandStorageAddress)
         AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IBuildingStorage")) 
-    {}
+    {
+        require(_islandStorageAddress != address(0), "Invalid IslandStorage address");
+        islandStorage = IIslandStorage(_islandStorageAddress);
+    }
 
     /**
      * @notice Get building information for a specific building on an island
@@ -75,5 +82,40 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
         // Always return true for now
         // In the future, this will actually check if the island has the required buildings
         return true;
+    }
+
+    /**
+     * @notice Get the base docking slots for an island based on its size from IslandStorage
+     * @param islandId ID of the island
+     * @return slots Base docking slots for the island's size
+     */
+    function getDockingSlots(uint256 islandId) external view override returns (uint256) {
+        console.log("[MOCK] getDockingSlots called with islandId:", islandId);
+        // Explicitly reference the interface for the enum type
+        IIslandStorage.IslandSize size = islandStorage.getIslandSize(islandId);
+        
+        if (size == IIslandStorage.IslandSize.ExtraSmall) {
+            return 1;
+        } else if (size == IIslandStorage.IslandSize.Small) {
+            return 2;
+        } else if (size == IIslandStorage.IslandSize.Medium) {
+            return 3;
+        } else if (size == IIslandStorage.IslandSize.Large) {
+            return 4;
+        } else if (size == IIslandStorage.IslandSize.Huge) { // Assuming Huge maps to XL
+            return 5;
+        } else {
+            // Default or handle unknown size (e.g., return 0 or revert)
+            // PRD specifies XS has 1 slot even without a port, so maybe return 1 as default?
+            // Let's return 1 for safety, matching XS island behavior.
+            console.log("[MOCK] Unknown island size for", islandId, ", returning 1 slot.");
+            return 1; 
+        }
+    }
+
+    function getShipClass(uint256 shipId) external view override returns (string memory) {
+        console.log("[MOCK] getShipClass called with shipId:", shipId);
+        // This might need updating if tests require different classes
+        return "Small"; // Dummy value for testing
     }
 } 
