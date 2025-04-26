@@ -986,10 +986,12 @@ contract ShipAndPirateStaking is
         // Burn 0.1 ARRC per NFT pirate (captain + all pirates)
         uint256 totalPirates = 1 + ship.genesisPirateIds.length + ship.inhabitantIds.length;
         IFeeManagement feeManagement = getFeeManagement();
+        // Get the rebase fee rate from FeeManagement
+        uint256 rebaseFeePerPirate = feeManagement.getShipRebaseArrcFee();
         // Calculate rebasing fee
-        uint256 rebaseFee = totalPirates * 1 * 10**17; // 0.1 ARRC in wei
+        uint256 calculatedRebasingFee = totalPirates * rebaseFeePerPirate; 
         // Call generic burn function with action
-        feeManagement.burnArrc(msg.sender, rebaseFee, "Rebasing");
+        feeManagement.burnArrc(msg.sender, calculatedRebasingFee, "Rebasing");
 
         // Call Docking contract to move slots
         docking.rebaseShip(shipId, ship.homeIslandId, newIslandId, msg.sender, shipClass);

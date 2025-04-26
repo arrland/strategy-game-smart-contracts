@@ -2,7 +2,6 @@
 pragma solidity ^0.8.25;
 
 interface IShipAndPirateStaking {
-    // Structs
     struct StakingData {
         uint256 shipId;
         uint256 captainId;
@@ -11,20 +10,17 @@ interface IShipAndPirateStaking {
         uint256[] inhabitantIds;
     }
 
-    // Events
+    // Events (from ShipAndPirateStaking implementation)
     event ShipStaked(uint256 indexed shipId, address indexed owner, uint256 timestamp);
     event ShipUnstaked(uint256 indexed shipId, address indexed owner, uint256 timestamp);
     event PirateStaked(uint256 indexed pirateId, uint256 indexed shipId, bool isCaptain, uint256 timestamp, address collection);
-    event PirateUnstaked(uint256 indexed pirateId, uint256 indexed shipId, bool isCaptain, uint256 timestamp, address collection);
-    event CrewUpdated(uint256 indexed shipId, uint256 indexed captainId, uint256[] crewIds, uint256 timestamp);
+    event PirateUnstaked(uint256 indexed pirateId, uint256 indexed shipId, bool wasCaptain, uint256 timestamp, address collection);
+    event CrewUpdated(uint256 indexed shipId, uint256 captainId, uint256[] pirates, uint256 timestamp);
     event EssentialCrewValidated(uint256 indexed shipId, uint256 essentialCrewCount, uint256 minRequired, uint256 maxAllowed);
 
-    // Errors
-    error InsufficientCaptainRespect(uint256 required, uint256 actual);
-    error InsufficientEssentialCrew(uint256 required, uint256 actual);
-    error TooManyEssentialCrew(uint256 maxAllowed, uint256 actual);
 
-    // View Functions
+
+    // View functions
     function isShipStaked(uint256 shipId) external view returns (bool);
     function getShipOwner(uint256 shipId) external view returns (address);
     function getUserActiveShips(address user) external view returns (uint256[] memory);
@@ -34,7 +30,7 @@ interface IShipAndPirateStaking {
     function getPirateCollection(uint256 pirateId) external view returns (address);
     function getPirateShip(uint256 pirateId) external view returns (uint256);
     function isPirateCaptain(uint256 pirateId) external view returns (bool);
-    function getMissionsStorageAddress() external view returns (address);    
+    function getMissionsStorageAddress() external view returns (address);
     function getShipInfo(uint256 shipId) external view returns (
         address owner,
         bool isStaked,
@@ -57,15 +53,13 @@ interface IShipAndPirateStaking {
     function getGenesisPiratesAddress() external view returns (address);
     function getInhabitantsAddress() external view returns (address);
 
-    // State-Changing Functions
-    function stakeShipWithPirates(StakingData memory stakingData) external;
-    function stakeShipAndPirate(uint256 shipId, uint256 pirateId, address collectionAddress) external;
+    // State-changing functions
+    function stakeShipWithPirates(StakingData memory stakingData, uint256 homeIslandId, string memory shipClass) external;    
     function stakePirate(uint256 shipId, uint256 pirateId, address collectionAddress) external;
     function unstakeShip(uint256 shipId) external;
     function unstakePirate(uint256 shipId, uint256 pirateId) external;
-    function unstakeShipAndPirates(uint256 shipId) external;
-    function batchStakeShips(StakingData[] calldata stakingDataArray) external;
+    function unstakeShipAndPirates(uint256 shipId, string memory shipClass) external;
+    function batchStakeShips(StakingData[] calldata stakingDataArray, uint256[] calldata homeIslandIds, string[] calldata shipClasses) external;
     function batchUnstakeShips(uint256[] calldata shipIds) external;
-    function pause() external;
-    function unpause() external;
+    function rebaseShipHomeIsland(uint256 shipId, uint256 newIslandId, string memory shipClass) external;
 }

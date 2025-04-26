@@ -52,11 +52,11 @@ describe("FeeManagement", function () {
             const rumFee = initialRumFeePerDay * daysCount;
             await rumToken.connect(user).approve(feeManagement.getAddress(), rumFee);
             
-            await expect(feeManagement.connect(feeCaller).useRum(user.getAddress(), daysCount))
+            await expect(feeManagement.connect(feeCaller).useRum(user.address, daysCount))
                 .to.emit(feeManagement, "RumUsed")
                 .withArgs(user.address, rumFee);
                 
-            expect(await rumToken.balanceOf(user.getAddress())).to.equal(ethers.parseEther("95"));
+            expect(await rumToken.balanceOf(user.address)).to.equal(ethers.parseEther("95"));
             // Check contract balance is zero after burn
             expect(await rumToken.balanceOf(await feeManagement.getAddress())).to.equal(0);
         });
@@ -66,7 +66,7 @@ describe("FeeManagement", function () {
             const rumFee = initialRumFeePerDay * daysCount;
             await rumToken.connect(user).approve(feeManagement.getAddress(), rumFee);
             await expect(
-                feeManagement.connect(user).useRum(user.getAddress(), daysCount)
+                feeManagement.connect(user).useRum(user.address, daysCount)
             ).to.be.revertedWith("Caller is not authorized");
         });
 
@@ -75,7 +75,7 @@ describe("FeeManagement", function () {
             const rumFee = initialRumFeePerDay * daysCount;
             await rumToken.connect(user).approve(feeManagement.getAddress(), rumFee);
             await expect(
-                feeManagement.connect(feeCaller).useRum(user.getAddress(), daysCount)
+                feeManagement.connect(feeCaller).useRum(user.address, daysCount)
             ).to.be.revertedWith("ERC20InsufficientBalance"); // Updated to match OZ error
         });
     });
@@ -161,6 +161,14 @@ describe("FeeManagement", function () {
             expect(await feeManagement.stakePirateArrcFee()).to.equal(newFee);
         });
 
+        it("should update ship rebase ARRC fee", async function () {
+            const newFee = ethers.parseEther("0.25");
+            // This test will fail until setShipRebaseArrcFee is implemented
+            await expect(feeManagement.connect(admin).setShipRebaseArrcFee(newFee))
+                .to.emit(feeManagement, "ShipRebaseArrcFeeUpdated").withArgs(newFee);
+            expect(await feeManagement.getShipRebaseArrcFee()).to.equal(newFee);
+        });
+
         it("should update MATIC fee recipient", async function () {
             const newRecipient = admin.address;
             await expect(feeManagement.connect(admin).setMaticFeeRecipient(newRecipient))
@@ -186,6 +194,11 @@ describe("FeeManagement", function () {
             // Test setStakePirateArrcFee access control
             const newArrcFee = ethers.parseEther("1");
             await expect(feeManagement.connect(user).setStakePirateArrcFee(newArrcFee))
+                .to.be.revertedWith("Caller is not an admin");
+
+            // Test setShipRebaseArrcFee access control
+            const newRebaseFee = ethers.parseEther("0.3");
+            await expect(feeManagement.connect(user).setShipRebaseArrcFee(newRebaseFee))
                 .to.be.revertedWith("Caller is not an admin");
 
             const newRecipient = admin.getAddress();
@@ -225,6 +238,18 @@ describe("FeeManagement", function () {
             const pirateCount = 7n;
             const expectedFee = stakePirateArrcFee * pirateCount;
             expect(await feeManagement.getPirateBoardingCost(pirateCount)).to.equal(expectedFee);
+        });
+
+        it("should calculate staking ARRC fee correctly", async function () {
+            const pirateCount = 3n;
+            const expectedFee = stakePirateArrcFee * pirateCount;
+            expect(await feeManagement.calculateStakingArrcFee(pirateCount)).to.equal(expectedFee);
+        });
+
+        it("should return the correct ship rebase ARRC fee", async function () {
+            const expectedRebaseFee = ethers.parseUnits("0.1", 18); // 0.1 ARRC
+            // This test will fail until the getter and state variable are added
+            expect(await feeManagement.getShipRebaseArrcFee()).to.equal(expectedRebaseFee);
         });
     });
 });

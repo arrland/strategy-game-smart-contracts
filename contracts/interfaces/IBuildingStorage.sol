@@ -55,4 +55,10 @@ interface IBuildingStorage {
         uint256[] calldata requiredBuildingTypes,
         uint256[] calldata requiredLevels
     ) external view returns (bool);
+
+    /// @notice Returns the number of docking slots for an island (base + ports)
+    function getDockingSlots(uint256 islandId) external view returns (uint256);
+
+    /// @notice Returns the class of a ship by its ID
+    function getShipClass(uint256 shipId) external view returns (string memory);
 } 
