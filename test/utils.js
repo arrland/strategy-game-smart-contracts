@@ -338,17 +338,30 @@ async function stakeShipWithPirates(
     captainId,
     captainCollection,
     genesisPirateIds = [],
-    inhabitantIds = []
+    inhabitantIds = [],
+    homeIslandId = 1,
+    shipClass = "Small",
+    options = {}
 ) {
     const stakingData = {
-        shipId,
-        captainId,
-        captainCollection,
-        genesisPirateIds,
-        inhabitantIds
+        shipId: shipId,
+        captainId: captainId,
+        captainCollection: captainCollection,
+        genesisPirateIds: genesisPirateIds,
+        inhabitantIds: inhabitantIds
     };
     
-    return shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingData);
+    const tx = await shipAndPirateStaking.connect(user).stakeShipWithPirates(
+        stakingData, 
+        homeIslandId, 
+        shipClass
+    );
+
+    if (options.returnTxPromise) {
+        return tx; 
+    }
+    
+    return await tx.wait(); // Default behavior: wait for receipt
 }
 
 // Helper to set up ship storage
@@ -372,20 +385,27 @@ async function registerContractAddresses(centralAuthorizationRegistry, contractA
     }
 }
 
+// Shared helper to deploy and register a mock contract
+async function deployAndRegisterMock(contractName, registryKey, centralAuthorizationRegistry) {
+    const ContractFactory = await ethers.getContractFactory(contractName);
+    const contract = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress());
+    await contract.waitForDeployment();
+    await centralAuthorizationRegistry.addAuthorizedContract(await contract.getAddress());
+    await centralAuthorizationRegistry.setContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes(registryKey)),
+        await contract.getAddress()
+    );
+    return contract;
+}
+
 // Helper to deploy mock missions storage
 async function deployMockMissionsStorage(centralAuthorizationRegistry) {
-    const MockMissionsStorage = await ethers.getContractFactory("MockMissionsStorage");
-    const missionsStorage = await MockMissionsStorage.deploy();
-    await missionsStorage.waitForDeployment();
-    await centralAuthorizationRegistry.addAuthorizedContract(await missionsStorage.getAddress());
-    
-    // Register with the correct key
-    await centralAuthorizationRegistry.setContractAddress(
-        ethers.keccak256(ethers.toUtf8Bytes("IMissionsStorage")),
-        await missionsStorage.getAddress()
-    );
-    
-    return missionsStorage;
+    return deployAndRegisterMock("MockMissionsStorage", "IMissionsStorage", centralAuthorizationRegistry);
+}
+
+// Helper to deploy mock building storage
+async function deployMockBuildingStorage(centralAuthorizationRegistry) {
+    return deployAndRegisterMock("MockBuildingStorage", "IBuildingStorage", centralAuthorizationRegistry);
 }
 
 // Helper to set up token infrastructure (ARRC, RUM tokens and FeeManagement)
@@ -687,5 +707,6 @@ module.exports = {
   createTestConfig,
   setupNFTsForStaking,
   setupStakingRequirements,
-  prepareAssetsForStaking
+  prepareAssetsForStaking,
+  deployMockBuildingStorage
 };

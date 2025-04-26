@@ -4,6 +4,49 @@ This document provides best practices and patterns for writing unit tests in thi
 
 ---
 
+## How to Compile Contracts and Run Tests
+
+Before writing or running tests, ensure your environment is set up and contracts are compiled.
+
+### 1. Install Dependencies
+
+From the project root, install all required dependencies:
+
+```bash
+yarn install
+```
+
+### 2. Compile Contracts
+
+Compile all smart contracts using Hardhat:
+
+```bash
+npx hardhat compile
+```
+
+### 3. Run Tests
+
+Execute the test suite (all tests in the `test/` directory) with:
+
+```bash
+npx hardhat test
+```
+
+- This will compile contracts (if needed) and run all test files.
+- Test results, including any failures, will be shown in the terminal.
+
+> **Tip:** If you are not using the Hardhat Network, ensure a local Ethereum node is running.
+
+How to run tests in a specific file:
+
+```bash
+npx hardhat test test/ships/ShipAndPirateStaking.test.js
+```
+
+
+
+---
+
 ## 1. Contract Deployment and Setup
 
 - **Always use utility functions for deployment and setup**. The `test/utils.js` file provides helpers like `deployBaseInfrastructure`, `deployAndAuthorizeContract`, `setupNFTsForStaking`, `setupStakingRequirements`, and `prepareAssetsForStaking`.

@@ -105,11 +105,7 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
         } else if (size == IIslandStorage.IslandSize.Huge) { // Assuming Huge maps to XL
             return 5;
         } else {
-            // Default or handle unknown size (e.g., return 0 or revert)
-            // PRD specifies XS has 1 slot even without a port, so maybe return 1 as default?
-            // Let's return 1 for safety, matching XS island behavior.
-            console.log("[MOCK] Unknown island size for", islandId, ", returning 1 slot.");
-            return 1; 
+            revert("Unknown island size");
         }
     }
 

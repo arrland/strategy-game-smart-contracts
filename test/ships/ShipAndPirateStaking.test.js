@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
+const { loadFixture } = require("@nomicfoundation/hardhat-network-helpers");
 const { 
     deployAndAuthorizeContract,
     setupCrewForPirates,
@@ -122,7 +123,7 @@ describe("ShipAndPirateStaking", function () {
             "DockingManagement",
             centralAuthorizationRegistry
         );
-                
+        
         // Deploy ShipAndPirateStaking
         const shipAndPirateStaking = await deployAndAuthorizeContract(
             "ShipAndPirateStaking",
@@ -184,6 +185,7 @@ describe("ShipAndPirateStaking", function () {
             ...baseInfrastructure,
             unauthorized,
             nfts,
+            islandStorage,
             ...coreContracts,
             dockingManagement,
             tokens: { arrcToken, rumToken },
@@ -195,6 +197,11 @@ describe("ShipAndPirateStaking", function () {
 
     beforeEach(async function () {
         state = await setupFixture();
+        // Ensure FeeManagement address is available for tests needing it
+        state.feeManagementAddress = await state.feeManagement.getAddress();
+        // Pre-calculate expected fees for clarity in tests
+        state.expectedStakeFeePerPirate = await state.feeManagement.stakePirateArrcFee(); 
+        state.expectedRebaseFeePerPirate = ethers.parseUnits("0.1", 18); // 0.1 ARRC
     });
 
     describe("Deployment", function () {
@@ -234,16 +241,30 @@ describe("ShipAndPirateStaking", function () {
                 user, 
                 nfts: { shipNFT },
                 dockingManagement,
+                feeManagement,
+                feeManagementAddress,
+                expectedStakeFeePerPirate,
                 config: { ships, pirates } 
             } = state;
             
-            // Setup test variables
             const shipId = ships.MAIN_SHIP.id;
             const captainId = pirates.CAPTAIN.id;
             const { genesisPiratesAddress } = state.nfts;
+            const homeIslandId = 1;
+            const shipClass = "Small"; // Match config
+            const totalPirates = 1; // Only captain
+            const expectedFee = expectedStakeFeePerPirate * BigInt(totalPirates);
+
+            const stakingData = {
+                shipId: shipId,
+                captainId: captainId,
+                captainCollection: genesisPiratesAddress,
+                genesisPirateIds: [],
+                inhabitantIds: []
+            };
             
-            // Stake ship with captain and check ShipDocked event via log parsing
-            const tx = await stakeShipWithPirates(
+            // Stake ship with captain using the helper, getting the promise
+            const stakeTxPromise = stakeShipWithPirates(
                 shipAndPirateStaking,
                 user,
                 shipId,
@@ -251,10 +272,20 @@ describe("ShipAndPirateStaking", function () {
                 genesisPiratesAddress,
                 [],
                 [],
-                1,
-                "Small"
+                homeIslandId, // Pass homeIslandId
+                shipClass, // Pass shipClass
+                { returnTxPromise: true } // Get the promise back
             );
-            const receipt = await tx.wait();
+
+            // Now expect the ArrcBurned event from the promise
+            await expect(stakeTxPromise)
+                .to.emit(feeManagement, "ArrcBurned")
+                .withArgs(user.address, expectedFee, "Staking");
+
+            // Wait for the transaction to complete for subsequent checks
+            const receipt = await (await stakeTxPromise).wait(); 
+
+            // Check ShipDocked event via log parsing
             const iface = dockingManagement.interface;
             console.log("All logs:", receipt.logs);
             for (const log of receipt.logs) {
@@ -303,39 +334,50 @@ describe("ShipAndPirateStaking", function () {
                 shipMetadata,
                 crewManagement,
                 crewTypeManager,
+                dockingManagement,
+                feeManagement,
+                feeManagementAddress,
+                expectedStakeFeePerPirate,
                 config: { ships, pirates }
             } = state;
-            
-            // Setup test variables
+
             const shipId = ships.MAIN_SHIP.id;
             const captainId = pirates.CAPTAIN.id;
-            const crewId = pirates.CREW_1.id;
-            
-            // Use the utility function to check contract references
-            await logContractAddresses(state.centralAuthorizationRegistry);
-            
-            // Use the utility function to check crew requirements
-            await logCrewRequirements(
-                shipMetadata, 
-                crewManagement, 
-                crewTypeManager, 
-                shipId, 
-                captainId, 
-                genesisPiratesAddress
-            );
-            
-            // Stake ship with captain and crew
-            await stakeShipWithPirates(
+            const crewIds = [pirates.CREW_1.id]; // One crew member
+            const homeIslandId = 1;
+            const shipClass = "Small"; // Match config
+            const totalPirates = 1 + crewIds.length; // Captain + crew
+            const expectedFee = expectedStakeFeePerPirate * BigInt(totalPirates);
+
+            const stakingData = {
+                shipId: shipId,
+                captainId: captainId,
+                captainCollection: genesisPiratesAddress,
+                genesisPirateIds: crewIds,
+                inhabitantIds: []
+            };
+
+            // Stake ship with captain and crew using the helper, getting the promise
+            const stakeTxPromise = stakeShipWithPirates(
                 shipAndPirateStaking,
                 user,
                 shipId,
                 captainId,
                 genesisPiratesAddress,
-                [crewId],
+                crewIds,
                 [],
-                1,
-                "Small"
+                homeIslandId,
+                shipClass,
+                { returnTxPromise: true } // Get the promise back
             );
+
+            // Now expect the ArrcBurned event from the promise
+            await expect(stakeTxPromise)
+                .to.emit(feeManagement, "ArrcBurned")
+                .withArgs(user.address, expectedFee, "Staking");
+
+            // Wait for the transaction to complete for subsequent checks
+            await (await stakeTxPromise).wait();
             
             // Verify ship is staked
             expect(await shipAndPirateStaking.isShipStaked(shipId)).to.be.true;
@@ -350,14 +392,14 @@ describe("ShipAndPirateStaking", function () {
             expect(captain).to.equal(captainId);
             expect(captainCollection).to.equal(genesisPiratesAddress);
             expect(genesisCrew.length).to.equal(1);
-            expect(genesisCrew[0]).to.equal(crewId);
+            expect(genesisCrew[0]).to.equal(crewIds[0]);
             expect(inhabitantsCrew.length).to.equal(0);
             
             // Verify pirate assignments
             expect(await shipAndPirateStaking.getPirateShip(captainId)).to.equal(shipId);
-            expect(await shipAndPirateStaking.getPirateShip(crewId)).to.equal(shipId);
+            expect(await shipAndPirateStaking.getPirateShip(crewIds[0])).to.equal(shipId);
             expect(await shipAndPirateStaking.isPirateCaptain(captainId)).to.be.true;
-            expect(await shipAndPirateStaking.isPirateCaptain(crewId)).to.be.false;
+            expect(await shipAndPirateStaking.isPirateCaptain(crewIds[0])).to.be.false;
         });
         
         it("should fail when staking a ship without being the owner", async function () {
@@ -649,6 +691,42 @@ describe("ShipAndPirateStaking", function () {
                 )
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "PirateAlreadyStaked");
         });
+
+        it("should burn 0.5 ARRC when adding a pirate", async function () {
+            const { 
+                shipAndPirateStaking, 
+                user,
+                feeManagement,
+                nfts: { genesisPiratesAddress },
+                config: { ships, pirates },
+                expectedStakeFeePerPirate // This should be 0.5 ARRC
+            } = state;
+
+            // Setup test variables
+            const shipId = ships.MAIN_SHIP.id;
+            const captainId = pirates.CAPTAIN.id;
+            const crewIdToAdd = pirates.CREW_1.id; // The pirate to add
+
+            // First stake a ship with just the captain
+            await stakeShipWithPirates(
+                shipAndPirateStaking,
+                user,
+                shipId,
+                captainId,
+                genesisPiratesAddress,
+                [],
+                [],
+                1,
+                "Small"
+            );
+
+            // Expect the ArrcBurned event when staking the additional pirate
+            const stakePirateTx = shipAndPirateStaking.connect(user).stakePirate(shipId, crewIdToAdd, genesisPiratesAddress);
+
+            await expect(stakePirateTx)
+                .to.emit(feeManagement, "ArrcBurned")
+                .withArgs(user.address, expectedStakeFeePerPirate, "StakingPirate"); // Verify 0.5 ARRC fee and action string
+        });
     });
 
     describe("Unstaking", function () {
@@ -888,4 +966,138 @@ describe("ShipAndPirateStaking", function () {
             ).to.be.revertedWithCustomError(shipAndPirateStaking, "ShipOnMission");
         });
     });
+
+    // Add new section or modify existing test for Rebasing
+    describe("Ship Rebasing", function () {
+        let state; // Define state variable accessible to all tests in this block
+
+        beforeEach(async function () {
+            state = await loadFixture(setupFixture); // Load fixture once before each test in this block
+        });
+
+        it("should rebase a ship to a new island successfully", async function () {
+            // Use the state variable directly
+            const { shipAndPirateStaking, shipNFT, dockingManagement, shipStorage, user, nfts } = state;
+            const shipId = 1;
+            const originalIslandId = 1;
+            const targetIslandId = 2; // New island to rebase to
+            const shipClass = "Small"; // Assuming ship 1 is small
+            const captainCollection = nfts.genesisPiratesAddress; // Assuming captain is Genesis
+            const captainId = 1; // Assuming captain ID is 1
+            
+            // Define expectedRebaseFeePerPirate directly in the test to avoid state issues
+            const expectedRebaseFeePerPirate_test = ethers.parseUnits("0.1", 18); // 0.1 ARRC
+            const numberOfPirates = 1n; // Only captain in this setup
+            const expectedFee = expectedRebaseFeePerPirate_test * numberOfPirates; // Ensure BigInt calculation
+
+            // Ensure the ship is initially docked using the helper
+            await stakeShipWithPirates(
+                shipAndPirateStaking,
+                user,
+                shipId,
+                captainId,
+                captainCollection,
+                [],
+                [],
+                originalIslandId,
+                shipClass
+            );
+
+            expect(await dockingManagement.getShipDockedIsland(shipId)).to.equal(originalIslandId);
+            const expectedSlots = await dockingManagement.getSlotRequirementForShipClass(shipClass);
+
+            // Ensure docking slots are available on the target island
+            await state.islandStorage.connect(state.admin).setIslandSize(targetIslandId, 2); // Ensure target has slots
+
+            // Perform the rebase operation
+            const rebaseTx = shipAndPirateStaking.connect(user).rebaseShipHomeIsland(shipId, targetIslandId, shipClass);
+
+            // Check for the ARRC fee burning event
+            console.log("[TEST DEBUG] Expected Fee for Rebase:", expectedFee.toString()); // Log the expected fee
+            await expect(rebaseTx)
+                .to.emit(state.feeManagement, "ArrcBurned")
+                .withArgs(user.address, expectedFee, "Rebasing"); // Use the calculated BigInt expectedFee directly
+
+            // Check for the ShipRebased event from DockingManagement
+            await expect(rebaseTx)
+              .to.emit(dockingManagement, "ShipRebased"); // Event comes from DockingManagement
+
+            // Verify the ship is now docked at the target island
+            expect(await dockingManagement.getShipDockedIsland(shipId)).to.equal(targetIslandId);
+        });
+
+        it("should fail to rebase if target island has no slots", async function () {
+            // Use the state variable directly
+            const { shipAndPirateStaking, dockingManagement, islandStorage, admin, user, nfts } = state;
+            const shipId = 1;
+            const originalIslandId = 1;
+            const targetIslandId = 2;
+            const shipClass = "Medium"; // Changed from Small: Needs 2 slots
+            const captainCollection = nfts.genesisPiratesAddress;
+            const captainId = 1;
+
+            // Stake the ship initially
+            await stakeShipWithPirates(
+                shipAndPirateStaking,
+                user,
+                shipId,
+                captainId,
+                captainCollection,
+                [],
+                [],
+                originalIslandId,
+                shipClass
+            );
+
+            // Configure the target island to ensure it *cannot* accommodate the ship.
+            // We rely on the DockingManagement's logic (mocked or real) to determine this based on island/ship data.
+            // Setting island size to 0 should ideally lead to canDock returning false.
+            await islandStorage.connect(admin).setIslandSize(targetIslandId, 0); 
+
+            // Verify the condition within the contract that should cause the revert
+            
+            const slotsRequired = await dockingManagement.getSlotRequirementForShipClass(shipClass);
+            const canDockResult = await dockingManagement.canDock(targetIslandId, slotsRequired);
+            console.log(`[TEST DEBUG] For targetIsland ${targetIslandId} (size 0) and shipClass ${shipClass} (slots ${slotsRequired}): canDock returned ${canDockResult}`);
+            // This assertion helps confirm the mock setup is correct before testing the revert
+            expect(canDockResult, "Mock setup error: canDock should return false for island with size 0 and Medium ship").to.be.false;
+            
+
+            // Attempt to rebase and expect specific revert reason due to lack of slots
+            await expect(shipAndPirateStaking.connect(user).rebaseShipHomeIsland(shipId, targetIslandId, shipClass))
+              .to.be.revertedWith("No docking slot available at new island"); // Reverted back to check string reason from ShipAndPirateStaking
+        });
+
+        it("should fail to rebase if ship is on mission", async function () {
+            // Use the state variable directly
+            const { shipAndPirateStaking, missionsStorage, user, nfts } = state;
+            const shipId = 1;
+            const originalIslandId = 1;
+            const targetIslandId = 2;
+            const shipClass = "Small"; // Keep as Small for this test
+            const captainCollection = nfts.genesisPiratesAddress;
+            const captainId = 1;
+
+            // Stake the ship
+            await stakeShipWithPirates(
+                shipAndPirateStaking,
+                user,
+                shipId,
+                captainId,
+                captainCollection,
+                [],
+                [],
+                originalIslandId,
+                shipClass
+            );
+
+            // Set the ship as being on a mission using the helper
+            await setMissionActive(missionsStorage, shipId, true);
+
+            // Attempt to rebase
+            await expect(shipAndPirateStaking.connect(user).rebaseShipHomeIsland(shipId, targetIslandId, shipClass))
+              .to.be.revertedWithCustomError(shipAndPirateStaking, "ShipOnMission");
+        });
+    });
+
 });

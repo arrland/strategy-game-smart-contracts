@@ -67,7 +67,7 @@ contract ShipAndPirateStaking is
         string shipClass;
     }
 
-    
+
     // State variables
     IERC721 public immutable shipNft;
     
@@ -91,7 +91,7 @@ contract ShipAndPirateStaking is
     ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IShipAndPirateStaking")) {
         shipNft = IERC721(_shipNft);
         genesisPiratesAddress = _genesisPiratesAddress;
-        inhabitantsAddress = _inhabitantsAddress;
+        inhabitantsAddress = _inhabitantsAddress;    
     }
 
     function getCrewTypeManager() internal view returns (ICrewTypeManager) {
@@ -257,7 +257,7 @@ contract ShipAndPirateStaking is
         console.log("[DEBUG] About to call dockShip");
         docking.dockShip(stakingData.shipId, homeIslandId, msg.sender, shipClass);
         console.log("[DEBUG] dockShip called successfully");
-
+        
         // Transfer ship NFT
         shipNft.transferFrom(msg.sender, address(this), stakingData.shipId);
         
@@ -284,9 +284,13 @@ contract ShipAndPirateStaking is
         // Calculate total pirates for fee
         uint256 totalPirates = 1 + stakingData.genesisPirateIds.length + stakingData.inhabitantIds.length;
         
-        // Burn ARRC fee
+        // --- Refactored ARRC Fee Burning ---
         IFeeManagement feeManagement = getFeeManagement();
-        feeManagement.burnArrcForStaking(msg.sender, totalPirates);
+        // Calculate staking fee (0.5 ARRC per pirate)
+        uint256 stakeFee = feeManagement.calculateStakingArrcFee(totalPirates);
+        // Call generic burn function with action
+        feeManagement.burnArrc(msg.sender, stakeFee, "Staking");
+        // --- End Refactor ---
                 
         // Transfer captain NFT from either Genesis Pirates or Inhabitants collection
         if (stakingData.captainCollection == genesisPiratesAddress) {
@@ -486,7 +490,13 @@ contract ShipAndPirateStaking is
         
         // Validate crew requirements with new crew
         validateCrewRequirements(shipId, ship.captainId, allCrewIds, allCollections);
-        
+
+        // --- Add ARRC Fee Burning for staking individual pirate ---
+        IFeeManagement feeManagement = getFeeManagement();
+        uint256 stakePirateFee = feeManagement.stakePirateArrcFee(); // Get the 0.5 ARRC fee rate
+        feeManagement.burnArrc(msg.sender, stakePirateFee, "StakingPirate"); // Burn the fee
+        // --- End Fee Burning ---
+
         // Transfer the pirate NFT
         if (collectionAddress == genesisPiratesAddress) {
             IERC1155(genesisPiratesAddress).safeTransferFrom(msg.sender, address(this), pirateId, 1, "");
@@ -976,14 +986,10 @@ contract ShipAndPirateStaking is
         // Burn 0.1 ARRC per NFT pirate (captain + all pirates)
         uint256 totalPirates = 1 + ship.genesisPirateIds.length + ship.inhabitantIds.length;
         IFeeManagement feeManagement = getFeeManagement();
-        // burnArrcForStaking burns 0.5 ARRC per pirate, so we need to scale for 0.1 ARRC
-        // If FeeManagement does not support custom fee, this will overcharge, but interface only exposes burnArrcForStaking
-        // TODO: Update FeeManagement to support rebasing fee if needed
-        // For now, call burnArrcForStaking and document limitation
-        // feeManagement.burnArrcForRebasing(msg.sender, totalPirates); // preferred, but not available
-        // Workaround: require user to have enough ARRC, but do not burn (or overburn)
-        // For now, call burnArrcForStaking (overburns by 5x)
-        feeManagement.burnArrcForStaking(msg.sender, totalPirates); // NOTE: Overburns, see above
+        // Calculate rebasing fee
+        uint256 rebaseFee = totalPirates * 1 * 10**17; // 0.1 ARRC in wei
+        // Call generic burn function with action
+        feeManagement.burnArrc(msg.sender, rebaseFee, "Rebasing");
 
         // Call Docking contract to move slots
         docking.rebaseShip(shipId, ship.homeIslandId, newIslandId, msg.sender, shipClass);

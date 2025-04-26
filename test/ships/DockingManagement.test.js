@@ -90,8 +90,15 @@ describe("DockingManagement", function () {
   describe("dockShip", function () {
     it("docks a ship if enough slots (Small Island) and emits event", async function () {
       const islandId = 10; // Small island (2 slots)
-      const tx = await docking.connect(admin).dockShip(1, islandId, user.address, "Small"); // Uses 1 slot (1 left)
-      await expect(tx).to.emit(docking, "ShipDocked");
+      const shipId = 1;
+      const shipClass = "Small";
+      const slotsRequired = await docking.getSlotRequirementForShipClass(shipClass);
+
+      const tx = docking.connect(admin).dockShip(shipId, islandId, user.address, shipClass); // Uses 1 slot (1 left)
+      await expect(tx)
+        .to.emit(docking, "ShipDocked")
+        .withArgs(shipId, islandId, user.address, anyValue, slotsRequired); // Check specific args
+      
       expect(await docking.getAvailableSlots(islandId)).to.equal(1);
       
       // Expect the NEXT dock (Medium ship, needs 2 slots) to fail because only 1 is left
@@ -127,10 +134,18 @@ describe("DockingManagement", function () {
   describe("undockShip", function () {
     it("undocks a ship and correctly increases available slots", async function () {
       const islandId = 10; // Small (2 slots)
-      await docking.connect(admin).dockShip(4, islandId, user.address, "Medium"); // Uses 2 slots (0 left)
+      const shipId = 4;
+      const shipClass = "Medium";
+      const slotsFreed = await docking.getSlotRequirementForShipClass(shipClass);
+
+      await docking.connect(admin).dockShip(shipId, islandId, user.address, shipClass); // Uses 2 slots (0 left)
       expect(await docking.getAvailableSlots(islandId)).to.equal(0);
-      const tx = await docking.connect(admin).undockShip(4, islandId, user.address, "Medium"); // Frees 2 slots
-      await expect(tx).to.emit(docking, "ShipUndocked");
+
+      const tx = docking.connect(admin).undockShip(shipId, islandId, user.address, shipClass); // Frees 2 slots
+      await expect(tx)
+        .to.emit(docking, "ShipUndocked")
+        .withArgs(shipId, islandId, user.address, anyValue, slotsFreed); // Check specific args
+      
       expect(await docking.getAvailableSlots(islandId)).to.equal(2); // Back to 2 available
     });
     it("reverts if not docked at this island", async function () {
@@ -150,20 +165,26 @@ describe("DockingManagement", function () {
     it("rebases a ship and updates slots on both islands", async function () {
       const oldIslandId = 10; // Small (2 slots)
       const newIslandId = 20; // Medium (3 slots)
-      await docking.connect(admin).dockShip(7, oldIslandId, user.address, "Small"); // Use 1 slot on old (1 left)
+      const shipId = 7;
+      const shipClass = "Small";
+      const slotsRequired = await docking.getSlotRequirementForShipClass(shipClass);
+
+      await docking.connect(admin).dockShip(shipId, oldIslandId, user.address, shipClass); // Use 1 slot on old (1 left)
       expect(await docking.getAvailableSlots(oldIslandId)).to.equal(1);
       expect(await docking.getAvailableSlots(newIslandId)).to.equal(3);
 
-      const tx = await docking.connect(admin).rebaseShip(7, oldIslandId, newIslandId, user.address, "Small"); // Moves 1 slot
-      await expect(tx).to.emit(docking, "ShipRebased");
+      const tx = docking.connect(admin).rebaseShip(shipId, oldIslandId, newIslandId, user.address, shipClass); // Moves 1 slot
+      await expect(tx)
+        .to.emit(docking, "ShipRebased")
+        .withArgs(shipId, oldIslandId, newIslandId, user.address, anyValue, slotsRequired); // Check specific args
       
       expect(await docking.getAvailableSlots(oldIslandId)).to.equal(2); // Back to 2 available
       expect(await docking.getAvailableSlots(newIslandId)).to.equal(2); // 3 total - 1 used = 2 left
       
       // State updated
-      expect(await docking.getShipDockedIsland(7)).to.equal(newIslandId);
-      expect((await docking.getDockedShips(oldIslandId)).map(Number)).to.not.include(7);
-      expect((await docking.getDockedShips(newIslandId)).map(Number)).to.include(7);
+      expect(await docking.getShipDockedIsland(shipId)).to.equal(newIslandId);
+      expect((await docking.getDockedShips(oldIslandId)).map(Number)).to.not.include(shipId);
+      expect((await docking.getDockedShips(newIslandId)).map(Number)).to.include(shipId);
     });
 
     it("reverts if not enough slots at new island (Large Island)", async function () {
@@ -244,6 +265,44 @@ describe("DockingManagement", function () {
       expect((await docking.getDockedShips(islandId)).map(Number)).to.include(4000);
       expect(await docking.getAvailableSlots(islandId)).to.equal(2);
     });
+
+    it("tests slot exhaustion with various ship types", async function () {
+      const islandId = 40; // Huge (5 slots)
+
+      // Dock ships to exactly fill slots
+      await docking.connect(admin).dockShip(6001, islandId, user.address, "Medium"); // Use 2 (3 left)
+      await docking.connect(admin).dockShip(6002, islandId, user.address, "Small");  // Use 1 (2 left)
+      await docking.connect(admin).dockShip(6003, islandId, user.address, "Medium"); // Use 2 (0 left)
+      expect(await docking.getAvailableSlots(islandId)).to.equal(0);
+
+      // Trying to dock a ship needing slots should fail
+      await expect(docking.connect(admin).dockShip(7000, islandId, user.address, "Small"))
+        .to.be.revertedWith("Not enough slots");
+      
+      // Docking a Sailboat (0 slots) should SUCCEED even with 0 available slots
+      const sailboatTx = docking.connect(admin).dockShip(7001, islandId, user.address, "Sailboat");
+      await expect(sailboatTx).to.not.be.reverted;
+      await expect(sailboatTx)
+        .to.emit(docking, "ShipDocked")
+        .withArgs(7001, islandId, user.address, anyValue, 0); // 0 slots required
+
+      // Available slots should still be 0, as the sailboat used 0
+      expect(await docking.getAvailableSlots(islandId)).to.equal(0);
+      expect((await docking.getDockedShips(islandId)).map(Number)).to.include(7001); // Sailboat is now docked
+
+      // Undock one to free slots
+      await docking.connect(admin).undockShip(6002, islandId, user.address, "Small"); // Frees 1 (1 left)
+      expect(await docking.getAvailableSlots(islandId)).to.equal(1);
+
+      // Docking a small should now succeed
+      await docking.connect(admin).dockShip(7000, islandId, user.address, "Small"); // Use 1 (0 left)
+      expect(await docking.getAvailableSlots(islandId)).to.equal(0);
+
+      // Docking a medium should fail
+      await expect(docking.connect(admin).dockShip(7002, islandId, user.address, "Medium")) // Use different ID
+        .to.be.revertedWith("Not enough slots");
+    });
+
     it("handles parallel docking and undocking without slot inconsistency", async function () {
       const islandId = 50; // XS island (1 slot)
       // Dock first ship (uses 1 slot, 0 left)
@@ -267,6 +326,59 @@ describe("DockingManagement", function () {
       expect((await docking.getDockedShips(islandId)).map(Number)).to.include(5002);
       expect((await docking.getDockedShips(islandId)).map(Number)).to.not.include(5000);
       expect((await docking.getDockedShips(islandId)).map(Number)).to.not.include(5001); // Ship 5001 never docked
+    });
+
+    it("maintains slot consistency during multiple rebase operations", async function () {
+      const islandA = 10; // Small (2 slots)
+      const islandB = 20; // Medium (3 slots)
+      const islandC = 30; // Large (4 slots)
+
+      // Initial setup
+      await docking.connect(admin).dockShip(8001, islandA, user.address, "Small"); // A: 1 used (1 left)
+      await docking.connect(admin).dockShip(8002, islandA, user.address, "Small"); // A: 2 used (0 left)
+      await docking.connect(admin).dockShip(8003, islandB, user.address, "Medium"); // B: 2 used (1 left)
+      await docking.connect(admin).dockShip(8004, islandC, user.address, "Large"); // C: 3 used (1 left)
+
+      expect(await docking.getAvailableSlots(islandA)).to.equal(0);
+      expect(await docking.getAvailableSlots(islandB)).to.equal(1);
+      expect(await docking.getAvailableSlots(islandC)).to.equal(1);
+
+      // Perform rebasing
+      // Move 8001 (Small) from A -> B (A: 1 free, B: 1 used -> 0 left)
+      await docking.connect(admin).rebaseShip(8001, islandA, islandB, user.address, "Small");
+      expect(await docking.getAvailableSlots(islandA)).to.equal(1);
+      expect(await docking.getAvailableSlots(islandB)).to.equal(0);
+
+      // --- Revised Scenario --- 
+      // Move 8002 (Small) from A -> C (A: 2 free, C: 1 used -> 0 left)
+      await docking.connect(admin).rebaseShip(8002, islandA, islandC, user.address, "Small");
+      expect(await docking.getAvailableSlots(islandA)).to.equal(2); // Both Small ships left A
+      expect(await docking.getAvailableSlots(islandC)).to.equal(0); // C had 1 left, Small uses 1.
+
+      // Try to rebase 8003 (Medium) from B -> C (B: 2 free, C: 0 left -> FAIL)
+      await expect(docking.connect(admin).rebaseShip(8003, islandB, islandC, user.address, "Medium"))
+        .to.be.revertedWith("Not enough slots at new island");
+      
+      // Check slots haven't changed due to failed rebase
+      expect(await docking.getAvailableSlots(islandB)).to.equal(0); // 8001 still here (0 left)
+      expect(await docking.getAvailableSlots(islandC)).to.equal(0); // 8004 + 8002 still here (0 left)
+
+      // Try to rebase 8004 (Large) from C -> A (C: 3 free, A: 2 free -> FAIL)
+      await expect(docking.connect(admin).rebaseShip(8004, islandC, islandA, user.address, "Large"))
+        .to.be.revertedWith("Not enough slots at new island");
+      
+      // Check slots haven't changed due to failed rebase
+      expect(await docking.getAvailableSlots(islandA)).to.equal(2);
+      expect(await docking.getAvailableSlots(islandC)).to.equal(0);
+
+      // Final state check
+      expect((await docking.getDockedShips(islandA)).map(Number)).to.be.empty;
+      expect((await docking.getDockedShips(islandB)).map(Number)).to.include.members([8001]);
+      expect((await docking.getDockedShips(islandC)).map(Number)).to.include.members([8004, 8002]);
+      expect(await docking.getShipDockedIsland(8001)).to.equal(islandB);
+      expect(await docking.getShipDockedIsland(8002)).to.equal(islandC);
+      expect(await docking.getShipDockedIsland(8003)).to.equal(islandB); // Still on B from initial setup
+      expect(await docking.getShipDockedIsland(8004)).to.equal(islandC);
     });
   });
 }); 
