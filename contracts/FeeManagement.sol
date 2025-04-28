@@ -17,6 +17,19 @@ contract FeeManagement is IFeeManagement, AuthorizationModifiers {
     uint256 internal _shipRebaseArrcFee;
     address internal _maticFeeRecipient;
 
+    // --- Events --- 
+    // Events are defined in the IFeeManagement interface and inherited.
+    // No need to redeclare them here.
+    /* 
+    event RumUsed(address indexed user, uint256 amount);
+    event ArrcBurned(address indexed user, uint256 amount, string action);
+    event RumFeePerDayUpdated(uint256 newFee);
+    event MaticFeePerDayUpdated(uint256 newFee);
+    event StakePirateArrcFeeUpdated(uint256 newFee); 
+    event MaticFeeRecipientUpdated(address newRecipient);
+    event ShipRebaseArrcFeeUpdated(uint256 newFee);
+    */
+
     constructor(
         address _centralAuthorizationRegistry, 
         address _rumTokenAddress, 

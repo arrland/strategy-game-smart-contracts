@@ -118,6 +118,7 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
      */
     function completeMission(uint256 missionId) external onlyAuthorized override {
         TradeMissionData storage data = missionData[missionId];
+        require(data.shipId != 0, "Mission does not exist");
         data.journeyState = IMissionStates.JourneyState.Completed;
         
         emit TradeMissionCompleted(missionId, data.shipId);

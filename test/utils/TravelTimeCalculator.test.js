@@ -100,6 +100,30 @@ describe("TravelTimeCalculator", function () {
             const nfts = await setupNFTsForStaking(admin, user, centralAuthorizationRegistry);
             const { shipNFT, genesisPiratesNFT, genesisPiratesAddress, inhabitantsNFT, inhabitantsAddress } = nfts;
             
+            // --- Deploy IslandStorage FIRST (dependency for MockBuildingStorage) --- 
+            const islandStorage = await deployAndAuthorizeContract(
+                "IslandStorage",
+                centralAuthorizationRegistry,
+                await shipNFT.getAddress(), // Pass ShipNFT address
+                true // isNft721 = true
+            );
+            // Initialize island sizes 
+            await islandStorage.connect(admin).setIslandSize(1, 1); 
+            await islandStorage.connect(admin).setIslandSize(2, 1); 
+            // --- END IslandStorage ---
+            
+            // --- Deploy MockBuildingStorage --- 
+            const MockBuildingStorageFactory = await ethers.getContractFactory("MockBuildingStorage");
+            const buildingStorage = await MockBuildingStorageFactory.deploy(
+                await centralAuthorizationRegistry.getAddress(),
+                await islandStorage.getAddress() 
+            );
+            await buildingStorage.waitForDeployment();
+            await centralAuthorizationRegistry.addAuthorizedContract(await buildingStorage.getAddress());
+            // --- FIX: Register using IBuildingStorage ID --- 
+            await centralAuthorizationRegistry.setContractAddress(ethers.id("IBuildingStorage"), await buildingStorage.getAddress());
+            // --- END MockBuildingStorage ---
+
             // Setup core contracts
             const coreContracts = await setupStakingRequirements(admin, centralAuthorizationRegistry, nfts);
             const { 
@@ -111,13 +135,49 @@ describe("TravelTimeCalculator", function () {
                 pirateSkillsReader,
                 missionsStorage 
             } = coreContracts;
+
+            // Explicitly register IShipMetadata 
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("IShipMetadata"), 
+                await shipMetadata.getAddress()
+            );
+
+            // Deploy DockingManagement
+            const dockingManagement = await deployAndAuthorizeContract(
+                "DockingManagement", 
+                centralAuthorizationRegistry
+            );
+            // Explicitly register IDockingManagement 
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("IDockingManagement"), 
+                await dockingManagement.getAddress()
+            );
+
+            // Deploy ShipAndPirateStaking 
+            const shipAndPirateStaking = await deployAndAuthorizeContract(
+                "ShipAndPirateStaking", 
+                centralAuthorizationRegistry,
+                await shipNFT.getAddress(),
+                genesisPiratesAddress,
+                inhabitantsAddress
+            );
+            // Register IShipAndPirateStaking 
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("IShipAndPirateStaking"), 
+                await shipAndPirateStaking.getAddress()
+            );
             
-            // Deploy tokens
+            // Deploy tokens and FeeManagement 
             const { arrcToken, rumToken, feeManagement } = await setupTokenInfrastructure(
                 centralAuthorizationRegistry, 
                 admin, 
                 [user, unauthorized], 
                 "1000"
+            );
+             // Register IFeeManagement 
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("IFeeManagement"), 
+                await feeManagement.getAddress()
             );
             
             // Deploy IslandRegionManagement
@@ -125,34 +185,39 @@ describe("TravelTimeCalculator", function () {
                 "IslandRegionManagement", 
                 centralAuthorizationRegistry
             );
-            
+            // Register IslandRegionManagement
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("IIslandRegionManagement"), 
+                await islandRegionManagement.getAddress()
+            );
+
+            // Configure island regions 
+            const configureSuccess = await configureIslandRegions(islandRegionManagement, admin);
+            if (!configureSuccess) {
+                throw new Error("Failed to configure island regions during setup.");
+            }
+
             // Deploy TravelTimeCalculator
             const travelTimeCalculator = await deployAndAuthorizeContract(
                 "TravelTimeCalculator", 
                 centralAuthorizationRegistry
             );
-            
+            // Register TravelTimeCalculator
+            await centralAuthorizationRegistry.setContractAddress(
+                ethers.id("ITravelTimeCalculator"), 
+                await travelTimeCalculator.getAddress()
+            );
+
+            // --- Add CooldownManager and MissionTravelCalculator --- 
+            const cooldownManager = await deployAndAuthorizeContract("CooldownManager", centralAuthorizationRegistry);
+            await centralAuthorizationRegistry.setContractAddress(ethers.id("ICooldownManager"), await cooldownManager.getAddress());
+
+            const missionTravelCalculator = await deployAndAuthorizeContract("MissionTravelCalculator", centralAuthorizationRegistry);
+            await centralAuthorizationRegistry.setContractAddress(ethers.id("IMissionTravelCalculator"), await missionTravelCalculator.getAddress());
+            // --- End Additions ---
+
             // Set minimum travel duration
             await travelTimeCalculator.setMinTravelDuration(TravelConfig.minTravelDuration);
-            
-            // Deploy ShipAndPirateStaking
-            const shipAndPirateStaking = await deployAndAuthorizeContract(
-                "ShipAndPirateStaking",
-                centralAuthorizationRegistry,
-                await shipNFT.getAddress(),
-                genesisPiratesAddress,
-                inhabitantsAddress
-            );
-            
-            // Register all contracts in CAR
-            await registerContractAddresses(centralAuthorizationRegistry, {
-                "IIslandRegionManagement": await islandRegionManagement.getAddress(),
-                "IShipAndPirateStaking": await shipAndPirateStaking.getAddress(),
-                "ITravelTimeCalculator": await travelTimeCalculator.getAddress()
-            });
-            
-            // Configure island regions
-            await configureIslandRegions(islandRegionManagement, admin);
             
             // Prepare ships with metadata 
             await prepareShips(admin, user, shipNFT, shipMetadata, shipStorage);
@@ -220,12 +285,17 @@ describe("TravelTimeCalculator", function () {
                 ...baseInfrastructure,
                 unauthorized,
                 nfts,
+                islandStorage, // Include IslandStorage
+                buildingStorage, // Include MockBuildingStorage
                 ...coreContracts,
                 tokens: { arrcToken, rumToken },
                 feeManagement,
+                dockingManagement, // Include DockingManagement
                 shipAndPirateStaking,
                 islandRegionManagement,
                 travelTimeCalculator,
+                cooldownManager, // Include CooldownManager
+                missionTravelCalculator, // Include MissionTravelCalculator
                 config: TravelConfig
             };
         } catch (error) {
@@ -238,25 +308,26 @@ describe("TravelTimeCalculator", function () {
     async function configureIslandRegions(islandRegionManagement, admin) {
         try {
             // Configure each island with its region
-            await islandRegionManagement.connect(admin).setIslandRegion(
+            await expect(islandRegionManagement.connect(admin).setIslandRegion(
                 TravelConfig.islands.ISLAND_1.id, 
                 TravelConfig.islands.ISLAND_1.region
-            );
+            )).to.not.be.reverted;
             
-            await islandRegionManagement.connect(admin).setIslandRegion(
-                TravelConfig.islands.ISLAND_2.id, 
-                TravelConfig.islands.ISLAND_2.region
-            );
+            // --- DEBUG for ISLAND_2 --- 
+            const island2Id = TravelConfig.islands.ISLAND_2.id;
+            const island2RegionToSet = TravelConfig.islands.ISLAND_2.region;
+            await expect(islandRegionManagement.connect(admin).setIslandRegion(island2Id, island2RegionToSet)).to.not.be.reverted;
+            // --- END DEBUG --- 
             
-            await islandRegionManagement.connect(admin).setIslandRegion(
+            await expect(islandRegionManagement.connect(admin).setIslandRegion(
                 TravelConfig.islands.ISLAND_3.id, 
                 TravelConfig.islands.ISLAND_3.region
-            );
+            )).to.not.be.reverted;
             
-            await islandRegionManagement.connect(admin).setIslandRegion(
+            await expect(islandRegionManagement.connect(admin).setIslandRegion(
                 TravelConfig.islands.ISLAND_4.id, 
                 TravelConfig.islands.ISLAND_4.region
-            );
+            )).to.not.be.reverted;
             
             return true;
         } catch (error) {
@@ -268,37 +339,31 @@ describe("TravelTimeCalculator", function () {
     // Helper function to prepare ships with metadata
     async function prepareShips(admin, user, shipNFT, shipMetadata, shipStorage) {
         try {
-            // Get ship IDs to configure
-            const shipIds = [
-                TravelConfig.ships.FAST.id,
-                TravelConfig.ships.MEDIUM.id,
-                TravelConfig.ships.SLOW.id
-            ];
+            const { FAST, MEDIUM, SLOW } = TravelConfig.ships;
+            const shipIds = [FAST.id, MEDIUM.id, SLOW.id];
             
-            // Mint each ship to the user
+            // Mint Ships using safeMint, not mintSpecific
             for (const shipId of shipIds) {
-                await shipNFT.mintSpecific(user.address, shipId);
+                await shipNFT.connect(admin).safeMint(user.address, shipId); 
             }
             
-            // Set up ship metadata for FAST ship
-            await setupShipMetadata(shipMetadata, admin, TravelConfig.ships.FAST.id, {
+            // Set Ship Metadata
+            await setupShipMetadata(shipMetadata, admin, FAST.id, {
                 ...TravelConfig.shipAttributes,
-                class: TravelConfig.ships.FAST.class,
-                speed: TravelConfig.ships.FAST.speed
+                class: FAST.class,
+                speed: FAST.speed
             });
             
-            // Set up ship metadata for MEDIUM ship
-            await setupShipMetadata(shipMetadata, admin, TravelConfig.ships.MEDIUM.id, {
+            await setupShipMetadata(shipMetadata, admin, MEDIUM.id, {
                 ...TravelConfig.shipAttributes,
-                class: TravelConfig.ships.MEDIUM.class,
-                speed: TravelConfig.ships.MEDIUM.speed
+                class: MEDIUM.class,
+                speed: MEDIUM.speed
             });
             
-            // Set up ship metadata for SLOW ship
-            await setupShipMetadata(shipMetadata, admin, TravelConfig.ships.SLOW.id, {
+            await setupShipMetadata(shipMetadata, admin, SLOW.id, {
                 ...TravelConfig.shipAttributes,
-                class: TravelConfig.ships.SLOW.class,
-                speed: TravelConfig.ships.SLOW.speed
+                class: SLOW.class,
+                speed: SLOW.speed
             });
             
             // Initialize ship storage
@@ -345,6 +410,28 @@ describe("TravelTimeCalculator", function () {
     beforeEach(async function () {
         // Reuse setup for each test
         state = await setupFixture();
+
+        // --- Verify island regions AFTER setup --- 
+        const { islandRegionManagement, config } = state;
+        if (islandRegionManagement && config) { // Ensure state is populated
+            try {
+                const island1Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_1.id);
+                const island2Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_2.id);
+                const island3Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_3.id);
+                const island4Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_4.id);
+                
+                expect(Number(island1Region)).to.equal(config.islands.ISLAND_1.region, "Island 1 Region mismatch after setup");
+                expect(Number(island2Region)).to.equal(config.islands.ISLAND_2.region, "Island 2 Region mismatch after setup");
+                expect(Number(island3Region)).to.equal(config.islands.ISLAND_3.region, "Island 3 Region mismatch after setup");
+                expect(Number(island4Region)).to.equal(config.islands.ISLAND_4.region, "Island 4 Region mismatch after setup");
+            } catch (verificationError) {
+                console.error("Error verifying island regions in beforeEach:", verificationError);
+                throw verificationError;
+            }
+        } else {
+            // Intentionally empty else block now
+        }
+        // --- End verification ---
     });
 
     describe("Deployment", function() {
@@ -369,23 +456,13 @@ describe("TravelTimeCalculator", function () {
         });
         
         it("should correctly set up island regions", async function() {
-            try {
-                const { islandRegionManagement, config } = state;
-                
-                // Verify island regions are set correctly
-                const island1Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_1.id);
-                const island2Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_2.id);
-                const island3Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_3.id);
-                const island4Region = await islandRegionManagement.islandRegions(config.islands.ISLAND_4.id);
-                
-                expect(island1Region).to.equal(config.islands.ISLAND_1.region);
-                expect(island2Region).to.equal(config.islands.ISLAND_2.region);
-                expect(island3Region).to.equal(config.islands.ISLAND_3.region);
-                expect(island4Region).to.equal(config.islands.ISLAND_4.region);
-            } catch (error) {
-                console.error("Error verifying island regions:", error);
-                throw error;
-            }
+            // This test might become redundant if the beforeEach check passes reliably,
+            // but keep it for now to specifically target the region setup.
+            // The actual verification logic is now in beforeEach.
+            const { islandRegionManagement, config } = state;
+            expect(islandRegionManagement).to.exist;
+            expect(config).to.exist; 
+            // The core assertion is implicitly tested by beforeEach succeeding.
         });
     });
 
@@ -394,25 +471,25 @@ describe("TravelTimeCalculator", function () {
             try {
                 const { travelTimeCalculator, config } = state;
                 
-                // Get travel times between islands
+                // Get travel times between islands (this implicitly relies on correct regions)
                 const travelTimes = await verifyTravelTimes(travelTimeCalculator, config);
                 
-                // Verify medium distances with direct calls
+                // Verify medium distances 
                 const time1to2 = await travelTimeCalculator.calculateBaseTravelTime(
                     config.islands.ISLAND_1.id, 
                     config.islands.ISLAND_2.id
                 );
-                expect(time1to2).to.equal(config.expectedTimes.MEDIUM_DISTANCE);
+                expect(Number(time1to2)).to.equal(config.expectedTimes.MEDIUM_DISTANCE);
                 
                 const time3to4 = await travelTimeCalculator.calculateBaseTravelTime(
                     config.islands.ISLAND_3.id, 
                     config.islands.ISLAND_4.id
                 );
-                expect(time3to4).to.equal(config.expectedTimes.MEDIUM_DISTANCE);
+                expect(Number(time3to4)).to.equal(config.expectedTimes.MEDIUM_DISTANCE);
                 
                 // Verify long distances
-                expect(travelTimes.time1to3).to.equal(config.expectedTimes.LONG_DISTANCE);
-                expect(travelTimes.time2to4).to.equal(config.expectedTimes.LONG_DISTANCE);
+                expect(Number(travelTimes.time1to3)).to.equal(config.expectedTimes.LONG_DISTANCE);
+                expect(Number(travelTimes.time2to4)).to.equal(config.expectedTimes.LONG_DISTANCE);
             } catch (error) {
                 console.error("Error in base travel time test:", error);
                 throw error;
@@ -540,13 +617,15 @@ describe("TravelTimeCalculator", function () {
                     );
                     
                     // Stake the ship with captain
-                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                    // Pass all 3 args: struct, homeIslandId, shipClass
+                    const stakingDataWisdom = {
                         shipId,
                         captainId,
                         captainCollection: genesisPiratesAddress,
                         genesisPirateIds: [],
                         inhabitantIds: []
-                    });
+                    };
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingDataWisdom, 1, config.ships.FAST.class); 
                     
                     // Calculate travel time with captain assigned (with wisdom skill)
                     const withWisdomSkillTime = await travelTimeCalculator.calculateTravelTime(
@@ -619,13 +698,15 @@ describe("TravelTimeCalculator", function () {
                     );
                     
                     // Stake the ship with captain
-                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                    // Pass all 3 args: struct, homeIslandId, shipClass
+                    const stakingDataNav = {
                         shipId,
                         captainId,
                         captainCollection: genesisPiratesAddress,
                         genesisPirateIds: [],
                         inhabitantIds: []
-                    });
+                    };
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingDataNav, 1, config.ships.FAST.class);
                     
                     // Calculate travel time with captain assigned
                     const withNavigationSkillTime = await travelTimeCalculator.calculateTravelTime(
@@ -703,13 +784,15 @@ describe("TravelTimeCalculator", function () {
                     );
                     
                     // Stake the ship with captain
-                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                    // Pass all 3 args: struct, homeIslandId, shipClass
+                    const stakingDataCombined = {
                         shipId,
                         captainId,
                         captainCollection: genesisPiratesAddress,
                         genesisPirateIds: [],
                         inhabitantIds: []
-                    });
+                    };
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingDataCombined, 1, config.ships.FAST.class);
                     
                     // Calculate travel time with captain assigned (both skills)
                     const withBothSkillsTime = await travelTimeCalculator.calculateTravelTime(
@@ -792,13 +875,15 @@ describe("TravelTimeCalculator", function () {
                     );
                     
                     // Stake the ship with captain
-                    await shipAndPirateStaking.connect(user).stakeShipWithPirates({
+                    // Pass all 3 args: struct, homeIslandId, shipClass
+                    const stakingDataMinDur = {
                         shipId,
                         captainId,
                         captainCollection: genesisPiratesAddress,
                         genesisPirateIds: [],
                         inhabitantIds: []
-                    });
+                    };
+                    await shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingDataMinDur, 1, config.ships.FAST.class);
                     
                     // Calculate travel time with captain assigned (both high skills)
                     const withHighSkillsTime = await travelTimeCalculator.calculateTravelTime(

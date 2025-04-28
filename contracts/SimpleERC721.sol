@@ -25,6 +25,22 @@ contract SimpleERC721 is ERC721, Ownable, ERC721Enumerable {
         _safeMint(to, _tokenIds);
     }
 
+    /**
+     * @dev Mints a token with a specific ID to the specified address
+     * @param to The address that will receive the minted token
+     * @param tokenId The ID of the token to mint
+     * Requirements:
+     * - Token ID must not already exist
+     * - Only contract owner can call this function
+     */
+    function mintSpecific(address to, uint256 tokenId) public onlyOwner { 
+        _safeMint(to, tokenId);
+        // Update _tokenIds if the minted ID is higher than current
+        if (tokenId > _tokenIds) {
+            _tokenIds = tokenId;
+        }
+    }
+
     function setBaseURI(string memory baseTokenURI) public onlyOwner {
         _baseTokenURI = baseTokenURI;
     }

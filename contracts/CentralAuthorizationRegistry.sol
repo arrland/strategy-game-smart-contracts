@@ -102,6 +102,7 @@ contract CentralAuthorizationRegistry is Initializable, UUPSUpgradeable, AccessC
     }
 
     function getContractAddress(bytes32 interfaceId) external view returns (address) {
+        require(contractAddresses[interfaceId] != address(0), string(abi.encodePacked("Contract address not set for interfaceId: ", Strings.toHexString(uint256(interfaceId), 32))));
         return contractAddresses[interfaceId];
     }
 

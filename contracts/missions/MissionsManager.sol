@@ -5,11 +5,11 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "../interfaces/storage/IShipStorage.sol";
 import "../interfaces/IMissionFactory.sol";
 import "../interfaces/IMissionsManager.sol";
-import "../interfaces/IMapManager.sol";
 import "../interfaces/IMissionsStorage.sol";
 import "../interfaces/IMission.sol";
 import "../AuthorizationModifiers.sol";
 import "./MissionRegistration.sol";
+import "../interfaces/ICooldownManager.sol";
 
 contract MissionsManager is IMissionsManager, AuthorizationModifiers {
     using Strings for uint256;
@@ -34,18 +34,27 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IMissionsManager")) 
     {}
 
+    function getCooldownManager() internal view returns (ICooldownManager) {
+        return ICooldownManager(centralAuthorizationRegistry.getContractAddress(keccak256("ICooldownManager")));
+    }
+
     function startMission(
         uint256 shipId,
         uint256 missionType,
         bytes calldata missionData
-    ) external override onlyAuthorized returns (uint256 missionId) {
+    ) external override returns (uint256 missionId) {
         require(shipToActiveMission[shipId] == 0, "Ship already on mission");
+        
+        ICooldownManager cooldownManager = getCooldownManager();
+        bytes32 cooldownKey = keccak256(abi.encodePacked("ship", shipId));
+        require(!cooldownManager.isOnCooldown(cooldownKey), "Ship is on cooldown");
         
         address shipStorageAddress = centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage"));
         IShipStorage shipStorage = IShipStorage(shipStorageAddress);
         
-        address owner = shipStorage.getOwner(shipId);
-        require(owner != address(0), "Ship does not exist");
+        address shipOwner = shipStorage.getOwner(shipId);
+        require(shipOwner == msg.sender, "MM: caller is not ship owner");
+        require(shipOwner != address(0), "Ship does not exist");
         
         MissionRegistration missionRegistry = getMissionRegistration();
         string memory missionTypeName = missionRegistry.getMissionTypeName(missionType);
@@ -53,15 +62,13 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         
         missionId = nextMissionId++;
         
-        address missionContractAddress = getMissionFactory().getMissionContract(missionType);
+        IMissionFactory factory = getMissionFactory();
+        address missionContractAddress = factory.getMissionContract(missionType);
         require(missionContractAddress != address(0), "No implementation for this mission type");
         
         IMission missionContract = IMission(missionContractAddress);
         
-        bytes memory fullMissionData = abi.encodePacked(
-            abi.encode(missionId),
-            missionData
-        );
+        bytes memory fullMissionData = abi.encode(missionId, missionData);
         
         uint256 duration = missionContract.startMission(shipId, fullMissionData);
         require(duration > 0, "Invalid mission duration");

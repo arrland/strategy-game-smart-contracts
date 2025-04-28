@@ -17,6 +17,8 @@ import "../interfaces/IShipMetadata.sol";
 import "../interfaces/IFeeManagement.sol";
 import "../missions/PirateSkillsReader.sol";
 import "../interfaces/IDockingManagement.sol";
+import "../interfaces/ICooldownManager.sol";
+import "../interfaces/IMissionTravelCalculator.sol";
 import "hardhat/console.sol";
 
 
@@ -118,7 +120,15 @@ contract ShipAndPirateStaking is
         return IDockingManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IDockingManagement")));
     }
 
-    function validateShipRequirements(uint256 shipId, uint256 captainId, address captainCollection) internal {
+    function getCooldownManager() internal view returns (ICooldownManager) {
+        return ICooldownManager(centralAuthorizationRegistry.getContractAddress(keccak256("ICooldownManager")));
+    }
+
+    function getMissionTravelCalculator() internal view returns (IMissionTravelCalculator) {
+        return IMissionTravelCalculator(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionTravelCalculator")));
+    }
+
+    function validateShipRequirements(uint256 shipId, uint256 captainId, address captainCollection) view internal {
         // Get ship metadata
         IShipMetadata shipMetadata = getShipMetadata();
         IShipMetadata.ShipAttributes memory shipAttributes = shipMetadata.getShipMetadata(shipId);
@@ -976,8 +986,16 @@ contract ShipAndPirateStaking is
         if (!ship.isStaked) revert ShipNotStaked();
         if (ship.owner != msg.sender) revert NotShipOwner();
 
+        // === Cooldown and State Checks ===
+        require(newIslandId != ship.homeIslandId, "Cannot rebase to the same island"); // Check 1
+
+        ICooldownManager cooldownManager = getCooldownManager(); // Get CooldownManager instance
+        bytes32 rebaseActionKey = keccak256(abi.encodePacked("rebaseAction", shipId)); // Calculate rebase action key
+        require(!cooldownManager.isOnCooldown(rebaseActionKey), "Rebase action on cooldown"); // Check 2: Rebase action cooldown
+
         IMissionsStorage missionsStorage = getMissionsStorage();
-        if (missionsStorage.getMissionInfo(shipId).isActive) revert ShipOnMission();
+        if (missionsStorage.getMissionInfo(shipId).isActive) revert ShipOnMission(); // Check 3: Ship mission status
+        // === End Cooldown and State Checks ===
 
         IDockingManagement docking = getDockingManagement();
         uint256 slotsRequired = docking.getSlotRequirementForShipClass(shipClass);
@@ -986,18 +1004,34 @@ contract ShipAndPirateStaking is
         // Burn 0.1 ARRC per NFT pirate (captain + all pirates)
         uint256 totalPirates = 1 + ship.genesisPirateIds.length + ship.inhabitantIds.length;
         IFeeManagement feeManagement = getFeeManagement();
-        // Get the rebase fee rate from FeeManagement
         uint256 rebaseFeePerPirate = feeManagement.getShipRebaseArrcFee();
-        // Calculate rebasing fee
         uint256 calculatedRebasingFee = totalPirates * rebaseFeePerPirate; 
-        // Call generic burn function with action
         feeManagement.burnArrc(msg.sender, calculatedRebasingFee, "Rebasing");
 
-        // Call Docking contract to move slots
-        docking.rebaseShip(shipId, ship.homeIslandId, newIslandId, msg.sender, shipClass);
+        // === Calculate Travel Time for Cooldown ===
+        uint256 oldIslandId = ship.homeIslandId; // Store before changing
+        IMissionTravelCalculator travelCalculator = getMissionTravelCalculator(); // Get travel calculator instance
+        uint256 missionCooldownDuration = travelCalculator.calculateTravelTime(oldIslandId, newIslandId, shipId); // Calculate cooldown duration
+        // === End Travel Time Calculation ===
+        
+        // === Set Cooldowns ===
+        // Set mission cooldown (prevents starting mission during travel)
+        bytes32 missionCooldownKey = keccak256(abi.encodePacked("ship", shipId)); // Calculate ship-specific key
+        cooldownManager.setCooldown(missionCooldownKey, missionCooldownDuration, "rebase"); // Call setCooldown
 
-        // Update homeIslandId
+        // Set rebase action cooldown (prevents immediate rebase again)
+        uint256 rebaseActionDuration = 3600; // 1 hour
+        cooldownManager.setCooldown(rebaseActionKey, rebaseActionDuration, "rebaseAction"); // Call setCooldown for action
+        // === End Cooldown Setting ===
+
+        // Call Docking contract to move slots
+        docking.rebaseShip(shipId, oldIslandId, newIslandId, msg.sender, shipClass);
+
+        // Update homeIslandId (move after storing oldIslandId)
         ship.homeIslandId = newIslandId;
+        
+        // Emit ShipRebased event (now emitted by DockingManagement)
+        // emit ShipRebased(shipId, oldIslandId, newIslandId, msg.sender, block.timestamp);
     }
 
 }

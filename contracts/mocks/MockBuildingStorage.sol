@@ -41,7 +41,7 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
     function getBuilding(
         uint256 islandIdParam, // unused parameter
         uint256 buildingType
-    ) external pure override returns (BuildingInfo memory) {
+    ) external view override returns (BuildingInfo memory) {
         // Always return an operational building with level 10
         return BuildingInfo({
             id: 1,
@@ -60,7 +60,7 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
      * @param islandId ID of the island
      * @return maxOffers Maximum number of trade offers allowed
      */
-    function getMaxTradeOffers(uint256 islandId) external pure returns (uint256) {
+    function getMaxTradeOffers(uint256 islandId) external view override returns (uint256) {
         // For now, all islands have a max of 2 trade offers
         // In the future, this will be based on the trading post level
         return MAX_TRADE_OFFERS;
@@ -78,7 +78,7 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
         uint256 islandId,
         uint256[] calldata requiredBuildingTypes,
         uint256[] calldata requiredLevels
-    ) external pure returns (bool) {
+    ) external view override returns (bool) {
         // Always return true for now
         // In the future, this will actually check if the island has the required buildings
         return true;
@@ -109,9 +109,4 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
         }
     }
 
-    function getShipClass(uint256 shipId) external view override returns (string memory) {
-        console.log("[MOCK] getShipClass called with shipId:", shipId);
-        // This might need updating if tests require different classes
-        return "Small"; // Dummy value for testing
-    }
 } 

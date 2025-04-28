@@ -64,6 +64,21 @@ contract MissionTravelCalculator is AuthorizationModifiers {
         loadTime = (baseLoadTime * speedup) / 100;
     }
     
+    function calculateTravelTime(
+        uint256 fromIslandId,
+        uint256 toIslandId,
+        uint256 shipId,
+        bool useCache // Parameter added
+    ) external view returns (uint256 travelTime) {
+        ITravelTimeCalculator travelCalculator = getTravelTimeCalculator();
+        return travelCalculator.calculateTravelTime(
+            fromIslandId,
+            toIslandId,
+            shipId,
+            useCache
+        );
+    }
+    
     // Internal contract access functions
     function getTravelTimeCalculator() internal view returns (ITravelTimeCalculator) {
         return ITravelTimeCalculator(

@@ -71,7 +71,9 @@ function createTestConfig(config) {
 async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
     const ContractFactory = await ethers.getContractFactory(contractName);
     
-    const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args);
+    // Revert to original simpler deployment call
+    const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args); 
+   
     const contractAddress = await contractInstance.getAddress();
 
     try {
@@ -455,10 +457,16 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
     
     // Transfer tokens to users and set up approvals
     if (users.length > 0) {
-        const shipStakingAddress = await centralAuthorizationRegistry.getContractAddress(
-            ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking"))
-        );
+        let shipStakingAddress = ethers.ZeroAddress;
+        try {
+            shipStakingAddress = await centralAuthorizationRegistry.getContractAddress(
+                ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking"))
+            );
         
+            console.log("shipStakingAddress:", shipStakingAddress);
+        } catch (error) {            
+        }
+
         for (const user of users) {
             try {
                 await arrcToken.connect(admin).transfer(user.address, parsedAmount);
@@ -476,7 +484,7 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
             }
         }
     }
-    
+
     return { arrcToken, rumToken, feeManagement };
 }
 
@@ -539,11 +547,22 @@ async function setupInhabitantsNFT(admin, centralAuthorizationRegistry, users = 
  * @returns {Object} - Object containing NFT instances and addresses
  */
 async function setupNFTsForStaking(admin, user, centralAuthorizationRegistry) {
-  const SimpleERC721 = await ethers.getContractFactory("SimpleERC721");
+  // Deploy the correct ShipNFT contract, not SimpleERC721
+  const ShipNFTFactory = await ethers.getContractFactory("ShipNFT"); 
   
-  // Ship NFT
-  const shipNFT = await SimpleERC721.deploy("Ship NFT", "SHIP", "https://ship.com/", admin.address);
+  // Deploy ShipNFT with its required constructor arguments
+  // (defaultAdmin, minter, royaltyRecipient)
+  const shipNFT = await ShipNFTFactory.deploy(admin.address, admin.address, admin.address); 
   await shipNFT.waitForDeployment();
+  
+  // Grant MINTER_ROLE to admin if needed (Constructor already grants it)
+
+  // Register ShipNFT in CAR (assuming it needs to be registered)
+  const shipNFTAddress = await shipNFT.getAddress();
+  await centralAuthorizationRegistry.setContractAddress(
+    ethers.keccak256(ethers.toUtf8Bytes("IShipNFT")), // Use the correct interface ID if applicable
+    shipNFTAddress
+  );
   
   // Set up Pirate NFTs
   const { genesisPiratesNFT, genesisPiratesAddress } = 
@@ -635,7 +654,7 @@ async function prepareAssetsForStaking(user, admin, contracts, nfts, config) {
   // Mint ships
   const shipIds = Object.values(ships).map(ship => ship.id);
   for (const shipId of shipIds) {
-    await shipNFT.mintSpecific(user.address, shipId);
+    await shipNFT.safeMint(user.address, shipId); 
     await shipNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), shipId);
   }
   
