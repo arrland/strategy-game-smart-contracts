@@ -215,3 +215,265 @@ Dependencies: ShipAndPirateStaking (calls this)
 - 16. Attempting to rebase to the same island multiple times.
 - 17. Attempting to rebase to a different island immediately after a successful rebase (should be blocked by rebase action cooldown).
 - 18. Attempting to rebase exactly when the rebase action cooldown expires.
+
+## TASK-TEST-MISSIONS: Add Unit Tests for Mission Contracts
+Status: Epic
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Missions
+Dependencies: TASK-FEE-REBASE
+Complexity: 8
+
+### 🔧 Sub-tasks:
+- TASK-TEST-MISSIONS.1
+- TASK-TEST-MISSIONS.2
+- TASK-TEST-MISSIONS.3
+- TASK-TEST-MISSIONS.4
+
+### ✅ Acceptance Criteria
+1. All functions in `MissionResourceHandler.sol` are tested for success, failure, events, and access control.
+2. `ResourceTransferMission.sol` `startMission` and `completeMission` pathways are fully tested, including interactions with real dependencies, validations, and event emissions.
+3. `TradeMission.sol` `startMission` and `advanceMission` (all phases) pathways are fully tested, including interactions with real dependencies, validations, and event emissions.
+4. `MissionsManager.sol` correctly starts and completes `ResourceTransferMission` and `TradeMission` instances, with proper data flow and event emission.
+5. All tests use appropriate fixtures (`setupCoreGameContracts`) and utility functions (`prepareShipForJourney`) as per `unit_testing_guideline.md`.
+
+### 🧐 Edge Cases
+- Zero amounts for transfers/trades.
+- Mission completion exactly at `endTime`.
+- Interactions between different mission types for the same ship (should be prevented by `shipToActiveMission`).
+- Reentrancy guards if applicable (though most interactions are via MissionsManager).
+- Extremely long or zero mission durations.
+
+---
+
+## TASK-TEST-MISSIONS.1: Unit Tests for MissionResourceHandler.sol
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Missions
+Dependencies: TASK-TEST-MISSIONS
+Complexity: 4
+
+### 🔧 Implementation Plan
+- [ ] **MissionResourceHandler.sol Tests (`test/missions/MissionResourceHandler.test.js`)**
+  - [ ] Test `lockShipForMission`:
+    - [ ] Verify ship resources are locked (check `IBaseStorage.lockResources` called on real ShipStorage).
+    - [ ] Verify `ShipResourcesLocked` event is emitted with correct parameters.
+    - [ ] Test access control (`onlyAuthorized`).
+  - [ ] Test `unlockShipAfterMission`:
+    - [ ] Verify ship resources are unlocked (check `IBaseStorage.unlockResources` called on real ShipStorage).
+    - [ ] Verify `ShipResourcesLocked` event is emitted with `locked = false`.
+    - [ ] Test access control (`onlyAuthorized`).
+  - [ ] Test `getShipLockInfo`:
+    - [ ] Verify it returns correct lock information from ShipStorage.
+  - [ ] Test `transferResourceFromIslandToShip`:
+    - [ ] Verify `IBaseStorage.transferResourceBetweenStorages` is called on IslandStorage with correct parameters.
+    - [ ] Verify `ResourcesTransferred` event is emitted with correct parameters.
+    - [ ] Test access control (`onlyAuthorized`).
+  - [ ] Test `transferResourceFromShipToIsland`:
+    - [ ] Verify `IBaseStorage.transferResourceBetweenStorages` is called on ShipStorage with correct parameters.
+    - [ ] Verify `ResourcesTransferred` event is emitted with correct parameters.
+    - [ ] Test access control (`onlyAuthorized`).
+  - [ ] Test `hasIslandStorageCapacity`:
+    - [ ] Verify it correctly calculates and returns capacity status based on IslandStorage.
+
+### ✅ Acceptance Criteria
+1. All functions in `MissionResourceHandler.sol` are tested using real storage instances.
+2. Events are verified with correct parameters.
+3. Access control mechanisms are tested.
+4. State changes in `ShipStorage` and `IslandStorage` are correctly verified.
+
+### 🧐 Edge Cases
+- Locking/unlocking an already locked/unlocked ship.
+- Transferring zero resources.
+- Transferring to/from non-existent ship/island IDs (if applicable, though CAR should prevent this).
+- Island having exact/insufficient capacity for transfers.
+
+---
+
+## TASK-TEST-MISSIONS.2: Unit Tests for ResourceTransferMission.sol
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Missions
+Dependencies: TASK-TEST-MISSIONS, TASK-TEST-MISSIONS.1
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] **ResourceTransferMission.sol Tests (`test/missions/ResourceTransferMission.test.js`)**
+  - [ ] Setup: Use `setupCoreGameContracts` to deploy `ResourceTransferMission` and its real dependencies (MissionValidator, MissionTravelCalculator, BuildingStorage, ResourceTypeManager, MissionsStorage, ShipStorage, CooldownManager, MissionResourceHandler).
+  - [ ] Test `startMission`:
+    - [ ] Verify successful mission start: correct duration calculated, resources burned (via MissionValidator), ship locked (via MissionResourceHandler), events emitted (`ResourceTransferStarted`), `MissionsStorage.startMission` called with correct specialized data.
+    - [ ] Test validation checks: invalid resource type, insufficient ship capacity (via MissionValidator), island requirements (via MissionValidator), base mission requirements (via MissionValidator).
+    - [ ] Test access control (`onlyMissionsManager`).
+    - [ ] Test correct calculation of `totalTime` including load/unload times from `MissionTravelCalculator` and `BuildingStorage` data.
+  - [ ] Test `completeMission`:
+    - [ ] Verify successful mission completion: resources transferred (via MissionResourceHandler), ship unlocked (via MissionResourceHandler), events emitted (`ResourceTransferCompleted`), `MissionsStorage.completeMission` called, `IResourceTransferMissionStorage.setResourcesClaimed` called.
+    - [ ] Test validation checks: mission not active, mission not yet complete, resources already claimed, insufficient ship resource balance for transfer, insufficient island capacity for transfer.
+    - [ ] Test access control (ensure `onlyAuthorized` behaves as expected when called by MissionsManager or other authorized contracts).
+  - [ ] Test `getMissionDetails`:
+    - [ ] Verify it returns correctly decoded mission details from `MissionsStorage` and `IResourceTransferMissionStorage`.
+  - [ ] Test `isMissionReadyForClaim`:
+    - [ ] Verify correct logic for determining claim readiness based on time and `resourcesClaimed` status.
+  - [ ] Test `getMissionType` returns correct type from `MissionRegistration`.
+
+### ✅ Acceptance Criteria
+1. `startMission` and `completeMission` pathways are fully tested with real dependencies.
+2. All interactions with other contracts (MissionValidator, MissionTravelCalculator, MissionResourceHandler, MissionsStorage, etc.) are verified.
+3. Validations for starting and completing missions are tested.
+4. Event emissions are correct.
+
+### 🧐 Edge Cases
+- Starting a mission with zero duration.
+- Completing a mission exactly at `endTime`.
+- Resource type exists but has no burn/transfer rules set up (should be caught by underlying systems).
+
+---
+
+## TASK-TEST-MISSIONS.3: Unit Tests for TradeMission.sol
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Missions
+Dependencies: TASK-TEST-MISSIONS, TASK-TEST-MISSIONS.1, TASK-TEST-TRADEMANAGER (for TradeManager setup)
+Complexity: 6
+
+### 🔧 Implementation Plan
+- [ ] **TradeMission.sol Tests (`test/missions/TradeMission.test.js`)**
+  - [ ] Setup: Use `setupCoreGameContracts` to deploy `TradeMission` and its real dependencies (MissionValidator, MissionTravelCalculator, BuildingStorage, ResourceTypeManager, MissionsStorage, ShipStorage, CooldownManager, TradeManager, ArrcLocking, MissionResourceHandler).
+  - [ ] Test `startMission`:
+    - [ ] Verify successful mission start: correct duration, resources burned/locked (via MissionValidator, TradeManager, ArrcLocking), ship locked (via MissionResourceHandler), events emitted (`TradeJourneyStarted`), `MissionsStorage.startMission` called, `TradeManager.initiateTrade` called.
+    - [ ] Test validation checks: invalid resource type, insufficient ship capacity, island requirements, base mission requirements, invalid trade order (via TradeManager).
+    - [ ] Test access control (`onlyMissionsManager`).
+    - [ ] Test correct calculation of `totalTime`.
+    - [ ] Ensure `TradeManager.initiateTrade` is called with correct parameters for both ship buying and ship selling scenarios.
+  - [ ] Test `advanceMission` (both phases: ToDestination, Returning):
+    - [ ] Phase 1 (ToDestination -> Returning): Verify `TradeManager.completeTrade` called, `ITradeMissionStorage.updateJourneyState` called, `TradePhaseCompleted` event emitted.
+    - [ ] Phase 2 (Returning -> Completed): Verify `TradeManager.completeEntireTradeMission` called, `unlockShipAfterMission` (via MissionResourceHandler) called, `ITradeMissionStorage.completeMission` called, `MissionsStorage.completeMission` called, `TradePhaseCompleted` and `TradeMissionCompleted` events emitted.
+    - [ ] Test validation checks: mission not active, journey not complete (for both phases).
+    - [ ] Test access control (`onlyAuthorized`).
+  - [ ] Test `completeMission` (delegates to `advanceMission`):
+    - [ ] Verify it correctly calls `this.advanceMission`.
+    - [ ] Test access control (`onlyMissionsManager`).
+  - [ ] Test view functions (`getMissionState`, `getTimeRemaining`, `isPhaseComplete`, `isMissionReadyForClaim`).
+  - [ ] Test `getMissionType` returns correct type from `MissionRegistration`.
+
+### ✅ Acceptance Criteria
+1. `startMission` and `advanceMission` (all phases) pathways are fully tested with real dependencies.
+2. Interactions with `TradeManager`, `ArrcLocking`, `MissionValidator`, etc., are verified.
+3. Correct ARRC and resource movements are confirmed for both buy and sell trades.
+4. Event emissions are correct for all stages.
+
+### 🧐 Edge Cases
+- Trade order is cancelled or modified mid-mission (should be prevented by TradeManager logic or mission structure).
+- `advanceMission` called out of sequence.
+- Price or amount for trade is zero.
+
+---
+
+## TASK-TEST-MISSIONS.4: Integration Tests for MissionsManager.sol (Trade & ResourceTransfer)
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Missions
+Dependencies: TASK-TEST-MISSIONS, TASK-TEST-MISSIONS.2, TASK-TEST-MISSIONS.3
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] **MissionsManager.sol Tests (related to Trade & ResourceTransfer) (`test/missions/MissionsManager.test.js`)**
+  - [ ] Setup: Use `setupCoreGameContracts` to deploy `MissionsManager` and all real mission type contracts (`ResourceTransferMission`, `TradeMission`) and their dependencies.
+  - [ ] Test `startMission` for ResourceTransferMission:
+    - [ ] Verify successful start, correct mission ID returned by `MissionsManager` matches ID used in `ResourceTransferMission`, `MissionStarted` event from `MissionsManager`.
+    - [ ] Verify underlying `ResourceTransferMission.startMission` is successfully called and its effects (e.g., ship lock, `ResourceTransferStarted` event from mission contract) occur.
+    - [ ] Test error conditions specific to `MissionsManager`: ship already on mission (check `shipToActiveMission`), ship on cooldown (check `CooldownManager`), caller not ship owner, invalid mission type string.
+    - [ ] Ensure `fullMissionData` is correctly encoded and passed.
+  - [ ] Test `startMission` for TradeMission:
+    - [ ] Verify successful start, similar to ResourceTransferMission, checking `TradeMission.startMission` effects (`TradeJourneyStarted` event from mission contract).
+    - [ ] Test `MissionsManager` specific error conditions.
+  - [ ] Test `completeMission` for ResourceTransferMission:
+    - [ ] Set up a completed ResourceTransferMission (time elapsed).
+    - [ ] Verify successful completion via `MissionsManager.completeMission`, check `MissionCompleted` event from `MissionsManager`, and that `ResourceTransferMission.completeMission` effects occur (resource transfer, ship unlock, `ResourceTransferCompleted` event from mission contract).
+    - [ ] Test `MissionsManager` error conditions: mission not active, already completed by `MissionsManager`, not yet time-complete.
+  - [ ] Test `completeMission` for TradeMission:
+    - [ ] Set up a TradeMission ready for a phase completion or full completion.
+    - [ ] Verify successful phase advancement/completion via `MissionsManager.completeMission`, checking `MissionsManager.MissionCompleted` event (if applicable for final phase) and underlying `TradeMission.advanceMission` effects.
+    - [ ] Test `MissionsManager` specific error conditions.
+  - [ ] Test `getMissionDetails` for both mission types, ensuring correct delegation to the respective mission contracts.
+
+### ✅ Acceptance Criteria
+1. `MissionsManager` correctly orchestrates the start and completion of `ResourceTransferMission` and `TradeMission` instances using real mission contracts.
+2. Data flow between `MissionsManager` and individual mission contracts is correct.
+3. `MissionsManager` internal state (`missions` mapping, `shipToActiveMission`, `nextMissionId`) is updated correctly.
+4. Event emissions from both `MissionsManager` and the specific mission contracts are verified.
+
+### 🧐 Edge Cases
+- Attempting to complete a mission with an ID that doesn't exist in `MissionsManager` but might exist elsewhere.
+- Rapid start/complete sequences.
+- `getMissionFactory().getMissionContract()` returns `address(0)` (should be handled by `MissionsManager`).
+
+---
+
+## TASK-TEST-TRADEMANAGER: Add Unit Tests for TradeManager.sol
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: Trade
+Dependencies: TASK-FEE-REBASE, TASK-TEST-MISSIONS (uses ArrcLocking)
+Complexity: 7
+
+### 🔧 Implementation Plan
+- [ ] **TradeManager.sol Tests (`test/trade/TradeManager.test.js`)**
+  - [ ] Setup: Use `setupCoreGameContracts` for dependencies like CAR, tokens, storages (ShipStorage, IslandStorage, MarketPlaceStorage, ArrcLocking, ResourceManagement, MissionsStorage, TravelTimeCalculator).
+  - [ ] Mock `ISLAND_MANAGER` for `getIslandOwner` or provide a simple implementation.
+  - [ ] Test `createTradeOrder` (island selling to ships):
+    - [ ] Successful creation: verify `TradeOrderCreated` event, `tradeOrders` struct populated, resources moved to `MarketPlaceStorage`, `islandTradeOrders` updated, `_trackPendingResourceType` called.
+    - [ ] Validation: amount too low, invalid price, invalid resource type, trade order limit reached, insufficient resources.
+    - [ ] Access control (`onlyIslandOwner`).
+  - [ ] Test `createIslandBuyOrder` (island buying from ships):
+    - [ ] Successful creation: verify `TradeOrderCreated` event, `tradeOrders` struct populated, ARRC transferred to `TradeManager` (later to `ArrcLocking`), `islandTradeOrders` updated, `_trackPendingResourceType` called.
+    - [ ] Validation: amount too low, invalid price, invalid resource type, trade order limit reached, insufficient ARRC balance/allowance.
+    - [ ] Access control (`onlyIslandOwner`).
+  - [ ] Test `cancelTradeOrder`:
+    - [ ] For island sell orders: verify resources returned to island, `MarketPlaceStorage` order removed, `TradeOrderCancelled` event, order marked inactive.
+    - [ ] For island buy orders: verify ARRC returned to island owner, `MarketPlaceStorage` order removed, `TradeOrderCancelled` event, order marked inactive.
+    - [ ] Validation: not seller, trade in progress.
+  - [ ] Test `initiateTrade` (called by TradeMission):
+    - [ ] For ship buying from island: verify `ActiveTrade` created, `ArrcLocking.lockForTrade` called with correct params, `TradeInitiated` event.
+    - [ ] For ship selling to island: verify `ActiveTrade` created, resources transferred from origin island to ship, `TradeInitiated` event.
+    - [ ] Validation: ship on mission, unauthorized caller, invalid trade order, self-trading, invalid amount/price, resource mismatch, insufficient ship capacity.
+  - [ ] Test `completeTrade` (called by TradeMission):
+    - [ ] For ship buying from island: `ArrcLocking.transferArrcToRecipient` called, resources moved from `MarketPlaceStorage` to ship and then to island (or pending if no capacity), order amount updated/deactivated, `TradeCompleted` event.
+    - [ ] For ship selling to island: ARRC moved from `TradeManager` to `ArrcLocking.lockForTrade` for return journey, resources moved from ship to `MarketPlaceStorage` and then to island (or pending if no capacity), order amount updated/deactivated, `TradeCompleted` event.
+    - [ ] Test partial order fulfillment (order amount not zero after trade).
+    - [ ] Test full order fulfillment (order amount zero, order deactivated, `MarketPlaceStorage` removed).
+    - [ ] Test `ResourcesHeldForDelivery` event when island has no capacity.
+    - [ ] Validation: unauthorized caller, no active trade, already completed, wrong player.
+  - [ ] Test `startReturnJourney` (called by TradeMission):
+    - [ ] Verify `ActiveTrade.needsReturn` set to false, `ReturnJourneyStarted` event.
+    - [ ] Validation: unauthorized caller, no active trade, trade not completed, return journey already started, wrong player.
+  - [ ] Test `completeEntireTradeMission` (called by ResourceTransferMission after return):
+    - [ ] For ship selling to island: verify `ArrcLocking.unlockArrc` called for player, `ActiveTrade` deleted, `ReturnJourneyCompleted` event.
+    - [ ] For ship buying from island (no ARRC to unlock for player): verify `ActiveTrade` deleted, `ReturnJourneyCompleted` event.
+    - [ ] Validation: unauthorized caller, no active trade, trade not completed, wrong player, return journey not started.
+  - [ ] Test `claimPendingDeliveries`:
+    - [ ] Successful claim: resources transferred from `MarketPlaceStorage` (consolidated) to island, `MarketPlaceStorage.removePendingResource` called, `PendingDeliveryClaimed` event.
+    - [ ] Claiming all with `type(uint256).max`.
+    - [ ] Validation: no pending deliveries, amount exceeds available, insufficient island storage.
+    - [ ] Access control (`onlyIslandOwner`).
+  - [ ] View functions: `getTradeOrder`, `isTradeOrderValid`, `getActiveTradeOrders`, `getPendingResourceAmount`, `getPendingResourceTypes`, `hasActiveTradeReturnForShip`, `hasResourceTypePending`.
+
+### ✅ Acceptance Criteria
+1. All trade lifecycle scenarios (create, initiate, complete, cancel, including partial fulfillment and island buy/sell orders) are tested.
+2. Resource and ARRC token movements are verified at each step, including interactions with `MarketPlaceStorage`, `ShipStorage`, `IslandStorage`, and `ArrcLocking`.
+3. Pending delivery mechanism and claiming process are fully tested.
+4. All events are checked with correct parameters.
+5. Access control and validation checks are robustly tested.
+6. Tests use `setupCoreGameContracts` for a consistent environment.
+
+### 🧐 Edge Cases
+- Cancelling an order that was partially filled.
+- Multiple partial fills of the same order.
+- Claiming pending deliveries when multiple resource types are pending.
+- Interactions between different trades for the same ship (should be prevented by mission system).
+- ARRC locking/unlocking scenarios with zero amounts or exact amounts.
+- Island having just enough/not enough capacity for pending deliveries.
