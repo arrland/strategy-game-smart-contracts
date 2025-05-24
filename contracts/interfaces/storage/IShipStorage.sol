@@ -16,4 +16,10 @@ interface IShipStorage is IBaseStorage {
      */
     function getStorageCapacity(uint256 shipId) external view returns (uint256);
     
+    /**
+     * @notice Get the owner of a specific ship.
+     * @param shipId The ID of the ship to query.
+     * @return The address of the ship's owner.
+     */
+    function getOwner(uint256 shipId) external view returns (address);
 }

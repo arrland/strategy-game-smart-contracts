@@ -135,7 +135,7 @@ describe("TravelTimeCalculator", function () {
                 pirateSkillsReader,
                 missionsStorage 
             } = coreContracts;
-
+            
             // Explicitly register IShipMetadata 
             await centralAuthorizationRegistry.setContractAddress(
                 ethers.id("IShipMetadata"), 
@@ -196,7 +196,7 @@ describe("TravelTimeCalculator", function () {
             if (!configureSuccess) {
                 throw new Error("Failed to configure island regions during setup.");
             }
-
+            
             // Deploy TravelTimeCalculator
             const travelTimeCalculator = await deployAndAuthorizeContract(
                 "TravelTimeCalculator", 
@@ -207,7 +207,7 @@ describe("TravelTimeCalculator", function () {
                 ethers.id("ITravelTimeCalculator"), 
                 await travelTimeCalculator.getAddress()
             );
-
+            
             // --- Add CooldownManager and MissionTravelCalculator --- 
             const cooldownManager = await deployAndAuthorizeContract("CooldownManager", centralAuthorizationRegistry);
             await centralAuthorizationRegistry.setContractAddress(ethers.id("ICooldownManager"), await cooldownManager.getAddress());
@@ -459,7 +459,7 @@ describe("TravelTimeCalculator", function () {
             // This test might become redundant if the beforeEach check passes reliably,
             // but keep it for now to specifically target the region setup.
             // The actual verification logic is now in beforeEach.
-            const { islandRegionManagement, config } = state;
+                const { islandRegionManagement, config } = state;
             expect(islandRegionManagement).to.exist;
             expect(config).to.exist; 
             // The core assertion is implicitly tested by beforeEach succeeding.

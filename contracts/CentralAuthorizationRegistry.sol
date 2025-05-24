@@ -6,7 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/extensions/AccessControlEnume
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-
+import "./core/InterfaceIdentifiers.sol";
 
 contract CentralAuthorizationRegistry is Initializable, UUPSUpgradeable, AccessControlEnumerableUpgradeable {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
@@ -102,8 +102,38 @@ contract CentralAuthorizationRegistry is Initializable, UUPSUpgradeable, AccessC
     }
 
     function getContractAddress(bytes32 interfaceId) external view returns (address) {
-        require(contractAddresses[interfaceId] != address(0), string(abi.encodePacked("Contract address not set for interfaceId: ", Strings.toHexString(uint256(interfaceId), 32))));
-        return contractAddresses[interfaceId];
+        address contractAddr = contractAddresses[interfaceId];
+
+        if (contractAddr == address(0)) {
+            (bool foundNameInLibrary, string memory idNameFromLibrary) = InterfaceIdentifiers.getInterfaceNameById(interfaceId);
+
+            if (foundNameInLibrary) {
+                // If the name was found in InterfaceIdentifiers, include it in the error.
+                revert(
+                    string(
+                        abi.encodePacked(
+                            "CAR: Contract address not set for interface '",
+                            idNameFromLibrary, // Human-readable name from InterfaceIdentifiers
+                            "' (ID: ",
+                            Strings.toHexString(uint256(interfaceId)), // Raw bytes32 ID
+                            ")"
+                        )
+                    )
+                );
+            } else {
+                // If the name was not found in InterfaceIdentifiers, provide the raw ID and a note.
+                revert(
+                    string(
+                        abi.encodePacked(
+                            "CAR: Contract address not set for interface ID: ",
+                            Strings.toHexString(uint256(interfaceId)), // Raw bytes32 ID
+                            " (Name not in InterfaceIdentifiers library or ID is dynamic)"
+                        )
+                    )
+                );
+            }
+        }
+        return contractAddr;
     }
 
     function getRoleMembers(bytes32 role) public view override returns (address[] memory) {

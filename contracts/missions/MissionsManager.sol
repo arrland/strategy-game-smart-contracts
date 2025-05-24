@@ -11,6 +11,9 @@ import "../AuthorizationModifiers.sol";
 import "./MissionRegistration.sol";
 import "../interfaces/ICooldownManager.sol";
 
+import "../core/InterfaceIdentifiers.sol";
+
+
 contract MissionsManager is IMissionsManager, AuthorizationModifiers {
     using Strings for uint256;
 
@@ -35,7 +38,15 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
     {}
 
     function getCooldownManager() internal view returns (ICooldownManager) {
-        return ICooldownManager(centralAuthorizationRegistry.getContractAddress(keccak256("ICooldownManager")));
+        return ICooldownManager(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.COOLDOWN_MANAGER_KEY));
+    }
+
+    function getMissionFactory() internal view returns (IMissionFactory) {
+        return IMissionFactory(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSION_FACTORY_KEY));
+    }
+    
+    function getMissionRegistration() internal view returns (MissionRegistration) {
+        return MissionRegistration(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSION_REGISTRATION_KEY));
     }
 
     function startMission(
@@ -61,7 +72,7 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         require(bytes(missionTypeName).length > 0, "Invalid mission type");
         
         missionId = nextMissionId++;
-        
+
         IMissionFactory factory = getMissionFactory();
         address missionContractAddress = factory.getMissionContract(missionType);
         require(missionContractAddress != address(0), "No implementation for this mission type");
@@ -94,9 +105,9 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         
         require(mission.isActive, "No active mission with this ID");
         require(!mission.isCompleted, "Mission already completed");
-        require(block.timestamp >= mission.endTime, "Mission not yet complete");
-        
-        address missionContractAddress = getMissionFactory().getMissionContract(mission.missionType);
+        require(block.timestamp >= mission.endTime, "Mission not yet complete");        
+        IMissionFactory factory = getMissionFactory();
+        address missionContractAddress = factory.getMissionContract(mission.missionType);
         require(missionContractAddress != address(0), "No implementation for this mission type");
         
         IMission missionContract = IMission(missionContractAddress);
@@ -146,11 +157,5 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         return missionContract.getMissionDetails(missionId);
     }
 
-    function getMissionFactory() internal view returns (IMissionFactory) {
-        return IMissionFactory(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionFactory")));
-    }
-    
-    function getMissionRegistration() internal view returns (MissionRegistration) {
-        return MissionRegistration(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionRegistration")));
-    }
+
 } 

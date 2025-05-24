@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
 import "../CentralAuthorizationRegistry.sol";
 import "../AuthorizationModifiers.sol";
 import "../interfaces/ICrewTypeManager.sol";
-import "hardhat/console.sol";
 
 
 contract CrewManagement is AuthorizationModifiers {
@@ -142,12 +141,10 @@ contract CrewManagement is AuthorizationModifiers {
 
     function getAllCrewCountsForShip(address pirateCollection, uint256 pirateId) 
         external view returns (string[] memory, uint256[] memory) 
-    {
-        console.log("Getting all crew counts for ship: collection %s, id %s", pirateCollection, pirateId);
+    {        
         ICrewTypeManager crewTypeManager = getCrewTypeManager();
         string[] memory crewTypes = crewTypeManager.getCrewTypes();
-        uint256[] memory crewCounts = new uint256[](crewTypes.length);
-        console.log("Above this is error");
+        uint256[] memory crewCounts = new uint256[](crewTypes.length);        
         for (uint256 i = 0; i < crewTypes.length; i++) {
             if (crewTypeManager.canBeEssentialCrew(crewTypes[i])) {
                 crewCounts[i] = crewMembers[pirateCollection][pirateId][crewTypes[i]];

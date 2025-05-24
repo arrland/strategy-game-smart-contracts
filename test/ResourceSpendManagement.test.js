@@ -173,7 +173,7 @@ describe("ResourceSpendManagement", function () {
                 ethers.parseEther("10"),
                 ["fish"]
             )
-        ).to.be.revertedWith("Insufficient resource balance for wood");
+        ).to.be.revertedWith("Insufficient mandatory resource: wood");
     });
 
     it("should revert if no optional resources burned", async function () {

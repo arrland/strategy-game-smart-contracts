@@ -99,6 +99,9 @@ This mission requires:
 
 Resources: Food, Citrus, and RUM (the same as every mission cost, but one way only)
 
+0.5 citrus or 0.02 crate-packed citrus per day of travel multiplied by number of ship crew (nft pirates and non nft crew)
+standard food ration (medium) per day of travel multiplied by number of ship crew(nft pirates and non nft crew) (coconuts or crate-packed coconuts, barrelled fish or barrelled meat - it cannot be loose fish or meat)
+
 
 Time: Based on distance (mission duration, but one way onky)
 

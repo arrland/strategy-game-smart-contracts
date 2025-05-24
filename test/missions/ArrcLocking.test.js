@@ -136,12 +136,20 @@ describe("ArrcLocking", function () {
             await arrcToken.connect(user).approve(contractAddress, lockAmount);
             
             // Start mission which locks tokens
-            await mockTradeMission.connect(user).startMission(
+            const tx = await mockTradeMission.connect(user).startMission(
                 shipId,
                 lockAmount,
                 lockingType,
                 user.address
             );
+            
+            // --- Get block timestamp for accurate time check --- 
+            const receipt = await tx.wait();
+            const blockNum = receipt.blockNumber;
+            const block = await ethers.provider.getBlock(blockNum);
+            const txTimestamp = block.timestamp; 
+            const expectedEndTime = BigInt(txTimestamp + lockDuration);
+            // --- End timestamp calculation ---
             
             // Verify tokens are locked
             expect(await arrcToken.balanceOf(user.address)).to.equal(initialBalance - lockAmount);
@@ -153,10 +161,7 @@ describe("ArrcLocking", function () {
             
             const lockInfo = await arrcLocking.getLock(shipId);
             expect(lockInfo[0]).to.equal(lockAmount); // amount
-            expect(lockInfo[2]).to.be.closeTo(
-                BigInt(Math.floor(Date.now() / 1000) + lockDuration), 
-                BigInt(1000)
-            ); // endTime
+            expect(lockInfo[2]).to.equal(expectedEndTime);
             expect(lockInfo[3]).to.be.true; // locked
             expect(lockInfo[4]).to.equal(ethers.ZeroAddress); // attacker
             expect(lockInfo[5]).to.equal(lockingType); // lockingType
@@ -649,31 +654,35 @@ describe("ArrcLocking", function () {
             const lockingType = lockingTypes.BUY_ORDER;
             
             // Ensure token approval is set for this specific test
-            const contractAddress = await arrcLocking.getAddress();
-            await arrcToken.connect(user).approve(contractAddress, lockAmount);
+            await arrcToken.connect(user).approve(await arrcLocking.getAddress(), lockAmount);
             
             // Start mission which locks tokens
-            await mockTradeMission.connect(user).startMission(
+            const tx = await mockTradeMission.connect(user).startMission(
                 shipId,
                 lockAmount,
                 lockingType,
                 user.address
             );
             
-            // Get lock info
+            // --- Get block timestamp for accurate time check --- 
+            const receipt = await tx.wait();
+            const blockNum = receipt.blockNumber;
+            const block = await ethers.provider.getBlock(blockNum);
+            const txTimestamp = block.timestamp; 
+            const expectedEndTime = BigInt(txTimestamp + lockDuration);
+            // --- End timestamp calculation ---
+            
+            // Verify lock info using getLock
             const lockInfo = await arrcLocking.getLock(shipId);
-            expect(lockInfo[0]).to.equal(lockAmount); // amount
-            expect(lockInfo[1]).to.be.closeTo(
-                BigInt(Math.floor(Date.now() / 1000)), 
-                BigInt(1000)
-            ); // startTime
-            expect(lockInfo[2]).to.be.closeTo(
-                BigInt(Math.floor(Date.now() / 1000) + lockDuration), 
-                BigInt(1000)
-            ); // endTime
-            expect(lockInfo[3]).to.be.true; // locked
-            expect(lockInfo[4]).to.equal(ethers.ZeroAddress); // attacker
-            expect(lockInfo[5]).to.equal(lockingType); // lockingType
+            expect(lockInfo.amount).to.equal(lockAmount);
+            expect(lockInfo.startTime).to.equal(txTimestamp);
+            expect(lockInfo.endTime).to.equal(expectedEndTime);
+            expect(lockInfo.locked).to.be.true;
+            expect(lockInfo.attacker).to.equal(ethers.ZeroAddress);
+            expect(lockInfo.lockingType).to.equal(lockingType);
+            
+            // Verify lock info using isLocked
+            expect(await arrcLocking.isLocked(shipId)).to.be.true;
         });
     });
     

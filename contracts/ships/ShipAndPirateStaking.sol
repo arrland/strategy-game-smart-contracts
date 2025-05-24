@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import "hardhat/console.sol"; // Import console for debugging
 import "../AuthorizationModifiers.sol";
 import "../interfaces/ships/IShipAndPirateStaking.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -19,7 +20,7 @@ import "../missions/PirateSkillsReader.sol";
 import "../interfaces/IDockingManagement.sol";
 import "../interfaces/ICooldownManager.sol";
 import "../interfaces/IMissionTravelCalculator.sol";
-import "hardhat/console.sol";
+import "../interfaces/IMissionValidator.sol";
 
 
 /**
@@ -128,6 +129,10 @@ contract ShipAndPirateStaking is
         return IMissionTravelCalculator(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionTravelCalculator")));
     }
 
+    function getMissionValidator() internal view returns (IMissionValidator) {
+        return IMissionValidator(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionValidator")));
+    }
+
     function validateShipRequirements(uint256 shipId, uint256 captainId, address captainCollection) view internal {
         // Get ship metadata
         IShipMetadata shipMetadata = getShipMetadata();
@@ -142,11 +147,11 @@ contract ShipAndPirateStaking is
         // Validate based on ship class
         bytes32 classHash = keccak256(abi.encodePacked(shipAttributes.class));
         
-        if (classHash == keccak256(abi.encodePacked("SMALL_SHIP")) && respectLevel < 1) {
+        if (classHash == keccak256(abi.encodePacked("Small")) && respectLevel < 1) {
             revert InsufficientCaptainRespect(1, respectLevel);
-        } else if (classHash == keccak256(abi.encodePacked("MEDIUM_SHIP")) && respectLevel < 6) {
+        } else if (classHash == keccak256(abi.encodePacked("Medium")) && respectLevel < 6) {
             revert InsufficientCaptainRespect(6, respectLevel);
-        } else if (classHash == keccak256(abi.encodePacked("LARGE_SHIP")) && respectLevel < 9) {
+        } else if (classHash == keccak256(abi.encodePacked("Large")) && respectLevel < 9) {
             revert InsufficientCaptainRespect(9, respectLevel);
         }
     }
@@ -215,35 +220,16 @@ contract ShipAndPirateStaking is
     }
 
     function stakeShipWithPirates(StakingData memory stakingData, uint256 homeIslandId, string memory shipClass) public nonReentrant whenNotPaused {
-        console.log("[DEBUG] stakeShipWithPirates called", stakingData.shipId, homeIslandId, shipClass);
-        // DEBUG: Log all registry-based contract addresses
-        address dockingAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IDockingManagement"));
-        console.log("[DEBUG] DockingManagement address:", dockingAddr);
-        address feeAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IFeeManagement"));
-        console.log("[DEBUG] FeeManagement address:", feeAddr);
-        address missionsAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IMissionsStorage"));
-        console.log("[DEBUG] MissionsStorage address:", missionsAddr);
-        address crewAddr = centralAuthorizationRegistry.getContractAddress(keccak256("ICrewManagement"));
-        console.log("[DEBUG] CrewManagement address:", crewAddr);
-        address crewTypeAddr = centralAuthorizationRegistry.getContractAddress(keccak256("ICrewTypeManager"));
-        console.log("[DEBUG] CrewTypeManager address:", crewTypeAddr);
-        address shipMetaAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IShipMetadata"));
-        console.log("[DEBUG] ShipMetadata address:", shipMetaAddr);
-        address skillsReaderAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IPirateSkillsReader"));
-        console.log("[DEBUG] PirateSkillsReader address:", skillsReaderAddr);
         // Validate captain's collection
         if (stakingData.captainCollection != genesisPiratesAddress && stakingData.captainCollection != inhabitantsAddress) {
             revert InvalidCollection();
         }
-        console.log("[DEBUG] Passed captain collection validation");
         if (ships[stakingData.shipId].isStaked) {
             revert ShipAlreadyStaked();
         }
-        console.log("[DEBUG] Passed isStaked check");
         if (pirateToShip[stakingData.captainId] != 0) {
             revert PirateAlreadyStaked();
         }
-        console.log("[DEBUG] Passed PirateAlreadyStaked check");
         try shipNft.ownerOf(stakingData.shipId) returns (address owner) {
             if (owner != msg.sender) {
                 revert NotShipOwner();
@@ -251,22 +237,23 @@ contract ShipAndPirateStaking is
         } catch {
             revert InvalidShipId();
         }
-        console.log("[DEBUG] Passed NotShipOwner check");
+
+        // Call to validate captain's respect for the ship based on its class
+        // The shipId's metadata (including its class) should be set prior to this.
+        // The shipClass parameter passed to stakeShipWithPirates might be redundant here
+        // if shipMetadata is the sole source of truth for the class for validation.
+        // However, validateShipRequirements internally fetches class from shipMetadata.
+        validateShipRequirements(stakingData.shipId, stakingData.captainId, stakingData.captainCollection);
+
         // Check docking slot availability and dock
         IDockingManagement docking = getDockingManagement();
-        console.log("[DEBUG] About to call getSlotRequirementForShipClass with shipClass:", shipClass);
         uint256 slotsRequired = docking.getSlotRequirementForShipClass(shipClass);
-        console.log("[DEBUG] slotsRequired:", slotsRequired);
 
-        console.log("[DEBUG] About to call canDock with homeIslandId:", homeIslandId, "slotsRequired:", slotsRequired);
         bool canDock = docking.canDock(homeIslandId, slotsRequired);
-        console.log("[DEBUG] canDock returned:", canDock);
 
         require(canDock, "No docking slot available");
 
-        console.log("[DEBUG] About to call dockShip");
         docking.dockShip(stakingData.shipId, homeIslandId, msg.sender, shipClass);
-        console.log("[DEBUG] dockShip called successfully");
         
         // Transfer ship NFT
         shipNft.transferFrom(msg.sender, address(this), stakingData.shipId);
@@ -423,13 +410,9 @@ contract ShipAndPirateStaking is
             emit PirateStaked(stakingData.inhabitantIds[i], stakingData.shipId, false, block.timestamp, inhabitantsAddress);
         }
 
-        // DEBUG: Log before calling getMissionInfo
-        console.log("[DEBUG] About to call getMissionInfo (pre-try/catch)");
         IMissionsStorage missionsStorage = getMissionsStorage();
         try missionsStorage.getMissionInfo(stakingData.shipId) returns (IMissionsStorage.MissionInfo memory info) {
-            console.log("[DEBUG] getMissionInfo returned isActive:", info.isActive);
         } catch {
-            console.log("[DEBUG] getMissionInfo reverted");
             revert("MissionsStorage.getMissionInfo reverted");
         }
     }
@@ -980,8 +963,16 @@ contract ShipAndPirateStaking is
      * @param shipId The ID of the ship to rebase
      * @param newIslandId The new island to assign as home
      * @param shipClass The class of the ship (for slot calculation)
+     * @param foodChoice The type of primary food for the journey
+     * @param foodRationChoice The type of secondary food/ration for the journey
      */
-    function rebaseShipHomeIsland(uint256 shipId, uint256 newIslandId, string memory shipClass) external nonReentrant whenNotPaused override {
+    function rebaseShipHomeIsland(
+        uint256 shipId, 
+        uint256 newIslandId, 
+        string memory shipClass,
+        string memory foodChoice,
+        string memory foodRationChoice
+    ) external nonReentrant whenNotPaused override {
         ShipInfo storage ship = ships[shipId];
         if (!ship.isStaked) revert ShipNotStaked();
         if (ship.owner != msg.sender) revert NotShipOwner();
@@ -990,8 +981,8 @@ contract ShipAndPirateStaking is
         require(newIslandId != ship.homeIslandId, "Cannot rebase to the same island"); // Check 1
 
         ICooldownManager cooldownManager = getCooldownManager(); // Get CooldownManager instance
-        bytes32 rebaseActionKey = keccak256(abi.encodePacked("rebaseAction", shipId)); // Calculate rebase action key
-        require(!cooldownManager.isOnCooldown(rebaseActionKey), "Rebase action on cooldown"); // Check 2: Rebase action cooldown
+        bytes32 missionCooldownKey = keccak256(abi.encodePacked("ship", shipId));
+        require(!cooldownManager.isOnCooldown(missionCooldownKey), "Ship on rebase mission"); // Check 2: Rebase action cooldown
 
         IMissionsStorage missionsStorage = getMissionsStorage();
         if (missionsStorage.getMissionInfo(shipId).isActive) revert ShipOnMission(); // Check 3: Ship mission status
@@ -1008,21 +999,27 @@ contract ShipAndPirateStaking is
         uint256 calculatedRebasingFee = totalPirates * rebaseFeePerPirate; 
         feeManagement.burnArrc(msg.sender, calculatedRebasingFee, "Rebasing");
 
-        // === Calculate Travel Time for Cooldown ===
+        // Get MissionValidator instance
+        IMissionValidator missionValidator = getMissionValidator();
+
+        // === Calculate Travel Time for Food/RUM and Cooldown ===
         uint256 oldIslandId = ship.homeIslandId; // Store before changing
-        IMissionTravelCalculator travelCalculator = getMissionTravelCalculator(); // Get travel calculator instance
-        uint256 missionCooldownDuration = travelCalculator.calculateTravelTime(oldIslandId, newIslandId, shipId); // Calculate cooldown duration
-        // === End Travel Time Calculation ===
+        IMissionTravelCalculator travelCalculator = getMissionTravelCalculator(); 
+        
+        (uint256 travelDays, uint256 travelTimeInSeconds) = travelCalculator.getTravelDays(oldIslandId, newIslandId, shipId);
+        // Validate and burn resources for the journey (RUM and chosen food)
+        missionValidator.validateAndBurnMissionStartResources(
+            shipId,
+            travelDays, // Use calculated travelDays
+            0,          // intendedCargo for rebase is 0
+            foodChoice,
+            foodRationChoice,
+            msg.sender  // user
+        );
         
         // === Set Cooldowns ===
-        // Set mission cooldown (prevents starting mission during travel)
-        bytes32 missionCooldownKey = keccak256(abi.encodePacked("ship", shipId)); // Calculate ship-specific key
-        cooldownManager.setCooldown(missionCooldownKey, missionCooldownDuration, "rebase"); // Call setCooldown
-
-        // Set rebase action cooldown (prevents immediate rebase again)
-        uint256 rebaseActionDuration = 3600; // 1 hour
-        cooldownManager.setCooldown(rebaseActionKey, rebaseActionDuration, "rebaseAction"); // Call setCooldown for action
-        // === End Cooldown Setting ===
+        // Set mission cooldown (prevents starting mission during travel)        
+        cooldownManager.setCooldown(missionCooldownKey, travelTimeInSeconds, "rebase"); // Call setCooldown
 
         // Call Docking contract to move slots
         docking.rebaseShip(shipId, oldIslandId, newIslandId, msg.sender, shipClass);
@@ -1030,8 +1027,11 @@ contract ShipAndPirateStaking is
         // Update homeIslandId (move after storing oldIslandId)
         ship.homeIslandId = newIslandId;
         
-        // Emit ShipRebased event (now emitted by DockingManagement)
         // emit ShipRebased(shipId, oldIslandId, newIslandId, msg.sender, block.timestamp);
+    }
+
+    function getShipHomeIsland(uint256 shipId) external view returns (uint256) {
+        return ships[shipId].homeIslandId;
     }
 
 }

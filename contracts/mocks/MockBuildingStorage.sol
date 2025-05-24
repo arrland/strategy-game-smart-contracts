@@ -89,8 +89,7 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
      * @param islandId ID of the island
      * @return slots Base docking slots for the island's size
      */
-    function getDockingSlots(uint256 islandId) external view override returns (uint256) {
-        console.log("[MOCK] getDockingSlots called with islandId:", islandId);
+    function getDockingSlots(uint256 islandId) external view override returns (uint256) {        
         // Explicitly reference the interface for the enum type
         IIslandStorage.IslandSize size = islandStorage.getIslandSize(islandId);
         

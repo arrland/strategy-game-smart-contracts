@@ -2,6 +2,16 @@ const { ethers } = require("hardhat");
 const fs = require('fs');
 const skillsHelpers = require("./utils/skills-helpers");
 const { expect } = require("chai");
+const hre = require("hardhat");
+const { time } = require("@nomicfoundation/hardhat-network-helpers");
+
+// Define CalculationMethod enum (mirroring Solidity)
+const CalculationMethod = {
+    PerDay: 0,
+    Divide: 1
+};
+
+const ONE_ETHER = ethers.parseEther("1");
 
 // Export all skills helper functions
 const {
@@ -16,12 +26,12 @@ const {
  * @returns {Object} Object containing admin, user, and centralAuthorizationRegistry
  */
 async function deployBaseInfrastructure() {
-  const [admin, user] = await ethers.getSigners();
+  const [admin, user, otherAccount] = await ethers.getSigners();
   const CentralAuthorizationRegistry = await ethers.getContractFactory("CentralAuthorizationRegistry");
   const centralAuthorizationRegistry = await CentralAuthorizationRegistry.deploy();
   await centralAuthorizationRegistry.initialize(admin.address);
   await centralAuthorizationRegistry.addAuthorizedContract(admin.address);
-  return { admin, user, centralAuthorizationRegistry };
+  return { admin, user, otherAccount, centralAuthorizationRegistry };
 }
 
 /**
@@ -68,30 +78,68 @@ function createTestConfig(config) {
   };
 }
 
-async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
-    const ContractFactory = await ethers.getContractFactory(contractName);
+// Refined helper to deploy, authorize, and register using a specific registry key string
+async function deployAndRegisterContract(contractName, centralAuthorizationRegistry, registryKeyString, ...args) {
+    // Note: CAR address is automatically added by ContractFactory.deploy and should not be passed in args
+    const carAddress = await centralAuthorizationRegistry.getAddress();
     
-    // Revert to original simpler deployment call
-    const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args); 
-   
+    // Check if args contains CAR address
+    if (args.includes(carAddress)) {
+        throw new Error('CAR address should not be passed in args as it is automatically added by ContractFactory.deploy');
+    }
+
+    const ContractFactory = await ethers.getContractFactory(contractName);
+    const contractInstance = await ContractFactory.deploy(carAddress, ...args);
+    await contractInstance.waitForDeployment();
     const contractAddress = await contractInstance.getAddress();
 
-    try {
-        // Different contracts might use different ways to identify their interface
-        let interfaceId;
-        try {
-            interfaceId = await contractInstance.INTERFACE_ID();
-        } catch (error) {
-            // Fallback to keccak hash of contract name if INTERFACE_ID isn't available
-            interfaceId = ethers.keccak256(ethers.toUtf8Bytes(contractName));
-        }
+    // Authorize the deployed contract in CAR
+    await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
+
+    // Register the contract address using the provided key string
+    const keyBytes = ethers.keccak256(ethers.toUtf8Bytes(registryKeyString));
+    await centralAuthorizationRegistry.setContractAddress(keyBytes, contractAddress);
         
+    return contractInstance;
+}
+
+// The deployAndAuthorizeContract from lines 71-97 in the user's selection had an issue:
+// It was: const contractInstance = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress(), ...args);
+// This incorrectly prepends CAR address to all constructor args.
+// For now, let's define a corrected version if it's intended to be used, 
+// or it can be removed if deployAndRegisterContract is sufficient.
+
+// Corrected version of the user-provided deployAndAuthorizeContract (if still needed):
+// This version assumes the contract might have an INTERFACE_ID or falls back to naming convention.
+// Crucially, it does NOT automatically pass CAR address as a constructor argument.
+async function deployAndAuthorizeContract(contractName, centralAuthorizationRegistry, ...args) {
+    const carAddress = await centralAuthorizationRegistry.getAddress();
+    if (args.includes(carAddress)) {
+        throw new Error("CAR address should not be passed in args as it is automatically added by ContractFactory.deploy");
+    }
+    const ContractFactory = await ethers.getContractFactory(contractName);
+    const contractInstance = await ContractFactory.deploy(carAddress, ...args); 
+    await contractInstance.waitForDeployment();
+    const contractAddress = await contractInstance.getAddress();
+
+    await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
+
+    // Attempt to register with INTERFACE_ID or fallback
+    try {
+        let interfaceId;
+        if (typeof contractInstance.INTERFACE_ID === 'function') {
+            interfaceId = await contractInstance.INTERFACE_ID();
+        } else {
+            throw new Error("INTERFACE_ID not found");
+            // Fallback: Construct interface name (e.g., IMyContract) or use contract name directly
+            // This part needs a robust convention if INTERFACE_ID is not present.
+            // For simplicity, let's try hashing the contractName as a default key if no INTERFACE_ID
+            interfaceId = ethers.keccak256(ethers.toUtf8Bytes(`I${contractName}`)); // Common convention
+        }        
         await centralAuthorizationRegistry.setContractAddress(interfaceId, contractAddress);
     } catch (error) {
-        // Handle error silently
+        throw new Error(`[UTIL ERROR] Failed to register ${contractName} in CAR after deployment: ${error.message}`);
     }
-    
-    await centralAuthorizationRegistry.addAuthorizedContract(contractAddress);
 
     return contractInstance;
 }
@@ -200,7 +248,28 @@ async function setupCrewForPirates(crewManagement, admin, genesisPiratesAddress,
 
 // Helper function to set a mission active in MockMissionsStorage
 async function setMissionActive(missionsStorage, shipId, active) {
-    await missionsStorage.setMissionActive(shipId, active);
+    // Get current mission info to preserve other details
+    let missionInfo = await missionsStorage.getMissionInfo(shipId);
+
+    // Create a new MissionInfo struct for the update
+    // Solidity struct in JS: pass an array/object matching the struct order/keys
+    const updatedInfo = {
+        startTime: missionInfo.startTime,
+        endTime: missionInfo.endTime,
+        isActive: active, // Set the desired active state
+        missionType: missionInfo.missionType,
+        missionId: missionInfo.missionId
+    };
+
+    // If activating and no mission existed, set some defaults
+    if (active && missionInfo.missionId == 0) {
+        updatedInfo.startTime = await ethers.provider.getBlock('latest').then(block => block.timestamp);
+        updatedInfo.endTime = updatedInfo.startTime + 3600; // Default 1 hour duration
+        updatedInfo.missionType = 1; // Default mission type
+        updatedInfo.missionId = 100; // Default mission ID
+    }
+
+    await missionsStorage.setMockMissionInfo(shipId, updatedInfo);
 }
 
 // Helper function to log contract addresses from central registry
@@ -221,7 +290,6 @@ async function logContractAddresses(centralAuthorizationRegistry, contractKeys=n
                 ethers.keccak256(ethers.toUtf8Bytes(key))
             );
             addresses[key] = address;
-            console.log(`${key}: ${address}`);
         } catch (error) {
             console.log(`Error getting address for ${key}: ${error.message}`);
         }
@@ -278,7 +346,7 @@ async function setupShipMetadata(shipMetadata, admin, shipIds, attributes = null
         ramming: 30,
         crewMin: 2,
         crewMax: 10,
-        cargoBay: 1000,
+        cargoBay: 1000n, // Default if no attributes are passed; this would be scaled up.
         oars: false,
         shallowWaters: true,
         deepWaters: true,
@@ -286,9 +354,24 @@ async function setupShipMetadata(shipMetadata, admin, shipIds, attributes = null
     };
     
     const shipAttributes = attributes || defaultAttributes;
+
+    
+
+    // Conditionally scale cargoBay only if it's not already scaled (e.g. coming from defaultAttributes)
+    // We assume if `attributes` is provided, `attributes.cargoBay` is already in wei.
+    if (!attributes || attributes.cargoBay < ethers.parseUnits("1", 10)) { // Heuristic: if cargoBay is small, it's likely not in wei
+        // This check is a heuristic. A more robust way would be to have a flag or type indication.
+        // For now, if `attributes` are provided, we assume `cargoBay` is already in wei from `ethers.parseUnits`.
+        // If `attributes` is NOT provided (so `defaultAttributes` is used), then scale up the default `1000n`.
+        if (!attributes) { // Only scale if we are using the defaultAttributes.cargoBay (which is 1000n)
+           shipAttributes.cargoBay = shipAttributes.cargoBay * 10n ** 18n;
+        }
+    }
+    // If `attributes` were provided, shipAttributes.cargoBay is taken as is (expected to be in wei).
     
     // Update metadata for all ship IDs
     for (const shipId of shipIds) {
+
         await shipMetadata.connect(admin).updateShipMetadata(shipId, shipAttributes);
     }
 }
@@ -305,7 +388,7 @@ async function setupStakingEnvironment(
 ) {
     // Mint ships to user
     for (const shipId of shipIds) {
-        await shipNFT.mintSpecific(user.address, shipId);
+        await shipNFT.safeMint(user.address, shipId);
         if (approveForStaking) {
             await shipNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), shipId);
         }
@@ -353,6 +436,8 @@ async function stakeShipWithPirates(
         inhabitantIds: inhabitantIds
     };
     
+
+    
     const tx = await shipAndPirateStaking.connect(user).stakeShipWithPirates(
         stakingData, 
         homeIslandId, 
@@ -388,10 +473,15 @@ async function registerContractAddresses(centralAuthorizationRegistry, contractA
 }
 
 // Shared helper to deploy and register a mock contract
-async function deployAndRegisterMock(contractName, registryKey, centralAuthorizationRegistry) {
-    const ContractFactory = await ethers.getContractFactory(contractName);
+async function deployAndRegisterMock(contractName, registryKey, centralAuthorizationRegistry) {    
+    // Explicitly load artifact
+    const artifact = await hre.artifacts.readArtifact(contractName);
+    // Create factory from ABI and bytecode
+    const ContractFactory = await hre.ethers.getContractFactoryFromArtifact(artifact);
+
     const contract = await ContractFactory.deploy(await centralAuthorizationRegistry.getAddress());
     await contract.waitForDeployment();
+    // RESTORED AUTHORIZATION AND REGISTRATION
     await centralAuthorizationRegistry.addAuthorizedContract(await contract.getAddress());
     await centralAuthorizationRegistry.setContractAddress(
         ethers.keccak256(ethers.toUtf8Bytes(registryKey)),
@@ -446,12 +536,13 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
         }
     }
     
-    // Deploy FeeManagement
-    const feeManagement = await deployAndAuthorizeContract(
+    // Deploy FeeManagement using deployAndRegisterContract
+    const feeManagement = await deployAndRegisterContract(
         "FeeManagement",
         centralAuthorizationRegistry,
-        await rumToken.getAddress(),
-        await arrcToken.getAddress(),
+        "IFeeManagement",        
+        await rumToken.getAddress(),  // Corrected: RUM token address first for _rumTokenAddress
+        await arrcToken.getAddress(), // Corrected: ARRC token address second for _arrcTokenAddress
         admin.address
     );
     
@@ -460,13 +551,12 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
         let shipStakingAddress = ethers.ZeroAddress;
         try {
             shipStakingAddress = await centralAuthorizationRegistry.getContractAddress(
-                ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking"))
-            );
+            ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking"))
+        );
         
-            console.log("shipStakingAddress:", shipStakingAddress);
         } catch (error) {            
         }
-
+        
         for (const user of users) {
             try {
                 await arrcToken.connect(admin).transfer(user.address, parsedAmount);
@@ -479,12 +569,10 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
                 await arrcToken.connect(user).approve(await feeManagement.getAddress(), parsedAmount);
                 await rumToken.connect(user).approve(await feeManagement.getAddress(), parsedAmount);
             } catch (error) {
-                console.error(`Error setting up tokens for user ${user.address}:`, error.message);
-                throw error; // Re-throw to make sure tests fail if this critical setup fails
             }
         }
     }
-
+    
     return { arrcToken, rumToken, feeManagement };
 }
 
@@ -504,8 +592,7 @@ async function setupGenesisPiratesNFT(admin, centralAuthorizationRegistry, users
         for (const id of pirateIds) {
             try {
                 await genesisPiratesNFT.connect(admin).mint(user.address, id);                
-            } catch (error) {
-                console.error(`Error minting Genesis Pirate #${id} to ${user.address}:`, error.message);
+            } catch (error) {                
                 throw error;
             }
         }
@@ -555,7 +642,9 @@ async function setupNFTsForStaking(admin, user, centralAuthorizationRegistry) {
   const shipNFT = await ShipNFTFactory.deploy(admin.address, admin.address, admin.address); 
   await shipNFT.waitForDeployment();
   
-  // Grant MINTER_ROLE to admin if needed (Constructor already grants it)
+  // Explicitly grant MINTER_ROLE to admin, even if constructor does it, for safety.
+  const MINTER_ROLE = await shipNFT.MINTER_ROLE();
+  await shipNFT.grantRole(MINTER_ROLE, admin.address);
 
   // Register ShipNFT in CAR (assuming it needs to be registered)
   const shipNFTAddress = await shipNFT.getAddress();
@@ -570,13 +659,20 @@ async function setupNFTsForStaking(admin, user, centralAuthorizationRegistry) {
   
   const { inhabitantsNFT, inhabitantsAddress } = 
     await setupInhabitantsNFT(admin, centralAuthorizationRegistry, [user]);
+
+    const IslandNft = await ethers.getContractFactory("SimpleERC721");
+    const islandNft = await IslandNft.deploy("Island", "ISL", "https://island.com/", admin.address);
+    await islandNft.waitForDeployment();
+    const genesisIslandsAddress = await islandNft.getAddress();
   
   return {
     shipNFT,
     genesisPiratesNFT,
     genesisPiratesAddress,
     inhabitantsNFT,
-    inhabitantsAddress
+    inhabitantsAddress,
+    islandNft,
+    genesisIslandsAddress
   };
 }
 
@@ -590,38 +686,42 @@ async function setupNFTsForStaking(admin, user, centralAuthorizationRegistry) {
 async function setupStakingRequirements(admin, centralAuthorizationRegistry, nfts) {
   const { genesisPiratesAddress, inhabitantsAddress, shipNFT } = nfts;
   
-  // Deploy PirateSkills
-  const pirateSkills = await deployAndAuthorizeContract("PirateSkills", centralAuthorizationRegistry);
-  
-  // Deploy PirateSkillsReader
-  const pirateSkillsReader = await deployAndAuthorizeContract(
-    "PirateSkillsReader", 
-    centralAuthorizationRegistry
+  const pirateSkills = await deployAndRegisterContract(
+    "PirateSkills", 
+    centralAuthorizationRegistry, 
+    "IPirateSkills" // No other args, CAR is prepended by helper
   );
   
-  // Deploy ShipMetadata
-  const shipMetadata = await deployAndAuthorizeContract("ShipMetadata", centralAuthorizationRegistry);
+  const pirateSkillsReader = await deployAndRegisterContract(
+    "PirateSkillsReader", 
+    centralAuthorizationRegistry,
+    "IPirateSkillsReader" // No other args, CAR is prepended by helper
+  );
   
-  // Deploy ShipStorage
-  const shipStorage = await deployAndAuthorizeContract(
+  const shipMetadata = await deployAndRegisterContract("ShipMetadata", centralAuthorizationRegistry, "IShipMetadata");
+  
+  
+  const shipStorage = await deployAndRegisterContract(
     "ShipStorage",
     centralAuthorizationRegistry,
+    "IShipStorage",
     await shipNFT.getAddress(),
-    true // isNft721
+    true 
   );
   
-  // Deploy CrewTypeManager
-  const crewTypeManager = await deployAndAuthorizeContract(
+  const crewTypeManager = await deployAndRegisterContract(
     "CrewTypeManager", 
     centralAuthorizationRegistry,
+    "ICrewTypeManager",
     genesisPiratesAddress,
     inhabitantsAddress
   );
   
   // Deploy CrewManagement
-  const crewManagement = await deployAndAuthorizeContract(
+  const crewManagement = await deployAndRegisterContract(
     "CrewManagement", 
-    centralAuthorizationRegistry
+    centralAuthorizationRegistry,
+    "ICrewManagement"
   );
   
   // Deploy MockMissionsStorage
@@ -647,21 +747,25 @@ async function setupStakingRequirements(admin, centralAuthorizationRegistry, nft
  * @param {Object} config - Test configuration
  */
 async function prepareAssetsForStaking(user, admin, contracts, nfts, config) {
-  const { shipMetadata, shipStorage, shipAndPirateStaking } = contracts;
-  const { shipNFT, genesisPiratesNFT, inhabitantsNFT } = nfts;
-  const { ships, shipAttributes } = config;
+  const { shipMetadata, shipStorage, shipAndPirateStaking, pirateSkills, crewManagement } = contracts;
+  const { shipNFT, genesisPiratesNFT, inhabitantsNFT, genesisPiratesAddress, inhabitantsAddress } = nfts;
+  const { ships, pirates, shipAttributes, crew } = config;
   
   // Mint ships
   const shipIds = Object.values(ships).map(ship => ship.id);
   for (const shipId of shipIds) {
-    await shipNFT.safeMint(user.address, shipId); 
+    await shipNFT.connect(admin).safeMint(user.address, shipId);
     await shipNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), shipId);
   }
   
   // Approve pirate NFTs
-  await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), 1);
-  await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), 2);
-  await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), 3);
+  await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), pirates.CAPTAIN.id);
+  if (pirates.CREW_1 && pirates.CREW_1.collection === 'inhabitants') {
+      await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), pirates.CREW_1.id);
+  }
+  if (pirates.CREW_2 && pirates.CREW_2.collection === 'inhabitants') {
+      await inhabitantsNFT.connect(user).approve(await shipAndPirateStaking.getAddress(), pirates.CREW_2.id);
+  }
   await genesisPiratesNFT.connect(user).setApprovalForAll(await shipAndPirateStaking.getAddress(), true);
   
   // Set ship metadata
@@ -669,6 +773,37 @@ async function prepareAssetsForStaking(user, admin, contracts, nfts, config) {
   
   // Initialize ship storage
   await initializeShipStorage(shipStorage, shipIds);
+
+  // --- NEW: Setup Pirate Skills and Crew --- 
+  const genesisPirateIdsForSetup = [];
+  const inhabitantPirateIdsForSetup = [];
+
+  if (pirates.CAPTAIN) {
+    if (pirates.CAPTAIN.collection === 'genesis') genesisPirateIdsForSetup.push(pirates.CAPTAIN.id);
+    else if (pirates.CAPTAIN.collection === 'inhabitants') inhabitantPirateIdsForSetup.push(pirates.CAPTAIN.id);
+  }
+  if (pirates.CREW_1) {
+    if (pirates.CREW_1.collection === 'genesis') genesisPirateIdsForSetup.push(pirates.CREW_1.id);
+    else if (pirates.CREW_1.collection === 'inhabitants') inhabitantPirateIdsForSetup.push(pirates.CREW_1.id);
+  }
+  if (pirates.CREW_2) {
+    if (pirates.CREW_2.collection === 'genesis') genesisPirateIdsForSetup.push(pirates.CREW_2.id);
+    else if (pirates.CREW_2.collection === 'inhabitants') inhabitantPirateIdsForSetup.push(pirates.CREW_2.id);
+  }
+  
+  // Ensure contracts are defined before calling
+  if (pirateSkills && (genesisPirateIdsForSetup.length > 0 || inhabitantPirateIdsForSetup.length > 0)) {
+    await setupPirateSkills(pirateSkills, admin, genesisPiratesAddress, inhabitantsAddress, { genesis: genesisPirateIdsForSetup, inhabitants: inhabitantPirateIdsForSetup });
+  }
+
+  if (crewManagement && (genesisPirateIdsForSetup.length > 0 || inhabitantPirateIdsForSetup.length > 0)) {
+    await setupCrewForPirates(crewManagement, admin, genesisPiratesAddress, inhabitantsAddress, user, 
+      { genesis: genesisPirateIdsForSetup, inhabitants: inhabitantPirateIdsForSetup }, 
+      crew.crewType, 
+      { captain: crew.captainCrewCount, crew: crew.regularCrewCount }
+    );
+  }
+  // --- End NEW --- 
 }
 
 /**
@@ -699,12 +834,366 @@ function createNonNFTCrewSkills(options = {}) {
   };
 }
 
+/**
+ * Deploys and registers a suite of core game contracts.
+ * @param {Object} admin - Admin signer.
+ * @param {Object} user - Primary user signer.
+ * @param {Object} centralAuthorizationRegistry - CAR contract instance.
+ * @param {Object} nfts - Object containing NFT instances (shipNFT, genesisPiratesAddress, inhabitantsAddress, genesisIslandsAddress).
+ * @param {Object} options - Optional parameters.
+ * @param {boolean} options.deployRealMissionsStorage - If true, deploys real MissionsStorage; otherwise, MockMissionsStorage. Defaults to false (mock).
+ * @param {Object} options.tokenSetupResult - Optional. If provided, uses existing arrcToken, rumToken, feeManagement. Otherwise, deploys them.
+ * @returns {Object} An object containing all deployed core contract instances.
+ */
+async function setupCoreGameContracts(admin, user, centralAuthorizationRegistry, nfts, options = {}) {
+    const {
+        shipNFT, // This is the contract instance
+        genesisPiratesAddress, // Address string
+        inhabitantsAddress,  // Address string
+        genesisIslandsAddress // Address string for IslandNFT
+    } = nfts;
+
+    const carAddress = await centralAuthorizationRegistry.getAddress();
+    const shipNFTAddress = await shipNFT.getAddress();
+
+
+    // Optional: Use existing token infrastructure or set it up
+    let arrcToken, rumToken, feeManagement;
+    if (options.tokenSetupResult) {
+        ({ arrcToken, rumToken, feeManagement } = options.tokenSetupResult);
+    } else {
+        const tokenInfra = await setupTokenInfrastructure(centralAuthorizationRegistry, admin, [user]);
+        arrcToken = tokenInfra.arrcToken;
+        rumToken = tokenInfra.rumToken;
+        feeManagement = tokenInfra.feeManagement;
+    }
+
+    // Storage Suite
+    // Assuming genesisIslandsAddress is the address of the ERC721 Island NFT contract
+    const islandStorage = await deployAndRegisterContract("IslandStorage", centralAuthorizationRegistry, "IIslandStorage", genesisIslandsAddress, true);
+    const pirateStorage = await deployAndRegisterContract("PirateStorage", centralAuthorizationRegistry, "IPirateStorage", genesisPiratesAddress, false, genesisIslandsAddress);
+    const inhabitantStorage = await deployAndRegisterContract("InhabitantStorage", centralAuthorizationRegistry, "IInhabitantStorage", inhabitantsAddress, true, genesisIslandsAddress);
+    const shipStorage = await deployAndRegisterContract("ShipStorage", centralAuthorizationRegistry, "IShipStorage", shipNFTAddress, true);
+
+    await islandStorage.initializeIslands(1, { gasLimit: 30000000 });        
+    await islandStorage.initializeIslands(13, { gasLimit: 30000000 });
+    
+    const storageManagement = await deployAndRegisterContract(
+        "StorageManagement", centralAuthorizationRegistry, "IStorageManagement",
+        genesisPiratesAddress,
+        genesisIslandsAddress, 
+        inhabitantsAddress,
+        await pirateStorage.getAddress(),
+        await islandStorage.getAddress(),
+        await inhabitantStorage.getAddress()
+    );
+    // Link storages to StorageManagement
+    await storageManagement.connect(admin).addStorageContract(shipNFTAddress, await shipStorage.getAddress());
+    await storageManagement.connect(admin).addStorageContract(genesisPiratesAddress, await pirateStorage.getAddress());
+    await storageManagement.connect(admin).addStorageContract(inhabitantsAddress, await inhabitantStorage.getAddress());
+    await storageManagement.connect(admin).addStorageContract(genesisIslandsAddress, await islandStorage.getAddress());
+
+
+    // Resource Management
+    const resourceTypeManager = await deployAndRegisterContract("ResourceTypeManager", centralAuthorizationRegistry, "IResourceTypeManager");
+    const resourceManagement = await deployAndRegisterContract("ResourceManagement", centralAuthorizationRegistry, "IResourceManagement");
+    // MockBuildingStorage constructor takes CAR address and IslandStorage address
+    const buildingStorage = await deployAndRegisterContract("MockBuildingStorage", centralAuthorizationRegistry, "IBuildingStorage", await islandStorage.getAddress());
+    const resourceSpendManagement = await deployAndRegisterContract("ResourceSpendManagement", centralAuthorizationRegistry, "IResourceSpendManagement");
+
+    // Crew Management
+    const crewTypeManager = await deployAndRegisterContract("CrewTypeManager", centralAuthorizationRegistry, "ICrewTypeManager", genesisPiratesAddress, inhabitantsAddress);
+    const crewManagement = await deployAndRegisterContract("CrewManagement", centralAuthorizationRegistry, "ICrewManagement");
+
+    // Skills
+    const pirateSkills = await deployAndRegisterContract("PirateSkills", centralAuthorizationRegistry, "IPirateSkills");
+    const pirateSkillsReader = await deployAndRegisterContract("PirateSkillsReader", centralAuthorizationRegistry, "IPirateSkillsReader");
+
+    // Ship & Staking
+    const shipMetadata = await deployAndRegisterContract("ShipMetadata", centralAuthorizationRegistry, "IShipMetadata");
+    const dockingManagement = await deployAndRegisterContract("DockingManagement", centralAuthorizationRegistry, "IDockingManagement");
+    const shipAndPirateStaking = await deployAndRegisterContract("ShipAndPirateStaking", centralAuthorizationRegistry, "IShipAndPirateStaking", shipNFTAddress, genesisPiratesAddress, inhabitantsAddress);
+
+    // Mission Infrastructure
+    const cooldownManager = await deployAndRegisterContract("CooldownManager", centralAuthorizationRegistry, "ICooldownManager");
+    const travelTimeCalculator = await deployAndRegisterContract("TravelTimeCalculator", centralAuthorizationRegistry, "ITravelTimeCalculator");
+    const missionTravelCalculator = await deployAndRegisterContract("MissionTravelCalculator", centralAuthorizationRegistry, "IMissionTravelCalculator");
+    const missionValidator = await deployAndRegisterContract("MissionValidator", centralAuthorizationRegistry, "IMissionValidator");
+    
+    let missionsStorageInstance;
+    if (options.deployRealMissionsStorage) {
+        missionsStorageInstance = await deployAndRegisterContract("MissionsStorage", centralAuthorizationRegistry, "IMissionsStorage");
+    } else {
+        // deployAndRegisterMock expects (contractName, registryKey, car, ...args)
+        // MockMissionsStorage constructor only takes CAR address.
+        missionsStorageInstance = await deployAndRegisterMock("MockMissionsStorage", "IMissionsStorage", centralAuthorizationRegistry);
+    }
+    
+    const mockIslandManager = await deployAndRegisterMock("MockIslandManager", "IIslandManager", centralAuthorizationRegistry);
+    const missionRequirements = await deployAndRegisterMock("MockMissionRequirements", "MISSION_REQUIREMENTS", centralAuthorizationRegistry);
+
+    // Deploy IslandRegionManagement
+    const islandRegionManagement = await deployAndRegisterContract("IslandRegionManagement", centralAuthorizationRegistry, "IIslandRegionManagement");
+
+    await islandRegionManagement.connect(admin).setIslandRegion(1, 0); 
+    await islandRegionManagement.connect(admin).setIslandRegion(2, 6);
+    // Initializing some common states
+    await islandStorage.connect(admin).setIslandSize(1, 1); 
+    await islandStorage.connect(admin).setIslandSize(2, 2); 
+    await islandStorage.connect(admin).setIslandSize(3, 0); 
+
+    return {
+        arrcToken, rumToken, feeManagement,
+        islandStorage, pirateStorage, inhabitantStorage, shipStorage, storageManagement,
+        resourceTypeManager, resourceManagement, buildingStorage, resourceSpendManagement,
+        crewTypeManager, crewManagement,
+        pirateSkills, pirateSkillsReader,
+        shipMetadata, dockingManagement, shipAndPirateStaking,
+        cooldownManager, travelTimeCalculator, missionTravelCalculator, missionValidator,
+        missionsStorage: missionsStorageInstance,
+        mockIslandManager,
+        missionRequirements,
+        islandRegionManagement
+    };
+}
+
+/**
+ * Prepares a ship and user for a journey (rebase or mission) by ensuring necessary tokens and food resources.
+ * @param {ethers.Signer} user - The user undertaking the journey.
+ * @param {ethers.Signer} admin - The admin signer (for minting/adding resources).
+ * @param {Object} contracts - Object containing contract instances.
+ * @param {ethers.Contract} contracts.arrcToken - ARRC token contract.
+ * @param {ethers.Contract} contracts.rumToken - RUM token contract.
+ * @param {ethers.Contract} contracts.feeManagement - FeeManagement contract.
+ * @param {ethers.Contract} contracts.shipStorage - ShipStorage contract.
+ * @param {ethers.Contract} contracts.resourceSpendManagement - ResourceSpendManagement contract.
+ * @param {Object} journeyDetails - Details for the journey.
+ * @param {number|string} journeyDetails.shipId - ID of the ship.
+ * @param {number|string|BigInt} journeyDetails.nftCrewCount - Number of crew members represented by the NFT.
+ * @param {number|string|BigInt} journeyDetails.totalFoodCrewCount - Total crew members.
+ * @param {number|string|BigInt} journeyDetails.travelDays - Travel days for the journey.
+ * @param {string} journeyDetails.foodPrimaryType - String identifier for primary food (e.g., "citrus").
+ * @param {string} journeyDetails.foodRationType - String identifier for ration food (e.g., "fish").
+ * @param {BigInt} [journeyDetails.arrcFee] - Optional. Specific ARRC fee for the action.
+ * @param {BigInt} [journeyDetails.rumAmountToBurn] - Optional. Specific RUM amount to burn (in wei).
+ * @param {Object.<string, BigInt>} [journeyDetails.overrideLoadAmounts] - Optional. Map of resource name to specific amount to load, overriding calculation.
+ * @returns {Promise<Object>} An object containing the amounts of resources prepared.
+ */
+async function prepareShipForJourney(user, admin, contracts, journeyDetails) {
+    // Destructure contracts first
+    const { arrcToken, rumToken, feeManagement, shipStorage, resourceSpendManagement } = contracts;
+
+    // Parameter Validation: Check for essential journeyDetails
+    if (journeyDetails === undefined || journeyDetails === null) {
+        throw new Error("[prepareShipForJourney] Error: journeyDetails object is missing.");
+    }
+
+    const requiredGeneralParams = [
+        "shipId", 
+        "travelDays", 
+        "foodPrimaryType" 
+        // foodRationType is optional, handled by its presence
+    ];
+
+    for (const param of requiredGeneralParams) {
+        if (journeyDetails[param] === undefined || journeyDetails[param] === null) {
+            // Allow zero for travelDays if it's a valid scenario for preloading without travel.
+            if (param === "travelDays" && Number(journeyDetails[param]) === 0) {
+                // Continue if 0 is valid for travelDays in some contexts
+            } else {
+                 throw new Error(`[prepareShipForJourney] Error: Missing required general parameter '${param}' in journeyDetails.`);
+            }
+        }
+    }
+
+    // Conditional checks for crew counts based on other parameters
+    if (journeyDetails.rumAmountToBurn === undefined && journeyDetails.nftCrewCount === undefined) {
+        throw new Error("[prepareShipForJourney] Error: Missing 'nftCrewCount' in journeyDetails (required for RUM calculation when rumAmountToBurn is not provided).");
+    }
+    
+    if ((journeyDetails.foodPrimaryType || journeyDetails.foodRationType) && journeyDetails.totalFoodCrewCount === undefined) {
+         throw new Error("[prepareShipForJourney] Error: Missing 'totalFoodCrewCount' in journeyDetails (required for food calculation when food types are specified).");
+    }
+
+    // Type validation for numeric inputs that are expected to be numbers from the test
+    if (typeof journeyDetails.travelDays !== 'number' || isNaN(journeyDetails.travelDays)) {
+        throw new Error(`[prepareShipForJourney] Error: 'travelDays' must be a valid number. Received: ${journeyDetails.travelDays}`);
+    }
+    if (journeyDetails.nftCrewCount !== undefined && (typeof journeyDetails.nftCrewCount !== 'number' || isNaN(journeyDetails.nftCrewCount))) {
+        throw new Error(`[prepareShipForJourney] Error: 'nftCrewCount' must be a valid number if provided. Received: ${journeyDetails.nftCrewCount}`);
+    }
+    if (journeyDetails.totalFoodCrewCount !== undefined && (typeof journeyDetails.totalFoodCrewCount !== 'number' || isNaN(journeyDetails.totalFoodCrewCount))) {
+        throw new Error(`[prepareShipForJourney] Error: 'totalFoodCrewCount' must be a valid number if provided. Received: ${journeyDetails.totalFoodCrewCount}`);
+    }
+    
+    // Now destructure with more confidence
+    let { 
+        shipId, 
+        nftCrewCount,
+        totalFoodCrewCount,
+        travelDays, 
+        foodPrimaryType, foodRationType, 
+        arrcFee, 
+        rumAmountToBurn, // This can be undefined, handled below
+        overrideLoadAmounts 
+    } = journeyDetails;
+
+    const ONE_ETHER = ethers.parseEther("1");
+    
+    // Calculate RUM to Burn
+    let expectedRumToBurnWei;
+    if (rumAmountToBurn !== undefined) {
+        expectedRumToBurnWei = BigInt(rumAmountToBurn);
+    } else {
+        expectedRumToBurnWei = BigInt(travelDays) * BigInt(nftCrewCount) * ONE_ETHER;
+    }
+
+    const feeManagementAddress = await feeManagement.getAddress();
+    
+
+    // 1. ARRC Handling
+    if (arrcFee && arrcFee > 0n) {
+        const userArrcBalance = await arrcToken.balanceOf(user.address);
+        if (userArrcBalance < arrcFee) {
+            await arrcToken.connect(admin).mint(user.address, arrcFee - userArrcBalance);
+        }
+        await arrcToken.connect(user).approve(feeManagementAddress, arrcFee);
+    } else {
+        // General approval if no specific fee, or fee is 0
+        await arrcToken.connect(user).approve(feeManagementAddress, ethers.MaxUint256);
+    }
+
+    // 2. RUM Handling
+    const userRumBalance = await rumToken.balanceOf(user.address);
+    if (userRumBalance < expectedRumToBurnWei) {
+        await rumToken.connect(admin).mint(user.address, expectedRumToBurnWei - userRumBalance);
+    }
+    await rumToken.connect(user).approve(feeManagementAddress, expectedRumToBurnWei); 
+
+    // 4. Calculate Food to Burn
+    // Uses totalFoodCrewCount for Food calculation
+    let expectedPrimaryFoodToBurnWei = 0n;
+    let expectedRationFoodToBurnWei = 0n;
+
+    if (foodPrimaryType) {
+        try {
+            const { rateWei: primaryRate, method: primaryMethod } = 
+                await resourceSpendManagement.getOptionalActionResourceRate("consumePrimaryFood", foodPrimaryType);
+            
+            if (Number(primaryMethod) === CalculationMethod.PerDay) {
+                expectedPrimaryFoodToBurnWei = BigInt(primaryRate) * BigInt(totalFoodCrewCount) * BigInt(travelDays);
+            }
+        } catch (error) {
+            console.error(`Error calculating primary food burn: ${error.message}`);
+        }
+    }
+
+    if (foodRationType) {
+        try {
+            const { rateWei: rationRate, method: rationMethod } = 
+                await resourceSpendManagement.getOptionalActionResourceRate("consumeRationFood", foodRationType);
+
+            if (Number(rationMethod) === CalculationMethod.PerDay) {
+                expectedRationFoodToBurnWei = BigInt(rationRate) * BigInt(totalFoodCrewCount) * BigInt(travelDays);
+            }
+        } catch (error) {
+            console.error(`Error calculating ration food burn: ${error.message}`);
+        }
+    }
+
+    // 5. Preload Food in Ship Storage
+    let primaryLoadAmount;
+    if (overrideLoadAmounts && overrideLoadAmounts[foodPrimaryType] !== undefined) {
+        // If override is provided, assume it's ALREADY IN WEI
+        primaryLoadAmount = BigInt(overrideLoadAmounts[foodPrimaryType]); // Use directly
+    } else {
+        primaryLoadAmount = expectedPrimaryFoodToBurnWei; // Already in wei
+    }
+    
+    let rationLoadAmount;
+    if (overrideLoadAmounts && overrideLoadAmounts[foodRationType] !== undefined) {
+        // If override is provided, assume it's ALREADY IN WEI
+        rationLoadAmount = BigInt(overrideLoadAmounts[foodRationType]); // Use directly
+    } else {
+        rationLoadAmount = expectedRationFoodToBurnWei; // Already in wei
+    }
+
+    // Add logging before adding resources
+    // CONSOLE LOGS TO REMOVE
+    // console.log(`[prepareShipForJourney DEBUG] About to load ${foodPrimaryType}: ${primaryLoadAmount.toString()} wei`);
+    // const capacityBeforePrimary = await shipStorage.getAvailableCapacity(shipId);
+    // console.log(`[prepareShipForJourney DEBUG] Available capacity BEFORE loading ${foodPrimaryType}: ${capacityBeforePrimary.toString()}`);
+    // END CONSOLE LOGS TO REMOVE
+    
+    if (primaryLoadAmount > 0n) { // Only add if there's an amount
+        await shipStorage.connect(admin).addResource(shipId, user.address, foodPrimaryType, primaryLoadAmount);
+    }
+    // CONSOLE LOGS TO REMOVE
+    // const capacityAfterPrimary = await shipStorage.getAvailableCapacity(shipId);
+    // console.log(`[prepareShipForJourney DEBUG] Available capacity AFTER loading ${foodPrimaryType}: ${capacityAfterPrimary.toString()}`);
+    //
+    // console.log(`[prepareShipForJourney DEBUG] About to load ${foodRationType}: ${rationLoadAmount.toString()} wei`);
+    // const capacityBeforeRation = await shipStorage.getAvailableCapacity(shipId);
+    // console.log(`[prepareShipForJourney DEBUG] Available capacity BEFORE loading ${foodRationType}: ${capacityBeforeRation.toString()}`);
+    // END CONSOLE LOGS TO REMOVE
+
+    if (rationLoadAmount > 0n) { // Only add if there's an amount
+        await shipStorage.connect(admin).addResource(shipId, user.address, foodRationType, rationLoadAmount);
+    }
+    // CONSOLE LOGS TO REMOVE
+    // const capacityAfterRation = await shipStorage.getAvailableCapacity(shipId);
+    // console.log(`[prepareShipForJourney DEBUG] Available capacity AFTER loading ${foodRationType}: ${capacityAfterRation.toString()}`);
+    // END CONSOLE LOGS TO REMOVE
+
+    return {
+        expectedPrimaryFoodToBurnWei,
+        expectedRationFoodToBurnWei,
+        actuallyLoadedPrimary: primaryLoadAmount,
+        actuallyLoadedRation: rationLoadAmount,
+        expectedRumToBurnWei,
+        arrcFeeProvided: arrcFee // to confirm if a specific fee was handled
+    };
+}
+
+/**
+ * Ensures specified resources have no production requirements in ResourceSpendManagement
+ * and exist in ResourceTypeManager.
+ * @param {ethers.Signer} admin - The admin signer.
+ * @param {ethers.Contract} resourceSpendManagement - Instance of ResourceSpendManagement.
+ * @param {ethers.Contract} resourceTypeManager - Instance of ResourceTypeManager.
+ * @param {string[]} resourceNames - Array of resource names (e.g., ["citrus", "fish"]).
+ */
+async function setupEmptyResourceProduction(admin, resourceSpendManagement, resourceTypeManager, resourceNames) {
+    const emptyRequirements = []; // Reusable empty array
+
+    for (const resourceName of resourceNames) {
+        try {
+            // Attempt to add the resource type; ignore error if it already exists.
+            await resourceTypeManager.connect(admin).addResourceType(resourceName, true, true);
+        } catch (error) {
+            // console.warn(`[UTIL DEBUG] Could not add resource type ${resourceName} (may already exist): ${error.message}`);
+        }
+
+        // Set empty production requirements for the resource.
+        await resourceSpendManagement.connect(admin).setResourceRequirements(
+            resourceName,
+            emptyRequirements, // inputResources
+            emptyRequirements  // byproductResources
+        );
+    }
+}
+
 module.exports = {
+  deployBaseInfrastructure,
   deployAndAuthorizeContract,
+  deployAndRegisterContract,
   setupPirateWithSkills,
   verifyPirateSkills,
-  createNonNFTCrewSkills,
+  createCrewSkills,
   setupPirateSkillsViaPirateManagement,
+  registerContractInterfaces,
+  verifyContractState,
+  createTestConfig,
   setupPirateSkills,
   setupCrewForPirates,
   setMissionActive,
@@ -716,16 +1205,16 @@ module.exports = {
   initializeShipStorage,
   registerContractAddresses,
   deployMockMissionsStorage,
+  deployMockBuildingStorage,
   setupTokenInfrastructure,
   setupGenesisPiratesNFT,
   setupInhabitantsNFT,
-  // New utility functions
-  deployBaseInfrastructure,
-  registerContractInterfaces,
-  verifyContractState,
-  createTestConfig,
   setupNFTsForStaking,
   setupStakingRequirements,
   prepareAssetsForStaking,
-  deployMockBuildingStorage
+  createNonNFTCrewSkills,
+  deployAndRegisterMock,
+  setupCoreGameContracts,
+  prepareShipForJourney,
+  setupEmptyResourceProduction
 };

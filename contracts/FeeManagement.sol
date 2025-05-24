@@ -30,6 +30,8 @@ contract FeeManagement is IFeeManagement, AuthorizationModifiers {
     event ShipRebaseArrcFeeUpdated(uint256 newFee);
     */
 
+    event RumCheck(address indexed user, address indexed spender, uint256 allowance, uint256 amount);
+
     constructor(
         address _centralAuthorizationRegistry, 
         address _rumTokenAddress, 

@@ -50,11 +50,11 @@ contract ShipStorage is BaseStorage {
         address attackerOwner = address(0);
         
         // Try to get the owners through the ship staking contract
-        try this.getShipOwner(targetShipId) returns (address owner) {
+        try this.getOwner(targetShipId) returns (address owner) {
             targetOwner = owner;
         } catch {}
         
-        try this.getShipOwner(attackerShipId) returns (address owner) {
+        try this.getOwner(attackerShipId) returns (address owner) {
             attackerOwner = owner;
         } catch {}
         
@@ -71,14 +71,15 @@ contract ShipStorage is BaseStorage {
         );
     }
     
-    function getShipOwner(uint256 shipId) external view returns (address) {
+    function getOwner(uint256 shipId) external view returns (address) {
         address shipStakingAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IShipAndPirateStaking"));
         (bool success, bytes memory data) = shipStakingAddr.staticcall(
             abi.encodeWithSignature("getShipOwner(uint256)", shipId)
         );
         
         if (success && data.length >= 32) {
-            return abi.decode(data, (address));
+            address owner = abi.decode(data, (address));
+            return owner;
         }
         
         return address(0);

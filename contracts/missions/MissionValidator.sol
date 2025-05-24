@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
+import "../interfaces/IMissionValidator.sol";
 import "../AuthorizationModifiers.sol";
 import "../interfaces/IMissionsStorage.sol";
 import "../interfaces/storage/IShipStorage.sol";
@@ -10,16 +11,17 @@ import "../interfaces/IBuildingStorage.sol";
 import "../interfaces/IFeeManagement.sol";
 import "../interfaces/IResourceSpendManagement.sol";
 import "../interfaces/ICrewManagement.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 /**
  * @title MissionValidator
- * @notice Utility contract for validating mission requirements
- * @dev Extracted from BaseMission to follow Single Responsibility Principle
+ * @dev Validates all requirements for starting and completing missions.
  */
-contract MissionValidator is AuthorizationModifiers {
+contract MissionValidator is IMissionValidator, AuthorizationModifiers {
     constructor(
         address _centralAuthorizationRegistry
     ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IMissionValidator")) {}
+
 
     /**
      * @notice Validate that a ship meets base requirements for missions
@@ -75,8 +77,8 @@ contract MissionValidator is AuthorizationModifiers {
      * @return True if the ship has sufficient capacity
      */
     function validateShipCapacity(uint256 shipId, uint256 amount) external view returns (bool) {
-        address shipStorageAddress = getShipStorage();
-        return IShipStorage(shipStorageAddress).hasAvailableCapacity(shipId, amount);
+        IShipStorage shipStorageContract = getShipStorage(); 
+        return shipStorageContract.hasAvailableCapacity(shipId, amount);
     }
 
     /**
@@ -106,6 +108,56 @@ contract MissionValidator is AuthorizationModifiers {
     }
 
     /**
+     * @dev Internal helper to calculate total food amounts and required storage.
+     * This helps reduce stack depth in the main validation function.
+     */
+    function _calculateNeededStorageAndFoodAmounts(
+        uint256 travelDays,
+        uint256 intendedCargo,
+        string calldata foodChoice,
+        string calldata foodRationChoice,
+        uint256 totalCrew,
+        IResourceSpendManagement resourceSpend
+    ) internal view returns (uint256 neededStorageInBaseUnits) {
+        uint256 totalPrimaryFoodAmountWei = resourceSpend.calculateTotalFoodAmountForAction(
+            "consumePrimaryFood",
+            foodChoice,
+            totalCrew,
+            travelDays
+        );
+
+        uint256 totalRationFoodAmountWei = resourceSpend.calculateTotalFoodAmountForAction(
+            "consumeRationFood",
+            foodRationChoice,
+            totalCrew,
+            travelDays
+        );
+
+        uint256 primaryFoodCargoUnits;
+        // This conversion assumes that "citrus" and "crate-packed citrus" values from
+        // calculateTotalFoodAmountForAction are in wei (1e18 scale) and need conversion to base units for storage.
+        // Other food types are assumed to be returned in base units already by calculateTotalFoodAmountForAction.
+        // This logic should ideally be driven by metadata from ResourceTypeManager or ResourceSpendManagement
+        // indicating the unit type of amounts returned by calculateTotalFoodAmountForAction.
+        if (
+            keccak256(bytes(foodChoice)) == keccak256(bytes("citrus")) ||
+            keccak256(bytes(foodChoice)) == keccak256(bytes("crate-packed citrus"))
+        ) {
+            primaryFoodCargoUnits = totalPrimaryFoodAmountWei / (10**18);
+        } else {
+            // Assuming other primary food types are already in base units for cargo calculation
+            primaryFoodCargoUnits = totalPrimaryFoodAmountWei; 
+        }
+
+        // Assuming all ration food amounts from calculateTotalFoodAmountForAction are in wei
+        // and need conversion to base units for storage.
+        uint256 rationFoodCargoUnits = totalRationFoodAmountWei / (10**18);
+
+        neededStorageInBaseUnits = primaryFoodCargoUnits + rationFoodCargoUnits + intendedCargo;
+        return neededStorageInBaseUnits;
+    }
+
+    /**
      * @notice Validate and burn resources for mission start (RUM and food)
      * @param shipId The ID of the ship
      * @param travelDays Number of days for the mission
@@ -118,43 +170,42 @@ contract MissionValidator is AuthorizationModifiers {
         uint256 shipId,
         uint256 travelDays,
         uint256 intendedCargo,
-        string memory foodChoice,
-        string memory foodRationChoice,
+        string calldata foodChoice,
+        string calldata foodRationChoice,
         address user
-    ) external onlyAuthorized {
+    ) external override onlyAuthorized {
         uint256 nftCrew = getNFTCrewCount(shipId);
         uint256 totalCrew = getTotalCrewCount(shipId);
-        uint256 totalRUM = calculateTotalRUM(travelDays, nftCrew);
-        uint256 totalCitrus = 0;
-        uint256 totalCratePackedCitrus = 0;
-        if (keccak256(bytes(foodChoice)) == keccak256(bytes("citrus"))) {
-            totalCitrus = calculateCitrus(travelDays, totalCrew);
-        } else if (keccak256(bytes(foodChoice)) == keccak256(bytes("crate-packed citrus"))) {
-            totalCratePackedCitrus = calculateCratePackedCitrus(travelDays, totalCrew);
-        } else {
-            revert("Invalid food choice");
-        }
+        
         IResourceSpendManagement resourceSpend = IResourceSpendManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceSpendManagement")));
-        uint256 totalFoodRation = calculateFoodRation(travelDays, totalCrew);
-        IShipStorage shipStorage = IShipStorage(getShipStorage());
-        uint256 storageCapacity = shipStorage.getStorageCapacity(shipId);
-        uint256 totalRequiredStorage = calculateTotalRequiredStorage(totalCitrus, totalCratePackedCitrus, totalFoodRation, totalRUM, intendedCargo);
-        require(totalRequiredStorage <= storageCapacity, "Not enough ship storage for food, RUM, and cargo");
+
+        uint256 totalResourcesNeededForShipStorage = _calculateNeededStorageAndFoodAmounts(
+            travelDays,
+            intendedCargo,
+            foodChoice,
+            foodRationChoice,
+            totalCrew,
+            resourceSpend
+        );
+        
+        IShipStorage shipStorage = getShipStorage();
+        uint256 availableCapacity = shipStorage.getAvailableCapacity(shipId);
+        
+
+        require(totalResourcesNeededForShipStorage <= availableCapacity, "Not enough ship storage for food and cargo");
+        
         IFeeManagement feeManagement = IFeeManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IFeeManagement")));
         feeManagement.useRum(user, travelDays * nftCrew);
-        if (totalCitrus > 0) {
-            string[] memory citrusArr = new string[](1);
-            citrusArr[0] = "citrus";
-            resourceSpend.handleResourceBurning(getShipStorage(), shipId, user, "citrus", travelDays, totalCitrus, citrusArr);
-        }
-        if (totalCratePackedCitrus > 0) {
-            string[] memory crateArr = new string[](1);
-            crateArr[0] = "crate-packed citrus";
-            resourceSpend.handleResourceBurning(getShipStorage(), shipId, user, "crate-packed citrus", travelDays, totalCratePackedCitrus, crateArr);
-        }
-        string[] memory rationArr = new string[](1);
-        rationArr[0] = foodRationChoice;
-        resourceSpend.handleResourceBurning(getShipStorage(), shipId, user, foodRationChoice, travelDays, totalFoodRation, rationArr);
+
+        resourceSpend.burnMissionStartFoods(
+            address(shipStorage),
+            shipId,
+            user,
+            travelDays,
+            totalCrew,
+            foodChoice,
+            foodRationChoice
+        );
     }
 
     /**
@@ -197,30 +248,13 @@ contract MissionValidator is AuthorizationModifiers {
         }
     }
 
-    function calculateTotalRUM(uint256 travelDays, uint256 nftCrewCount) public pure returns (uint256) {
-        return travelDays * nftCrewCount * 1e18;
-    }
-
-    function calculateCitrus(uint256 travelDays, uint256 totalCrew) public pure returns (uint256) {
-        return travelDays * totalCrew * 5e17;
-    }
-
-    function calculateCratePackedCitrus(uint256 travelDays, uint256 totalCrew) public pure returns (uint256) {
-        return travelDays * totalCrew * 2e16;
-    }
-
-    function calculateFoodRation(uint256 travelDays, uint256 totalCrew) public pure returns (uint256) {
-        return travelDays * totalCrew;
-    }
-
     function calculateTotalRequiredStorage(
-        uint256 citrus,
-        uint256 cratePackedCitrus,
-        uint256 foodRation,
+        uint256 primaryFood,
+        uint256 rationFood,
         uint256 rum,
         uint256 intendedCargo
     ) public pure returns (uint256) {
-        return citrus + cratePackedCitrus + foodRation + rum + intendedCargo;
+        return primaryFood + rationFood + intendedCargo;
     }
 
     // Internal access to system contracts
@@ -236,8 +270,10 @@ contract MissionValidator is AuthorizationModifiers {
         );
     }
 
-    function getShipStorage() internal view returns (address) {
-        return centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage"));
+    function getShipStorage() internal view returns (IShipStorage) {
+        return IShipStorage(
+            centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage"))
+        );
     }
 
     function getMissionRequirements() internal view returns (IMissionRequirements) {
@@ -248,5 +284,17 @@ contract MissionValidator is AuthorizationModifiers {
 
     function getIslandManager() internal view returns (address) {
         return centralAuthorizationRegistry.getContractAddress(keccak256("IIslandManager"));
+    }
+
+    function getShipHomeIsland(uint256 shipId) external view override returns (uint256) {
+        // TODO: Implement properly by querying IShipAndPirateStaking
+        revert("getShipHomeIsland not implemented");
+        // return 0; // Placeholder
+    }
+
+    function getShipLevel(uint256 shipId) external view override returns (uint256) {
+        // TODO: Implement properly by querying IShipMetadata or similar
+        revert("getShipLevel not implemented");
+        // return 0; // Placeholder
     }
 } 

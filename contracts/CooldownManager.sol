@@ -36,12 +36,7 @@ contract CooldownManager is ICooldownManager, AuthorizationModifiers {
     function setCooldown(bytes32 entityKey, uint256 duration, string calldata context) external override onlyAuthorized {
         uint256 endTime = block.timestamp + duration;
         cooldownEndTime[entityKey] = endTime;
-        emit CooldownSet(entityKey, endTime, context);
-        console.log("[CooldownManager] Cooldown set for key:");
-        console.logBytes32(entityKey);
-        console.log("  End Time:", endTime);
-        console.log("  Duration:", duration);
-        console.log("  Context:", context);
+        emit CooldownSet(entityKey, endTime, context);        
     }
 
     /**

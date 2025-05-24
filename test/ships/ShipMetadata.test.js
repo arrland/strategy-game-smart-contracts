@@ -37,7 +37,7 @@ describe("ShipMetadata", function () {
             ramming: 30,
             crewMin: 5,
             crewMax: 20,
-            cargoBay: 1000,
+            cargoBay: 1000n * 10n **18n,
             oars: false,
             shallowWaters: true,
             deepWaters: true,

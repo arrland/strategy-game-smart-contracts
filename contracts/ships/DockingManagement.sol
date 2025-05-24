@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "../AuthorizationModifiers.sol";
+import "../AuthorizationModifiers.sol"; // Uncommented
 import "../interfaces/IDockingManagement.sol";
 import "../interfaces/IBuildingStorage.sol";
-import "hardhat/console.sol";
+import "../interfaces/ICentralAuthorizationRegistry.sol"; // Import interface for CAR
 
-contract DockingManagement is IDockingManagement, AuthorizationModifiers {
+contract DockingManagement is IDockingManagement, AuthorizationModifiers { // Added AuthorizationModifiers
     // Ship class slot requirements
     mapping(string => uint256) private slotRequirementForClass;
 
@@ -17,13 +17,11 @@ contract DockingManagement is IDockingManagement, AuthorizationModifiers {
     // islandId => shipId => index in dockedShips[islandId]
     mapping(uint256 => mapping(uint256 => uint256)) private dockedShipIndex;
 
-    // NEW STATE VARIABLE to track total used slots per island
     mapping(uint256 => uint256) private _usedSlotsCount;
 
-    IBuildingStorage public buildingStorage;
-
+    
     constructor(address _centralAuthorizationRegistry) 
-        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IDockingManagement")) 
+        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IDockingManagement")) // Call AuthorizationModifiers constructor
     {
         // Set default slot requirements
         slotRequirementForClass["Sailboat"] = 0;
@@ -32,26 +30,24 @@ contract DockingManagement is IDockingManagement, AuthorizationModifiers {
         slotRequirementForClass["Large"] = 3;
     }
 
-    function getBuildingStorage() external view returns (IBuildingStorage) {
-        return IBuildingStorage(centralAuthorizationRegistry.getContractAddress(keccak256("IBuildingStorage")));
+    function getBuildingStorage() internal view returns (IBuildingStorage) {
+        ICentralAuthorizationRegistry car = ICentralAuthorizationRegistry(centralAuthorizationRegistry); // Use inherited CAR
+        address buildingStorageAddr = car.getContractAddress(keccak256(abi.encodePacked("IBuildingStorage")));
+        return IBuildingStorage(buildingStorageAddr);
     }
+    
+    // Keep other functions as is for now, but remove onlyAuthorized if it blocks basic deployment/interaction
+    // For now, just testing if the constructor deploys.
 
     function getSlotRequirementForShipClass(string calldata shipClass) external view override returns (uint256) {
         uint256 req = slotRequirementForClass[shipClass];
-        // console.log("[DEBUG][DockingManagement] getSlotRequirementForShipClass req:", req);
-        // console.logBytes32(keccak256(bytes(shipClass)));
         return req;
     }
 
     function getAvailableSlots(uint256 islandId) public view override returns (uint256) {
-        // console.log("[DEBUG][DockingManagement] getAvailableSlots islandId:", islandId);
-        address buildingStorageAddr = centralAuthorizationRegistry.getContractAddress(keccak256("IBuildingStorage"));
-        // console.log("[DEBUG][DockingManagement] buildingStorageAddr:", buildingStorageAddr);
-        uint256 totalSlots = IBuildingStorage(buildingStorageAddr).getDockingSlots(islandId);
-        // console.log("[DEBUG][DockingManagement] slots from getDockingSlots:", totalSlots);
-        // Use the new _usedSlotsCount mapping
+        IBuildingStorage buildingStorageContract = getBuildingStorage();
+        uint256 totalSlots = buildingStorageContract.getDockingSlots(islandId);
         uint256 usedSlots = _usedSlotsCount[islandId]; 
-        // console.log("[DEBUG][DockingManagement] usedSlots:", usedSlots);
         return totalSlots > usedSlots ? totalSlots - usedSlots : 0;
     }
 
@@ -66,41 +62,25 @@ contract DockingManagement is IDockingManagement, AuthorizationModifiers {
     function canDock(uint256 islandId, uint256 slotsRequired) external view override returns (bool) {
         uint256 available = getAvailableSlots(islandId);
         bool result = available >= slotsRequired;
-        // console.log("[DEBUG][DockingManagement] canDock islandId:", islandId);
-        // console.log("[DEBUG][DockingManagement] canDock slotsRequired:", slotsRequired);
-        // console.log("[DEBUG][DockingManagement] canDock available:", available);
-        // console.log("[DEBUG][DockingManagement] canDock result:", result);
         return result;
     }
 
-    function dockShip(uint256 shipId, uint256 islandId, address owner, string calldata shipClass) external override onlyAuthorized {
+    function dockShip(uint256 shipId, uint256 islandId, address owner, string calldata shipClass) external override onlyAuthorized /* Uncommented */ {
         require(shipDockedIsland[shipId] == 0, "Already docked");
         uint256 slotsRequired = slotRequirementForClass[shipClass];
-        // console.log("[DEBUG][dockShip] Ship:%s Class:'%s' requires %s slots", shipId, shipClass, slotsRequired);
         uint256 available = getAvailableSlots(islandId);
-        // console.log("[DEBUG][dockShip] Island:%s has %s available slots", islandId, available);
         require(available >= slotsRequired, "Not enough slots");
-
-        // Update used slots count
         _usedSlotsCount[islandId] += slotsRequired;
-
-        // Track docking (ship array logic remains for querying docked ships)
         shipDockedIsland[shipId] = islandId;
         dockedShipIndex[islandId][shipId] = dockedShips[islandId].length;
         dockedShips[islandId].push(shipId);
-        
-        emit ShipDocked(shipId, islandId, owner, block.timestamp, slotsRequired); // Emit slotsRequired (actual slots used)
+        emit ShipDocked(shipId, islandId, owner, block.timestamp, slotsRequired);
     }
 
-    function undockShip(uint256 shipId, uint256 islandId, address owner, string calldata shipClass) external override onlyAuthorized {
+    function undockShip(uint256 shipId, uint256 islandId, address owner, string calldata shipClass) external override onlyAuthorized /* Uncommented */ {
         require(shipDockedIsland[shipId] == islandId, "Not docked at this island");
         uint256 slotsFreed = slotRequirementForClass[shipClass];
-        // console.log("[DEBUG][undockShip] Ship:%s Class:'%s' frees %s slots", shipId, shipClass, slotsFreed);
-
-        // Update used slots count
         _usedSlotsCount[islandId] -= slotsFreed;
-
-        // Remove from dockedShips array (for querying)
         uint256 idx = dockedShipIndex[islandId][shipId];
         uint256 lastIdx = dockedShips[islandId].length - 1;
         if (idx != lastIdx) {
@@ -111,20 +91,15 @@ contract DockingManagement is IDockingManagement, AuthorizationModifiers {
         dockedShips[islandId].pop();
         delete dockedShipIndex[islandId][shipId];
         delete shipDockedIsland[shipId];
-        
-        emit ShipUndocked(shipId, islandId, owner, block.timestamp, slotsFreed); // Emit slotsFreed
+        emit ShipUndocked(shipId, islandId, owner, block.timestamp, slotsFreed);
     }
 
-    function rebaseShip(uint256 shipId, uint256 oldIslandId, uint256 newIslandId, address owner, string calldata shipClass) external override onlyAuthorized {
+    function rebaseShip(uint256 shipId, uint256 oldIslandId, uint256 newIslandId, address owner, string calldata shipClass) external override onlyAuthorized /* Uncommented */ {
         require(shipDockedIsland[shipId] == oldIslandId, "Not docked at old island");
         uint256 slotsRequired = slotRequirementForClass[shipClass];
         require(getAvailableSlots(newIslandId) >= slotsRequired, "Not enough slots at new island");
-
-        // Update used slots count on both islands
         _usedSlotsCount[oldIslandId] -= slotsRequired;
         _usedSlotsCount[newIslandId] += slotsRequired;
-
-        // Remove from old island's ship array
         uint256 idx = dockedShipIndex[oldIslandId][shipId];
         uint256 lastIdx = dockedShips[oldIslandId].length - 1;
         if (idx != lastIdx) {
@@ -134,12 +109,9 @@ contract DockingManagement is IDockingManagement, AuthorizationModifiers {
         }
         dockedShips[oldIslandId].pop();
         delete dockedShipIndex[oldIslandId][shipId];
-        
-        // Add to new island's ship array
         shipDockedIsland[shipId] = newIslandId;
         dockedShipIndex[newIslandId][shipId] = dockedShips[newIslandId].length;
         dockedShips[newIslandId].push(shipId);
-        
-        emit ShipRebased(shipId, oldIslandId, newIslandId, owner, block.timestamp, slotsRequired); // Emit slotsRequired
+        emit ShipRebased(shipId, oldIslandId, newIslandId, owner, block.timestamp, slotsRequired);
     }
 } 

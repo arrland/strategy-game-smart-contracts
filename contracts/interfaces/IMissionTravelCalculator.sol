@@ -19,4 +19,14 @@ interface IMissionTravelCalculator {
         uint256 crewCount,
         uint256 portLevel
     ) external view returns (uint256 loadTime);
+
+    function calculateTravelDaysFromSeconds(
+        uint256 travelTimeInSeconds
+    ) external pure returns (uint256 travelDays);
+
+    function getTravelDays(
+        uint256 fromIslandId,
+        uint256 toIslandId,
+        uint256 shipId
+    ) external view returns (uint256 travelDays, uint256 travelTimeInSeconds);
 } 

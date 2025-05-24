@@ -61,5 +61,5 @@ interface IShipAndPirateStaking {
     function unstakeShipAndPirates(uint256 shipId, string memory shipClass) external;
     function batchStakeShips(StakingData[] calldata stakingDataArray, uint256[] calldata homeIslandIds, string[] calldata shipClasses) external;
     function batchUnstakeShips(uint256[] calldata shipIds) external;
-    function rebaseShipHomeIsland(uint256 shipId, uint256 newIslandId, string memory shipClass) external;
+    function rebaseShipHomeIsland(uint256 shipId, uint256 newIslandId, string memory shipClass, string memory foodChoice, string memory foodRationChoice) external;
 }

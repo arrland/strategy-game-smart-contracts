@@ -2,14 +2,23 @@
 pragma solidity ^0.8.25;
 
 import "../interfaces/IMission.sol";
+import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "hardhat/console.sol";
 
 /**
  * @title MockMission
  * @notice Mock implementation of IMission for testing purposes.
  */
-contract MockMission is IMission {
+contract MockMission is IMission, IERC165 {
     uint256 public fixedDuration = 600; // Default 10 minutes
+    address public lastCaller;
+    uint256 public lastShipId;
+    bytes public lastMissionData;
+
+    // Event to track calls to startMission for testing purposes
+    event MissionInstanceStarted(uint256 shipId, bytes data, uint256 returnedDuration);
+    event MissionInstanceCompleted(uint256 missionId);
+
     mapping(uint256 => bytes) public missionDataStore;
     mapping(uint256 => bool) public completedMissions;
 
@@ -20,9 +29,11 @@ contract MockMission is IMission {
      * @return duration Fixed mission duration.
      */
     function startMission(uint256 shipId, bytes calldata data) external override returns (uint256 duration) {
-        (uint256 missionId, /* bytes memory specificData */) = abi.decode(data, (uint256, bytes));
-        missionDataStore[missionId] = data;
-        console.log("MockMission: Started mission %s", missionId);
+        lastCaller = msg.sender;
+        lastShipId = shipId;
+        lastMissionData = data;
+        
+        emit MissionInstanceStarted(shipId, data, fixedDuration);
         return fixedDuration;
     }
 
@@ -32,7 +43,7 @@ contract MockMission is IMission {
      */
     function completeMission(uint256 missionId) external override {
         completedMissions[missionId] = true;
-        console.log("MockMission: Completed mission %s", missionId);
+        emit MissionInstanceCompleted(missionId);
     }
 
     /**
@@ -41,6 +52,8 @@ contract MockMission is IMission {
      * @return Stored mission data.
      */
     function getMissionDetails(uint256 missionId) external view override returns (bytes memory) {
+        // This is a simple mock; actual mission contracts would handle data storage and retrieval.
+        // For this mock, returning lastMissionData or data from missionDataStore if populated.
         return missionDataStore[missionId];
     }
 
@@ -49,8 +62,8 @@ contract MockMission is IMission {
      * @param interfaceId Interface ID to check.
      * @return True if IMission interface is supported.
      */
-    function supportsInterface(bytes4 interfaceId) external pure returns (bool) {
-        return interfaceId == type(IMission).interfaceId;
+    function supportsInterface(bytes4 interfaceId) external pure override returns (bool) {
+        return interfaceId == type(IMission).interfaceId || interfaceId == type(IERC165).interfaceId;
     }
 
     /**
@@ -59,5 +72,9 @@ contract MockMission is IMission {
      */
     function setFixedDuration(uint256 _duration) external {
         fixedDuration = _duration;
+    }
+
+    function setMissionDataForId(uint256 missionId, bytes calldata data) external {
+        missionDataStore[missionId] = data;
     }
 }
