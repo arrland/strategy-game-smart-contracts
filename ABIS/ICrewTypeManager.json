@@ -1,0 +1,129 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "crewType",
+        "type": "string"
+      }
+    ],
+    "name": "getCrewTypeStats",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCrewTypes",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pirateCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pirateId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPirateCrewCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "crewType",
+        "type": "string"
+      }
+    ],
+    "name": "isValidCrewType",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

@@ -36,12 +36,10 @@ async function main() {
     const centralAuthorizationRegistry = await ethers.getContractAt("CentralAuthorizationRegistry", centralAuthRegistryAddress);
 
     // Get StorageManagement address from CentralAuthRegistry
-    // const storageManagementAddress = await centralAuthorizationRegistry.getContractAddress(
-    //     ethers.keccak256(ethers.toUtf8Bytes("IStorageManagement"))
-    // );
-    // console.log("StorageManagement address:", storageManagementAddress);
-
-    const storageManagementAddress = '0x4618c33C441538a5919b530d8fcD9F5Ab6301BDc';
+    const storageManagementAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IStorageManagement"))
+    );
+    console.log("StorageManagement address:", storageManagementAddress);
 
     // Get StorageManagement contract
     const storageManagement = await ethers.getContractAt("StorageManagement", storageManagementAddress);

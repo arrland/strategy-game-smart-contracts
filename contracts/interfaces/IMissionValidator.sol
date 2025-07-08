@@ -32,7 +32,13 @@ interface IMissionValidator {
      * @param amount The amount of resources to check capacity for
      * @return True if the ship has sufficient capacity
      */
-    function validateShipCapacity(uint256 shipId, uint256 amount) external view returns (bool);
+    function validateShipCapacity(
+        uint256 shipId, 
+        uint256 amount,
+        uint256 travelDays,
+        string calldata foodChoice,
+        string calldata foodRationChoice
+    ) external view returns (bool);
 
     /**
      * @notice Check if a ship is locked

@@ -41,7 +41,7 @@ contract ResourceManagement is AuthorizationModifiers {
         uint256 amount
     ) external onlyAuthorized {
         IResourceTypeManager resourceTypeManager = getResourceTypeManager();
-        require(resourceTypeManager.isValidResourceType(resource), "Invalid resource name");
+        require(resourceTypeManager.isValidResourceType(resource), string.concat("Invalid resource name: ", resource));
         resources[contractAddress][tokenId][resource] += amount;
         emit ResourceAdded(contractAddress, tokenId, owner, resource, amount);
     }

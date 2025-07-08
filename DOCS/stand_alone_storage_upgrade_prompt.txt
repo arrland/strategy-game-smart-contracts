@@ -1,0 +1,30 @@
+
+
+Storage levels uprage
+
+Level, Storage to add, Resourse to spend, Min island size
+1, 100, wood (5) cotton (25), XS
+2, 100, wood (5) cotton (25), XS
+3, 100, wood (5) cotton (25), XS
+4, 100, wood (5) cotton (25), XS
+5, 100, wood (5) cotton (25), XS
+6, 200, wood (20) planks (100), cotton (50), S
+7, 200, wood (20) planks (100), cotton (50), S
+8, 200, wood (20) planks (100), cotton (50), S
+9, 200, wood (20) planks (100), cotton (50), S
+10, 200, wood (20) planks (100), cotton (50), S
+11, 300, wood (100) planks (500) stone (50), M
+12, 300, wood (100) planks (500) stone (50), M
+13, 300, wood (100) planks (500) stone (50), M
+14, 300, wood (100) planks (500) stone (50), M
+15, 300, wood (100) planks (500) stone (50), M
+16, 400, wood (400) planks (2000) stone (200) bricks (1000), L
+17, 400, wood (400) planks (2000) stone (200) bricks (1000), L
+18, 400, wood (400) planks (2000) stone (200) bricks (1000), L
+19, 400, wood (400) planks (2000) stone (200) bricks (1000), L
+20, 400, wood (400) planks (2000) stone (200) bricks (1000), L
+21, 500, wood (1000) planks (4000) stone (1000) bricks (5000) gold_bars (100), Huge
+22, 500, wood (1000) planks (4000) stone (1000) bricks (5000) gold_bars (100), Huge
+23, 500, wood (1000) planks (4000) stone (1000) bricks (5000) gold_bars (100), Huge
+24, 500, wood (1000) planks (4000) stone (1000) bricks (5000) gold_bars (100), Huge
+25, 500, wood (1000) planks (4000) stone (1000) bricks (5000) gold_bars (100), Huge

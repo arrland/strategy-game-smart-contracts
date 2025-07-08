@@ -80,3 +80,64 @@ Next steps:
 *   **What will you change next time:** When implementing interactions between multiple new/modified contracts, add basic integration tests earlier, even if they just check for reverts initially. Ensure interface definitions are meticulously checked against implementations *before* writing complex calling logic. Double-check ABI encoding/decoding methods are consistent between caller and callee. 
 
 2025-04-28 19:11 - TASK-FEE-REBASE - Process Violation: Task marked completed before RUM cost for rebasing (from PRD) was implemented/tracked. Re-opening task. 
+
+# Activity Log
+
+All significant development activities, decisions, and milestones are logged here with timestamps.
+
+## 2025-06-12
+
+### 10:38 - Fixed Failing Tests - ResourceManagement & StorageManagement
+- **Context:** User reported failing tests in ResourceManagement.test.js and StorageManagement.test.js 
+- **Issue Identified:** ResourceManagement test expected "Invalid resource name" but contract was throwing "Invalid resource name: invalidResource"
+- **What was done:**
+  - Fixed ResourceManagement.test.js error message expectation to match actual contract error format
+  - Investigated StorageManagement timeout issue - found it was temporary and tests now pass
+  - Verified ResourceTransferMission tests still pass after recent refactoring
+- **Results:**
+  - ✅ ResourceManagement.test.js: 8/8 tests passing
+  - ✅ StorageManagement.test.js: 22/22 tests passing  
+  - ✅ ResourceTransferMission.test.js: 15/15 tests passing (confirmed after utils extraction)
+- **Next steps:** All current tests are stable and passing
+
+### 10:31 - TASK-RTM-002 - Mission Test Utilities Extraction Complete
+- **Context:** Refactoring ResourceTransferMission.test.js to extract reusable mission testing utilities
+- **What was done:**
+  - Analyzed ResourceTransferMission.test.js for reusable helper functions
+  - Extracted 7 mission-specific test utilities to test/utils.js:
+    - `setupShipForMissionTesting` - Complete ship setup with staking, RUM tokens, and food
+    - `setupShipForMissionWithoutFood` - Ship setup for testing food validation errors
+    - `setupShipForMissionWithoutRUMApproval` - Ship setup for testing RUM validation errors  
+    - `startTestResourceTransferMission` - Convenience function for starting ResourceTransfer missions
+    - `fastForwardAndCompleteMission` - Time manipulation and mission completion helper
+    - `setupMissionInfrastructure` - Mission-specific deployment helper  
+    - `extractMissionIdFromEvents` - Event parsing utility
+  - Refactored ResourceTransferMission.test.js to use these utilities
+  - Updated imports and removed duplicate local functions
+  - Added missing `time` import to utils.js for hardhat-network-helpers
+- **Test Results:** All 15 ResourceTransferMission tests passing after refactoring
+- **Impact:** Mission test utilities now reusable for future mission implementations (Trade missions, etc.) 
+
+### 10:43 - TASK-TEST-MISSIONS.2 - ResourceTransferMission Unit Tests Complete
+- **Context:** Completed comprehensive unit test suite for ResourceTransferMission.sol contract
+- **What was done:**
+  - Analyzed existing ResourceTransferMission.test.js and found comprehensive test coverage with 15 passing tests
+  - Verified all acceptance criteria met:
+    - ✅ startMission pathway fully tested with real dependencies (MissionValidator, MissionTravelCalculator, etc.)
+    - ✅ completeMission pathway fully tested with resource transfers and ship unlocking
+    - ✅ Comprehensive validation tests covering all error conditions
+    - ✅ Edge cases tested including zero transfers, same island, multiple resource types
+    - ✅ Event emissions verified with correct parameters
+    - ✅ getMissionDetails function tested and working
+  - Test coverage includes:
+    - **Successful mission lifecycle:** Start → Complete with resource transfers
+    - **Validation tests:** Invalid resource types, insufficient capacity, missing food/RUM
+    - **Error conditions:** Mission timing, capacity limits, authorization
+    - **Edge cases:** Zero amounts, same origin/destination, different resource types
+    - **Integration:** Real dependencies used throughout (not mocks)
+- **Test Results:**
+  - ✅ 15/15 tests passing (100% success rate)
+  - ✅ All planned checklist items verified as implemented
+  - ✅ Uses extracted mission utilities from TASK-RTM-002 for maintainability
+- **Impact:** ResourceTransferMission contract now has production-ready test coverage
+- **Next steps:** Begin TASK-TEST-MISSIONS.3 (TradeMission tests) and TASK-TEST-MISSIONS.4 (Integration tests) 

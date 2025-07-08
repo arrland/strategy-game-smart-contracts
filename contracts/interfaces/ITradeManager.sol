@@ -14,6 +14,7 @@ interface ITradeManager {
      * @param arrcAmount ARRC token amount for the trade
      * @param resourceType Type of resource being traded
      * @param resourceAmount Amount of resource being traded
+     * @param originIslandId The origin island ID for the trade mission
      * @return success Boolean indicating if trade was initiated successfully
      */
     function initiateTrade(
@@ -22,7 +23,8 @@ interface ITradeManager {
         uint256 tradeOrderId,
         uint256 arrcAmount,
         string memory resourceType,
-        uint256 resourceAmount
+        uint256 resourceAmount,
+        uint256 originIslandId
     ) external returns (bool);
 
     /**
@@ -65,7 +67,8 @@ interface ITradeManager {
         string memory resourceType,
         uint256 resourceAmount,
         uint256 arrcPrice,
-        bool isActive
+        bool isActive,
+        bool isSellOrder
     );
 
     /**

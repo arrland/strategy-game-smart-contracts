@@ -30,6 +30,11 @@ async function main() {
     if (!defaultAdmin || !_minter || !_royaltyRecipient) {
         throw new Error("One or more required environment variables are not set.");
     }
+
+    // Sleep for 10 seconds before deployment to ensure network is ready
+    console.log("Waiting 10 seconds before deployment...");
+    await new Promise(resolve => setTimeout(resolve, 10000));
+    console.log("Proceeding with deployment...");
     // Deploy the contract
     const shipNFT = await ShipNFT.deploy(defaultAdmin, _minter, _royaltyRecipient);
 

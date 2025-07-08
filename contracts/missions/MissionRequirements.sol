@@ -4,6 +4,7 @@ pragma solidity ^0.8.25;
 import "../interfaces/IMissionRequirements.sol";
 import "../interfaces/IBuildingStorage.sol";
 import "../AuthorizationModifiers.sol";
+import "hardhat/console.sol";
 
 /**
  * @title MissionRequirements
@@ -21,7 +22,7 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
     uint256 public constant TRADING_POST_TYPE = 2;
 
     // Dependencies - This is now retrieved from CentralAuthorizationRegistry when needed
-    bytes32 private constant BUILDING_STORAGE_ID = keccak256("IBuildingStorage");
+    bytes32 private constant BUILDING_STORAGE_ID = keccak256(abi.encodePacked("IBuildingStorage"));
 
     // Building requirements mapping: missionType => BuildingRequirement[]
     mapping(uint256 => BuildingRequirement[]) private buildingRequirements;
@@ -35,8 +36,9 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
      * @dev BuildingStorage address is retrieved from CentralAuthorizationRegistry
      */
     constructor(address _centralAuthorizationRegistry) 
-        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("MISSION_REQUIREMENTS")) 
+        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256(abi.encodePacked("IMissionRequirements"))) 
     {
+        console.log("MissionReqs_CONSTRUCTOR: Deployed. CAR is:", _centralAuthorizationRegistry);
         // Initialize Trade Mission requirements
         BuildingRequirement[] memory tradeReqs = new BuildingRequirement[](2);
         tradeReqs[0] = BuildingRequirement({
@@ -70,7 +72,9 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
      * @return IBuildingStorage interface of the current building storage contract
      */
     function getBuildingStorage() internal view returns (IBuildingStorage) {
+        // console.log("MissionReqs: getBuildingStorage() called. CAR address is:", address(centralAuthorizationRegistry)); 
         address buildingStorageAddr = centralAuthorizationRegistry.getContractAddress(BUILDING_STORAGE_ID);
+        // console.log("MissionReqs: getBuildingStorage() retrieved IBuildingStorage address:", buildingStorageAddr); 
         require(buildingStorageAddr != address(0), "Building storage not registered");
         return IBuildingStorage(buildingStorageAddr);
     }
@@ -85,7 +89,11 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
         uint256 islandId,
         uint256 missionType
     ) external view override returns (bool) {
+        // console.log("MissionReqs_VALIDATE_ENTRY: islandId:", islandId, "missionType:", missionType);
+
         BuildingRequirement[] memory reqs = buildingRequirements[missionType];
+        // console.log("MissionReqs: Fetched reqs. Length is:", reqs.length);
+
         IBuildingStorage buildingStorage = getBuildingStorage();
         
         for (uint256 i = 0; i < reqs.length; i++) {
@@ -116,7 +124,6 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
         uint256 missionType
     ) external view override returns (bool) {
         require(missionType > 0, "Unsupported mission type");
-        
         return this.validateBuildingRequirements(islandId, missionType);
     }
 
@@ -128,18 +135,13 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
         uint256 missionType
     ) external view override returns (uint256[] memory buildingTypes, uint256[] memory buildingLevels) {
         require(missionType > 0, "Unsupported mission type");
-        
         BuildingRequirement[] memory reqs = buildingRequirements[missionType];
-        
-        // Extract building types and levels
         buildingTypes = new uint256[](reqs.length);
         buildingLevels = new uint256[](reqs.length);
-        
         for (uint256 i = 0; i < reqs.length; i++) {
             buildingTypes[i] = reqs[i].buildingType;
             buildingLevels[i] = reqs[i].minLevel;
         }
-        
         return (buildingTypes, buildingLevels);
     }
 
@@ -184,19 +186,13 @@ contract MissionRequirements is IMissionRequirements, AuthorizationModifiers {
         uint256 missionType
     ) external view override returns (uint256[] memory buildingTypes, uint256[] memory buildingLevels) {
         require(missionType > 0, "Unsupported mission type");
-        
         BuildingRequirement[] memory reqs = buildingRequirements[missionType];
-        
-        // Initialize arrays
         buildingTypes = new uint256[](reqs.length);
         buildingLevels = new uint256[](reqs.length);
-        
-        // Populate arrays
         for (uint256 i = 0; i < reqs.length; i++) {
             buildingTypes[i] = reqs[i].buildingType;
             buildingLevels[i] = reqs[i].minLevel;
         }
-        
         return (buildingTypes, buildingLevels);
     }
 }

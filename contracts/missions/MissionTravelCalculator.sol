@@ -66,7 +66,7 @@ contract MissionTravelCalculator is IMissionTravelCalculator, AuthorizationModif
         if (crewCount == 0) return type(uint256).max; // Prevent division by zero
         uint256 baseLoadTime = resourceAmount / crewCount;
         uint256 speedup = 100 - portLevel; // Each level = 1% faster
-        loadTime = (baseLoadTime * speedup) / 100;
+        loadTime = ((baseLoadTime * speedup) / 100)/10**18;
     }
     
     function calculateTravelDaysFromSeconds(

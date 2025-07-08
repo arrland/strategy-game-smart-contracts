@@ -1,0 +1,7 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+When you run command "yarn dev" first check if dev server is running and kill it first

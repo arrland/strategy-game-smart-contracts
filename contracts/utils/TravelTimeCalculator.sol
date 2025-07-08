@@ -10,6 +10,8 @@ import "../AuthorizationModifiers.sol";
 import "../interfaces/ships/IShipMetadata.sol";
 import "../interfaces/islands/IIslandRegionManagement.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title TravelTimeCalculator
  * @notice Utility contract for calculating travel times between islands
@@ -142,33 +144,46 @@ contract TravelTimeCalculator is ITravelTimeCalculator, AuthorizationModifiers {
         
         // Calculate adjusted duration with ship speed: baseDuration / shipSpeed
         uint256 adjustedDuration = baseDuration / shipSpeed;
+        console.log("Base duration: %s, Ship speed: %s, Adjusted duration: %s", baseDuration, shipSpeed, adjustedDuration);
         
         // Apply captain's skill bonuses
         uint256 finalDuration = adjustedDuration;
         
         if (wisdomSkill > 0 || navigationSkill > 0) {
+            console.log("Applying captain skills - Wisdom: %s, Navigation: %s", wisdomSkill, navigationSkill);
+            
             // Wisdom bonus is half of the wisdom skill value
             uint256 wisdomBonus = (adjustedDuration * (wisdomSkill / 2)) / 100;
+            console.log("Calculated wisdom bonus: %s", wisdomBonus);
             
             // Apply wisdom bonus first
             if (wisdomBonus >= finalDuration) {
                 finalDuration = _MIN_TRAVEL_DURATION;
+                console.log("Wisdom bonus capped at minimum duration: %s", finalDuration);
             } else {
                 finalDuration = finalDuration - wisdomBonus;
+                console.log("Applied wisdom bonus, new duration: %s", finalDuration);
             }
             
             // Each navigation point reduces travel time by 1%
             uint256 navigationBonus = (adjustedDuration * navigationSkill) / 100;
+            console.log("Calculated navigation bonus: %s", navigationBonus);
             
             // Apply navigation bonus
             if (navigationBonus >= finalDuration) {
                 finalDuration = _MIN_TRAVEL_DURATION;
+                console.log("Navigation bonus capped at minimum duration: %s", finalDuration);
             } else {
                 finalDuration = finalDuration - navigationBonus;
                 if (finalDuration < _MIN_TRAVEL_DURATION) {
                     finalDuration = _MIN_TRAVEL_DURATION;
+                    console.log("Duration below minimum, capped at: %s", finalDuration);
+                } else {
+                    console.log("Applied navigation bonus, final duration: %s", finalDuration);
                 }
             }
+        } else {
+            console.log("No captain skills applied, using adjusted duration: %s", finalDuration);
         }
         return finalDuration;
     }
@@ -190,15 +205,19 @@ contract TravelTimeCalculator is ITravelTimeCalculator, AuthorizationModifiers {
         
         // Get distance enum value (0 = Short, 1 = Medium, 2 = Long)
         IIslandRegionManagement.Distance distance = regionManagement.calculateDistance(fromIslandId, toIslandId);
+        console.log("Distance between islands %s and %s: %s", fromIslandId, toIslandId, uint256(distance));
         
         // Calculate base duration based on distance type
         uint256 duration;
         if (distance == IIslandRegionManagement.Distance.Short) {
             duration = _SECONDS_IN_DAY; // 1 day for short distance
+            console.log("Short distance detected - setting duration to 1 day (%s seconds)", duration);
         } else if (distance == IIslandRegionManagement.Distance.Medium) {
             duration = 5 * _SECONDS_IN_DAY; // 5 days for medium distance
+            console.log("Medium distance detected - setting duration to 5 days (%s seconds)", duration);
         } else {
             duration = 9 * _SECONDS_IN_DAY; // 9 days for long distance
+            console.log("Long distance detected - setting duration to 9 days (%s seconds)", duration);
         }
         
         return duration;

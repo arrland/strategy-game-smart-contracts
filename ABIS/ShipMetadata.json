@@ -1,0 +1,542 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "shipIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "batchGetShipMetadata",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "class",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "durability",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "speed",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "agility",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "viewingRange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "numberOfCannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "armor",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ramming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cargoBay",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "special",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "oars",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "shallowWaters",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "shipType",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ShipMetadata.ShipAttributes[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "shipIds",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "class",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "durability",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "speed",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "agility",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "viewingRange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "numberOfCannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "armor",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ramming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cargoBay",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "special",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "oars",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "shallowWaters",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "shipType",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ShipMetadata.ShipAttributes[]",
+        "name": "attributes",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "batchSetShipMetadata",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "shipClass",
+        "type": "string"
+      }
+    ],
+    "name": "getMinimumRespectLevel",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getShipMetadata",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "class",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "durability",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "speed",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "agility",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "viewingRange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "numberOfCannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "armor",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ramming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cargoBay",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "special",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "oars",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "shallowWaters",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "shipType",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ShipMetadata.ShipAttributes",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "class",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "durability",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "speed",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "agility",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "viewingRange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "numberOfCannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "armor",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ramming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cargoBay",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "special",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "oars",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "shallowWaters",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "shipType",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct ShipMetadata.ShipAttributes",
+        "name": "attributes",
+        "type": "tuple"
+      }
+    ],
+    "name": "setShipMetadata",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "ships",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "class",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "durability",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "speed",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "agility",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "viewingRange",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "numberOfCannons",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "armor",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ramming",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "crewMin",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "crewMax",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cargoBay",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "special",
+        "type": "string"
+      },
+      {
+        "internalType": "bool",
+        "name": "oars",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "shallowWaters",
+        "type": "bool"
+      },
+      {
+        "internalType": "string",
+        "name": "shipType",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

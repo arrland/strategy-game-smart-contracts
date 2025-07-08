@@ -19,6 +19,9 @@ import "../interfaces/IShipManager.sol";
 import "../interfaces/storage/IIslandStorage.sol";
 import "../interfaces/mission-storage/ITransferMissionStorage.sol";
 import "../AuthorizationModifiers.sol";
+import "../core/InterfaceIdentifiers.sol";
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 /**
  * @title TradeManager
@@ -76,7 +79,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
 
     // Constructor
     constructor(address _centralAuthorizationRegistry)
-        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("ITradeManager"))
+        AuthorizationModifiers(_centralAuthorizationRegistry, InterfaceIdentifiers.TRADE_MANAGER_KEY)
     {        
         nextTradeOrderId = 1;
         nextActiveTradeId = 1;
@@ -101,7 +104,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      */
     function getMissionRequirements() internal view returns (IMissionRequirements) {
         return IMissionRequirements(
-            centralAuthorizationRegistry.getContractAddress(keccak256("MISSION_REQUIREMENTS"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSION_REQUIREMENTS_KEY)
         );
     }
 
@@ -111,7 +114,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      */
     function getResourceTransferMission() internal view returns (IResourceTransferMission) {
         return IResourceTransferMission(
-            centralAuthorizationRegistry.getContractAddress(keccak256("RESOURCE_TRANSFER_MISSION"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_TRANSFER_MISSION_KEY)
         );
     }
 
@@ -120,15 +123,19 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      * @return The current resource management
      */
     function getResourceManagement() public view returns (IResourceManagement) {
-        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("RESOURCE_MANAGEMENT")));
+        return IResourceManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_MANAGEMENT_KEY));
     }
 
     function getShipStorage() public view returns (ShipStorage) {
-        return ShipStorage(centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage")));
+        return ShipStorage(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.SHIP_STORAGE_KEY));
     }
 
     function getMarketPlaceStorage() public view returns (MarketPlaceStorage) {
-        return MarketPlaceStorage(centralAuthorizationRegistry.getContractAddress(keccak256("MARKETPLACE_STORAGE")));
+        return MarketPlaceStorage(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MARKETPLACE_STORAGE_KEY));
+    }
+
+    function getIslandNFT() internal view returns (IERC721) {
+        return IERC721(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY));
     }
         
     /**
@@ -136,7 +143,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      * @return The base storage contract for islands
      */
     function getIslandStorage() public view returns (address) {
-        return centralAuthorizationRegistry.getContractAddress(keccak256("BASE_STORAGE"));
+        return centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_STORAGE_KEY);
     }
 
     /**
@@ -144,7 +151,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      * @return The current trade mission contract address
      */
     function getTradeMissionAddress() public view returns (address) {
-        return centralAuthorizationRegistry.getContractAddress(keccak256("TRADE_MISSION"));
+        return centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRADE_MISSION_KEY);
     }
 
     /**
@@ -152,7 +159,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      * @return The ArrcLocking contract
      */
     function getArrcLocking() public view returns (IArrcLocking) {
-        return IArrcLocking(centralAuthorizationRegistry.getContractAddress(keccak256("IArrcLocking")));
+        return IArrcLocking(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_LOCKING_KEY));
     }
 
     /**
@@ -161,7 +168,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      */
     function getTravelTimeCalculator() public view returns (ITravelTimeCalculator) {
         return ITravelTimeCalculator(
-            centralAuthorizationRegistry.getContractAddress(keccak256("ITravelTimeCalculator"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRAVEL_TIME_CALCULATOR_KEY)
         );
     }
 
@@ -260,7 +267,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         uint256 totalPrice = resourceAmount * arrcPrice;
 
         // Check ARRC balance and allowance
-        IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(keccak256("ARRC_TOKEN")));
+        IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
         require(arrcToken.balanceOf(msg.sender) >= totalPrice, "Insufficient ARRC balance");
         require(arrcToken.allowance(msg.sender, address(this)) >= totalPrice, "Insufficient ARRC allowance");
         
@@ -319,7 +326,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         } else {
             // For sell orders (island buying resources): return total ARRC to seller
             uint256 totalPrice = order.resourceAmount * order.arrcPrice;
-            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(keccak256("ARRC_TOKEN")));
+            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
             require(arrcToken.transfer(order.seller, totalPrice), "ARRC return failed");
         }
 
@@ -336,13 +343,14 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         uint256 tradeOrderId,
         uint256 arrcAmount,
         string memory resourceType,
-        uint256 resourceAmount
+        uint256 resourceAmount,
+        uint256 originIslandId
     ) external override nonReentrant returns (bool) {
         IMissionsStorage missionsStorage = IMissionsStorage(
-            centralAuthorizationRegistry.getContractAddress(keccak256("IMissionsStorage"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSIONS_STORAGE_KEY)
         );
         require(!missionsStorage.isOnMission(shipId), "Ship on mission");
-        require(msg.sender == centralAuthorizationRegistry.getContractAddress(keccak256("TRADE_MISSION")), "Unauthorized");
+        require(msg.sender == centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRADE_MISSION_KEY), "Unauthorized");
         require(isTradeOrderValid(tradeOrderId), "Invalid order");
         
         TradeOrder storage order = tradeOrders[tradeOrderId];
@@ -366,8 +374,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
             "Insufficient ship capacity"
         );
 
-        // Get origin island (source) from the ship's current mission
-        uint256 originIslandId = getOriginIslandId(shipId);
+        // Use the provided origin island ID from the mission
 
         // Create active trade
         uint256 activeTradeId = nextActiveTradeId++;
@@ -390,7 +397,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         if (!isSellOrder) {
             // Buy order (ship buying resources from island)
             // Lock ARRC from player in the ArrcLocking contract
-            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(keccak256("ARRC_TOKEN")));
+            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
             require(arrcToken.balanceOf(player) >= arrcAmount, "Insufficient ARRC balance");
             require(arrcToken.allowance(player, address(getArrcLocking())) >= arrcAmount, "Insufficient ARRC allowance for locking");
             
@@ -403,29 +410,21 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                 player
             );
         } else {
-            // Sell order (island buying resources)
-            // Transfer resources from origin island to ship at mission start
+            // Sell order (island buying resources FROM ship)
+            // For Island Buy Orders, ship must already have resources to sell
             IResourceManagement resourceManagement = getResourceManagement();
             
-            // Verify origin island has enough resources
-            uint256 originIslandResourceBalance = resourceManagement.getResourceBalance(
-                player, // Player is the owner of the origin island resources
-                originIslandId,
+            // FIXED: Validate ship has the resources to sell (not origin island)
+            uint256 shipResourceBalance = resourceManagement.getResourceBalance(
+                address(getShipStorage()), // Ship storage contract address
+                shipId,  // Check ship storage, not origin island
                 resourceType
             );
-            require(originIslandResourceBalance >= resourceAmount, "Insufficient resources on origin island");
+            require(shipResourceBalance >= resourceAmount, "Insufficient resources on ship");
             
-            // Transfer resources from origin island to ship
-            resourceManagement.transferResource(
-                address(getIslandStorage()),
-                originIslandId, // From origin island
-                player, // Still player's authorization
-                address(getShipStorage()), // To ship storage contract
-                shipId, // To ship ID
-                player, // Authorized by player
-                resourceType, // Resource type
-                resourceAmount // Amount to transfer
-            );
+            // FIXED: No resource transfer during initiateTrade for sell orders
+            // Resources stay on ship until completeTrade is called
+            // The island's ARRC was already locked when createIslandBuyOrder was called
         }
         // For sell orders, ARRC will be moved from this contract to ArrcLocking during completeTrade
 
@@ -437,7 +436,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         address player,
         uint256 shipId
     ) external override nonReentrant returns (bool) {
-        require(msg.sender == centralAuthorizationRegistry.getContractAddress(keccak256("TRADE_MISSION")), "Unauthorized");
+        require(msg.sender == centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRADE_MISSION_KEY), "Unauthorized");
         
         uint256 activeTradeId = getActiveTradeIdByShip(shipId);
         require(activeTradeId > 0, "No active trade");
@@ -457,44 +456,18 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
             // Transfer resources from marketplace to ship
             IResourceManagement resourceManagement = getResourceManagement();
             resourceManagement.transferResource(
-                address(getShipStorage()),
-                shipId,
-                player,
                 address(getMarketPlaceStorage()),
                 trade.tradeOrderId,
                 address(this),
+                address(getShipStorage()),
+                shipId,
+                player,
                 order.resourceType,
                 trade.resourceAmount
             );
             
-            // Check if the island has enough storage capacity to receive the resources
-            IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IStorageManagement")));
-            address islandContract = centralAuthorizationRegistry.getContractAddress(keccak256("ISLAND_MANAGER"));
-            bool hasEnoughStorage = storageManagement.checkStorageLimit(islandContract, order.islandId, trade.resourceAmount);
-            
-            if (hasEnoughStorage) {
-                // If island has enough storage, transfer resources directly
-                resourceManagement.transferResource(
-                    address(getMarketPlaceStorage()),
-                    trade.tradeOrderId,
-                    address(this),
-                    address(getIslandStorage()),
-                    order.islandId,
-                    order.seller,
-                    order.resourceType,
-                    trade.resourceAmount
-                );
-            } else {
-                // If island doesn't have enough storage, add to pending deliveries in consolidated storage
-                // Add to consolidated pending resources in MarketPlaceStorage
-                getMarketPlaceStorage().addPendingResource(
-                    order.islandId,
-                    order.resourceType,
-                    trade.resourceAmount
-                );
-                
-                emit ResourcesHeldForDelivery(order.islandId, 0, order.resourceType, trade.resourceAmount);
-            }
+            // For buy orders, resources are now in ship storage and will be delivered 
+            // to the origin island when the mission completes. No immediate transfer needed.
         } else {
             // Sell order (ship selling resources to island)
             // Calculate return journey duration for locking
@@ -502,7 +475,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
             
             // Lock ARRC for the return journey in ArrcLocking
             // We need to transfer ARRC from this contract to ArrcLocking first
-            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(keccak256("ARRC_TOKEN")));
+            IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
             require(arrcToken.approve(address(getArrcLocking()), trade.price), "ARRC approval failed");
             
             // Lock ARRC in ArrcLocking contract for return journey
@@ -528,9 +501,9 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
             );
             
             // Check if the island has enough storage capacity to receive the resources
-            IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IStorageManagement")));
-            address islandContract = centralAuthorizationRegistry.getContractAddress(keccak256("ISLAND_MANAGER"));
-            bool hasEnoughStorage = storageManagement.checkStorageLimit(islandContract, order.islandId, trade.resourceAmount);
+            IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.STORAGE_MANAGEMENT_KEY));
+            IERC721 islandNFT = getIslandNFT();
+            bool hasEnoughStorage = storageManagement.checkStorageLimit(address(islandNFT), order.islandId, trade.resourceAmount);
             
             if (hasEnoughStorage) {
                 // If island has enough storage, transfer resources directly
@@ -577,7 +550,8 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
 
     /**
      * @notice Start the return journey after trade completion
-     * @param player Address of the player
+     * @dev Can be called by the TradeMission contract, the ship owner, or the island owner.
+     * @param player Address of the player (ship owner)
      * @param shipId Ship identifier
      * @return success Boolean indicating if return journey was started successfully
      */
@@ -585,22 +559,24 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         address player,
         uint256 shipId
     ) external nonReentrant returns (bool) {
-        require(msg.sender == centralAuthorizationRegistry.getContractAddress(keccak256("TRADE_MISSION")), "Unauthorized");
-        
         uint256 activeTradeId = getActiveTradeIdByShip(shipId);
         require(activeTradeId > 0, "No active trade");
-        
         ActiveTrade storage trade = activeTrades[activeTradeId];
+        TradeOrder storage order = tradeOrders[trade.tradeOrderId];
         require(trade.isCompleted, "Trade not completed");
         require(trade.needsReturn, "Return journey already started");
         require(trade.player == player, "Wrong player");
-
+        // Allow TradeMission contract, ship owner, or island owner to call
+        address tradeMissionAddr = centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRADE_MISSION_KEY);
+        address islandOwner = getIslandOwner(order.islandId);
+        require(
+            msg.sender == tradeMissionAddr ||
+            msg.sender == trade.player ||
+            msg.sender == islandOwner,
+            "Not authorized to start return journey"
+        );
         // Mark return journey as started
         trade.needsReturn = false;
-        
-        // Return journey will be handled by a ResourceTransferMission
-        // The TradeMission contract should call this when ready to return
-
         emit ReturnJourneyStarted(player, shipId, trade.originIslandId);
         return true;
     }
@@ -615,7 +591,12 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         address player,
         uint256 shipId
     ) external nonReentrant returns (bool) {
-        require(msg.sender == centralAuthorizationRegistry.getContractAddress(keccak256("RESOURCE_TRANSFER_MISSION")), "Unauthorized");
+        // Allow both ResourceTransferMission and TradeMission to call this function
+        require(
+            msg.sender == centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_TRANSFER_MISSION_KEY) ||
+            msg.sender == centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.TRADE_MISSION_KEY),
+            "Unauthorized"
+        );
         
         uint256 activeTradeId = getActiveTradeIdByShip(shipId);
         require(activeTradeId > 0, "No active trade");
@@ -682,10 +663,10 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         
         // Check if the island has enough storage capacity
         IResourceManagement resourceManagement = getResourceManagement();
-        IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IStorageManagement")));
-        address islandContract = centralAuthorizationRegistry.getContractAddress(keccak256("ISLAND_MANAGER"));
+        IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.STORAGE_MANAGEMENT_KEY));
+        IERC721 islandNFT = getIslandNFT();
         
-        require(storageManagement.checkStorageLimit(islandContract, islandId, amount), "Insufficient island storage");
+        require(storageManagement.checkStorageLimit(address(islandNFT), islandId, amount), "Insufficient island storage");
         
         // Transfer resources from marketplace to island using consolidated storage
         resourceManagement.transferResource(
@@ -712,7 +693,8 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         string memory resourceType,
         uint256 resourceAmount,
         uint256 arrcPrice,
-        bool isActive
+        bool isActive,
+        bool isSellOrder
     ) {
         TradeOrder storage order = tradeOrders[tradeOrderId];
         return (
@@ -721,7 +703,8 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
             order.resourceType,
             order.resourceAmount,
             order.arrcPrice,
-            order.isActive
+            order.isActive,
+            order.isSellOrder
         );
     }
 
@@ -783,8 +766,9 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
 
     function getActiveTradeIdByShip(uint256 shipId) internal view returns (uint256) {
         for (uint256 i = 1; i < nextActiveTradeId; i++) {
-            // We consider a trade as active even if it's completed but needs return journey
-            if (activeTrades[i].shipId == shipId && (!activeTrades[i].isCompleted || activeTrades[i].needsReturn)) {
+            // We consider a trade as active if it exists and matches the ship
+            // (until it's completely finished and deleted in completeEntireTradeMission)
+            if (activeTrades[i].shipId == shipId && activeTrades[i].player != address(0)) {
                 return i;
             }
         }
@@ -792,12 +776,8 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
     }
 
     function getIslandOwner(uint256 islandId) internal view returns (address) {
-        address islandContract = centralAuthorizationRegistry.getContractAddress(keccak256("ISLAND_MANAGER"));
-        (bool success, bytes memory data) = islandContract.staticcall(
-            abi.encodeWithSignature("ownerOf(uint256)", islandId)
-        );
-        require(success, "Island owner check failed");
-        return abi.decode(data, (address));
+        IERC721 islandNFT = getIslandNFT();
+        return islandNFT.ownerOf(islandId);
     }
 
     /**
@@ -829,7 +809,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
      */
     function getOriginIslandId(uint256 shipId) internal view returns (uint256) {
         IMissionsStorage missionsStorage = IMissionsStorage(
-            centralAuthorizationRegistry.getContractAddress(keccak256("IMissionsStorage"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSIONS_STORAGE_KEY)
         );
         
         uint256 missionType = missionsStorage.getMissionType(shipId);

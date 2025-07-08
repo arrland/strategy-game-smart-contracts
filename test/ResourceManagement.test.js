@@ -76,7 +76,7 @@ describe("ResourceManagement", function () {
     });
 
     it("should revert if adding an invalid resource type", async function () {
-        await expect(resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "invalidResource", 100)).to.be.revertedWith("Invalid resource name");
+        await expect(resourceManagement.connect(externalCaller).addResource(contractAddress1.address, 1, user.address, "invalidResource", 100)).to.be.revertedWith("Invalid resource name: invalidResource");
     });
 
     it("should revert if transferring more than available balance", async function () {

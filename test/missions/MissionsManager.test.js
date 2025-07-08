@@ -17,9 +17,9 @@ const {
 } = require("../utils");
 
 // Helper to deploy MockMission (now from compiled artifact)
-async function deployMockMission(admin) {    
+async function deployMockMission(admin, centralAuthorizationRegistry) {    
     const MockMissionFactory = await ethers.getContractFactory("MockMission"); // Pass admin as signer for deployment
-    const mockMission = await MockMissionFactory.connect(admin).deploy(); // Connect admin as signer to deploy
+    const mockMission = await MockMissionFactory.connect(admin).deploy(await centralAuthorizationRegistry.getAddress()); // Connect admin as signer to deploy
     await mockMission.waitForDeployment();
     return mockMission;
 }
@@ -74,14 +74,14 @@ describe("MissionsManager", function () {
             shipMetadata, dockingManagement, shipAndPirateStaking, // shipAndPirateStaking is coreContractsPack.staking
             cooldownManager, travelTimeCalculator, missionTravelCalculator, missionValidator,
             missionsStorage, // This will be MockMissionsStorage by default from setupCoreGameContracts
-            mockIslandManager, missionRequirements 
+            missionRequirements 
         } = coreContractsPack;
 
         // Deploy MissionsManager itself (this is the contract under test)
         const missionsManager = await deployAndAuthorizeContract("MissionsManager", centralAuthorizationRegistry);
 
         // Deploy MockMission and MockCaller (specific to these tests)
-        const mockMission = await deployMockMission(admin);
+        const mockMission = await deployMockMission(admin, centralAuthorizationRegistry);
         const MockCallerFactory = await ethers.getContractFactory("MockCaller");
         authorizedContract = await MockCallerFactory.connect(admin).deploy(await missionsManager.getAddress());
         await authorizedContract.waitForDeployment();
@@ -209,7 +209,8 @@ describe("MissionsManager", function () {
             // Try to start a second mission with the same ship
             await expect(
                 missionsManager.connect(user).startMission(shipId, missionType2, missionData2)
-            ).to.be.revertedWith("Ship already on mission"); // Check reason string
+            ).to.be.revertedWithCustomError(missionsManager, "ShipAlreadyOnMission")
+             .withArgs(shipId, 1); // shipId and activeMissionId
         });
 
         it("should fail to start mission if ship is on cooldown", async function () {
@@ -231,11 +232,14 @@ describe("MissionsManager", function () {
             // Verify cooldown is active immediately
             expect(await cooldownManager.isOnCooldown(entityKey)).to.be.true;
             
+            // Get the expected cooldown end time for the assertion
+            const cooldownEndTime = await cooldownManager.getCooldownEndTime(entityKey);
+            
             // Attempt to start mission while ship is on cooldown
             await expect(
                 missionsManager.connect(user).startMission(shipId, missionType, missionData)
-            // Expect the specific reason string used in MissionsManager.sol
-            ).to.be.revertedWith("Ship is on cooldown"); 
+            ).to.be.revertedWithCustomError(missionsManager, "ShipOnCooldown")
+             .withArgs(shipId, cooldownEndTime); // shipId and cooldownEndTime
         });
         
         // Add more tests for edge cases, permissions, etc.

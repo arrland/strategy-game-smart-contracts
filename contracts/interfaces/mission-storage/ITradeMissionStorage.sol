@@ -28,4 +28,8 @@ interface ITradeMissionStorage is IMissionTypeStorage {
     function getTimeRemaining(uint256 missionId) external view returns (uint256 timeRemaining);
 
     function getJourneyState(uint256 missionId) external view returns (IMissionStates.JourneyState);
+
+    function getReturnJourneyDuration(uint256 missionId) external view returns (uint256 duration);
+
+    function updateEndTime(uint256 missionId, uint256 newEndTime) external;
 } 

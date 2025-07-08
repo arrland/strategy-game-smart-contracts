@@ -1,0 +1,98 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getShipMetadata",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "class",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "durability",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "speed",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "agility",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "viewingRange",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "numberOfCannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "armor",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ramming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "crewMax",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cargoBay",
+            "type": "uint256"
+          },
+          {
+            "internalType": "string",
+            "name": "special",
+            "type": "string"
+          },
+          {
+            "internalType": "bool",
+            "name": "oars",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "shallowWaters",
+            "type": "bool"
+          },
+          {
+            "internalType": "string",
+            "name": "shipType",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct IShipMetadata.ShipAttributes",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

@@ -1,0 +1,664 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_inhabitantPirateCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_genesisPirateCollection",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "crewType",
+        "type": "tuple"
+      }
+    ],
+    "name": "CrewTypeAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "CrewTypeRemoved",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "crewType",
+        "type": "tuple"
+      }
+    ],
+    "name": "CrewTypeUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "GENESIS_PIRATE_COLLECTION",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GENESIS_PIRATE_CREW_SCORE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INHABITANT_CITIZEN_CREW_SCORE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INHABITANT_PIRATE_COLLECTION",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INHABITANT_PIRATE_CREW_SCORE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "crewType",
+        "type": "tuple"
+      }
+    ],
+    "name": "addCrewType",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "crewType",
+        "type": "string"
+      }
+    ],
+    "name": "canBeShipCrew",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "crewTypeNames",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "name": "crewTypes",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "farming",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fishing",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "woodpicking",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "building",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "defense",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "abordage",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "bombarding",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "shooting",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "canBeShipCrew",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "crewType",
+        "type": "string"
+      }
+    ],
+    "name": "getCrewTypeStats",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getCrewTypes",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "",
+        "type": "string[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "pirateCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "pirateId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getPirateCrewCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "crewType",
+        "type": "string"
+      }
+    ],
+    "name": "isValidCrewType",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      }
+    ],
+    "name": "removeCrewType",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "components": [
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256",
+            "name": "farming",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fishing",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "woodpicking",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "building",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "defense",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "abordage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "bombarding",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "shooting",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBeShipCrew",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct ICrewTypeManager.CrewType",
+        "name": "crewType",
+        "type": "tuple"
+      }
+    ],
+    "name": "updateCrewType",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

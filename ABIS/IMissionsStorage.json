@@ -1,0 +1,535 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum IMissionsStorage.MissionType",
+        "name": "missionType",
+        "type": "uint8"
+      }
+    ],
+    "name": "MissionCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum IMissionsStorage.MissionType",
+        "name": "missionType",
+        "type": "uint8"
+      }
+    ],
+    "name": "MissionStarted",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "completeMission",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getHuntMissionInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "targetShipId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isNPCTarget",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "completed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.HuntMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMissionType",
+    "outputs": [
+      {
+        "internalType": "enum IMissionsStorage.MissionType",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRaidMissionInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "targetShipId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "completed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.RaidMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getTransferMissionInfo",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "fromIslandId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toIslandId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "resourcesClaimed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.TransferMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "huntMissions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "targetShipId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isNPCTarget",
+            "type": "bool"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "completed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.HuntMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "isShipOnMission",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "raidMissions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "targetShipId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "completed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.RaidMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetShipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isNPCTarget",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "missionData",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setHuntMission",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "targetShipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "missionData",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setRaidMission",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fromIslandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toIslandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "missionData",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "enum IMissionsStorage.MissionType",
+        "name": "missionType",
+        "type": "uint8"
+      }
+    ],
+    "name": "setTransferMission",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "shipMissionTypes",
+    "outputs": [
+      {
+        "internalType": "enum IMissionsStorage.MissionType",
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferMissions",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "fromIslandId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "toIslandId",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "startTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "endTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "isActive",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "resourcesClaimed",
+            "type": "bool"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "missionData",
+            "type": "bytes32"
+          }
+        ],
+        "internalType": "struct IMissionsStorage.TransferMissionInfo",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

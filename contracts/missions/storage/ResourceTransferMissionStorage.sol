@@ -8,6 +8,8 @@ import "../../interfaces/mission-storage/IMissionStates.sol";
 import "../../interfaces/IMissionRegistration.sol";
 import "../../interfaces/ICentralAuthorizationRegistry.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title ResourceTransferMissionStorage
  * @notice Storage contract for resource transfer missions
@@ -28,6 +30,7 @@ contract ResourceTransferMissionStorage is
         uint256 endTime;
         IMissionStates.JourneyState journeyState;
         bool resourcesDelivered;
+        bool isReturnFromTradeMission;
     }
 
     // Mapping for mission data
@@ -50,7 +53,7 @@ contract ResourceTransferMissionStorage is
         uint256 missionId,
         bytes memory initialData
     ) external override onlyAuthorized {
-        // Decode initialData
+        // Decode initialData - now includes isReturnFromTradeMission flag
         (
             uint256 shipId,
             uint256 originIslandId,
@@ -58,8 +61,11 @@ contract ResourceTransferMissionStorage is
             string memory resourceType,
             uint256 amount,
             uint256 startTime,
-            uint256 endTime
-        ) = abi.decode(initialData, (uint256, uint256, uint256, string, uint256, uint256, uint256));
+            uint256 endTime,
+            bool isReturnJourney
+        ) = abi.decode(initialData, (uint256, uint256, uint256, string, uint256, uint256, uint256, bool));
+
+        console.log("ResourceTransferMissionStorage: Decoded missionId:", missionId);
 
         resourceTransferMissions[missionId] = ResourceTransferData({
             shipId: shipId,
@@ -70,7 +76,8 @@ contract ResourceTransferMissionStorage is
             startTime: startTime,
             endTime: endTime,
             journeyState: IMissionStates.JourneyState.NotStarted,
-            resourcesDelivered: false
+            resourcesDelivered: false,
+            isReturnFromTradeMission: isReturnJourney
         });
 
         emit MissionInitialized(missionId, shipId);
@@ -101,7 +108,8 @@ contract ResourceTransferMissionStorage is
             missionData.startTime,
             missionData.endTime,
             missionData.journeyState,
-            missionData.resourcesDelivered
+            missionData.resourcesDelivered,
+            missionData.isReturnFromTradeMission
         );
     }
 
@@ -140,6 +148,15 @@ contract ResourceTransferMissionStorage is
             missionData.journeyState,
             missionData.resourcesDelivered
         );
+    }
+
+    /**
+     * @notice Check if this mission is a return journey from a trade mission
+     * @param missionId Mission identifier
+     * @return isReturnJourney True if this is a return journey from a trade mission
+     */
+    function isReturnFromTradeMission(uint256 missionId) external view returns (bool isReturnJourney) {
+        return resourceTransferMissions[missionId].isReturnFromTradeMission;
     }
 
     function updateJourneyState(uint256 missionId, IMissionStates.JourneyState newState) external onlyAuthorized {

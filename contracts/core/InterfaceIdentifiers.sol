@@ -74,17 +74,17 @@ library InterfaceIdentifiers {
     bytes32 constant MISSIONS_STORAGE_KEY = keccak256("IMissionsStorage");
     string constant MISSIONS_STORAGE_NAME = "IMissionsStorage";
 
-    bytes32 constant ISLAND_MANAGER_KEY = keccak256("IIslandManager");
-    string constant ISLAND_MANAGER_NAME = "IIslandManager";
-
-    bytes32 constant MISSION_REQUIREMENTS_KEY = keccak256("MISSION_REQUIREMENTS"); // As seen in utils
-    string constant MISSION_REQUIREMENTS_NAME = "MISSION_REQUIREMENTS";
+    bytes32 constant MISSION_REQUIREMENTS_KEY = keccak256("IMissionRequirements"); // As seen in utils
+    string constant MISSION_REQUIREMENTS_NAME = "IMissionRequirements";
 
     bytes32 constant ISLAND_REGION_MANAGEMENT_KEY = keccak256("IIslandRegionManagement");
     string constant ISLAND_REGION_MANAGEMENT_NAME = "IIslandRegionManagement";
 
     bytes32 constant SHIP_NFT_KEY = keccak256("IShipNFT");
     string constant SHIP_NFT_NAME = "IShipNFT";
+
+    bytes32 constant ISLAND_NFT_KEY = keccak256("IIslandNFT");
+    string constant ISLAND_NFT_NAME = "IIslandNFT";
 
     bytes32 constant PIRATE_MANAGEMENT_KEY = keccak256("IPirateManagement");
     string constant PIRATE_MANAGEMENT_NAME = "IPirateManagement";
@@ -100,6 +100,27 @@ library InterfaceIdentifiers {
 
     bytes32 constant MISSION_REGISTRATION_KEY = keccak256("IMissionRegistration");
     string constant MISSION_REGISTRATION_NAME = "IMissionRegistration";
+
+    bytes32 constant RESOURCE_TRANSFER_MISSION_KEY = keccak256("IResourceTransferMission");
+    string constant RESOURCE_TRANSFER_MISSION_NAME = "IResourceTransferMission";
+
+    bytes32 constant MARKETPLACE_STORAGE_KEY = keccak256("IMarketPlaceStorage");
+    string constant MARKETPLACE_STORAGE_NAME = "IMarketPlaceStorage";
+
+    bytes32 constant TRADE_MISSION_KEY = keccak256("ITradeMission");
+    string constant TRADE_MISSION_NAME = "ITradeMission";
+
+    bytes32 constant ARRC_LOCKING_KEY = keccak256("IArrcLocking");
+    string constant ARRC_LOCKING_NAME = "IArrcLocking";
+
+    bytes32 constant ARRC_TOKEN_KEY = keccak256("IArrcToken");
+    string constant ARRC_TOKEN_NAME = "IArrcToken";
+
+    bytes32 constant TRADE_MANAGER_KEY = keccak256("ITradeManager");
+    string constant TRADE_MANAGER_NAME = "ITradeManager";
+
+    bytes32 constant MISSIONS_MANAGER_KEY = keccak256("IMissionsManager");
+    string constant MISSIONS_MANAGER_NAME = "IMissionsManager";
 
     function getInterfaceNameById(bytes32 interfaceId) internal pure returns (bool success, string memory name) {
         if (interfaceId == COOLDOWN_MANAGER_KEY) return (true, COOLDOWN_MANAGER_NAME);
@@ -125,15 +146,23 @@ library InterfaceIdentifiers {
         if (interfaceId == MISSION_TRAVEL_CALCULATOR_KEY) return (true, MISSION_TRAVEL_CALCULATOR_NAME);
         if (interfaceId == MISSION_VALIDATOR_KEY) return (true, MISSION_VALIDATOR_NAME);
         if (interfaceId == MISSIONS_STORAGE_KEY) return (true, MISSIONS_STORAGE_NAME);
-        if (interfaceId == ISLAND_MANAGER_KEY) return (true, ISLAND_MANAGER_NAME);
         if (interfaceId == MISSION_REQUIREMENTS_KEY) return (true, MISSION_REQUIREMENTS_NAME);
         if (interfaceId == ISLAND_REGION_MANAGEMENT_KEY) return (true, ISLAND_REGION_MANAGEMENT_NAME);
         if (interfaceId == SHIP_NFT_KEY) return (true, SHIP_NFT_NAME);
+        if (interfaceId == ISLAND_NFT_KEY) return (true, ISLAND_NFT_NAME);
         if (interfaceId == PIRATE_MANAGEMENT_KEY) return (true, PIRATE_MANAGEMENT_NAME);
         if (interfaceId == CAPITAL_ISLAND_MANAGEMENT_KEY) return (true, CAPITAL_ISLAND_MANAGEMENT_NAME);
         if (interfaceId == GAME_REWARDS_KEY) return (true, GAME_REWARDS_NAME);
         if (interfaceId == ARRC_DISTRIBUTION_KEY) return (true, ARRC_DISTRIBUTION_NAME);
         if (interfaceId == MISSION_REGISTRATION_KEY) return (true, MISSION_REGISTRATION_NAME);
+        if (interfaceId == RESOURCE_TRANSFER_MISSION_KEY) return (true, RESOURCE_TRANSFER_MISSION_NAME);
+        if (interfaceId == MARKETPLACE_STORAGE_KEY) return (true, MARKETPLACE_STORAGE_NAME);
+        if (interfaceId == TRADE_MISSION_KEY) return (true, TRADE_MISSION_NAME);
+        if (interfaceId == ARRC_LOCKING_KEY) return (true, ARRC_LOCKING_NAME);
+        if (interfaceId == ARRC_TOKEN_KEY) return (true, ARRC_TOKEN_NAME);
+        if (interfaceId == TRADE_MANAGER_KEY) return (true, TRADE_MANAGER_NAME);
+        if (interfaceId == MISSIONS_MANAGER_KEY) return (true, MISSIONS_MANAGER_NAME);
+
         return (false, ""); // ID not found among predefined constants
     }
 }

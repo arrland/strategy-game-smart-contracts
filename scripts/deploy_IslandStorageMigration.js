@@ -5,20 +5,20 @@ const path = require('path');
 const fs = require('fs');
 
 async function getAllOwners(contractAddress) {
-    // const contract = await ethers.getContractAt("InhabitantNFT", contractAddress);
-    // const totalSupply = await contract.totalSupply();
-    // const tempOwners = [];
-    // const uniqueOwners = new Set();
+    const contract = await ethers.getContractAt("InhabitantNFT", contractAddress);
+    const totalSupply = await contract.totalSupply();
+    const tempOwners = [];
+    const uniqueOwners = new Set();
 
-    // for (let i = 0; i < totalSupply; i++) {
-    //     const tokenId = await contract.tokenByIndex(i);
-    //     const owner = await contract.ownerOf(tokenId);
+    for (let i = 0; i < totalSupply; i++) {
+        const tokenId = await contract.tokenByIndex(i);
+        const owner = await contract.ownerOf(tokenId);
 
-    //     if (!uniqueOwners.has(owner)) {
-    //         uniqueOwners.add(owner);
-    //         tempOwners.push(owner);
-    //     }
-    // }
+        if (!uniqueOwners.has(owner)) {
+            uniqueOwners.add(owner);
+            tempOwners.push(owner);
+        }
+    }
 
     // return Array.from(uniqueOwners);
     const ownersPath = path.join(__dirname, 'owners.csv');
@@ -159,7 +159,7 @@ async function main() {
  
     
     
-    console.log("NEW IslandStorage deployed to:", NEW_ISLAND_STORAGE_ADDRESS);
+    //console.log("NEW IslandStorage deployed to:", NEW_ISLAND_STORAGE_ADDRESS);
 
     
 
@@ -170,117 +170,119 @@ async function main() {
     //const inhabitantStorage = await deployAndAuthorizeContract("InhabitantStorage", centralAuthorizationRegistry, InhabitantsAddress, true, GENESIS_ISLANDS_ADDRESS);
     //console.log("InhabitantStorage deployed to:", await inhabitantStorage.getAddress());
 
-    await storageManagement.addStorageContract(InhabitantsAddress, NEW_INHABITANT_STORAGE_ADDRESS);
+    //await storageManagement.addStorageContract(InhabitantsAddress, NEW_INHABITANT_STORAGE_ADDRESS);
 
-    // Deploy the IslandStorageMigration contract
-    // const IslandStorageMigration = await ethers.getContractFactory("IslandStorageMigration");
-    // const islandStorageMigration = await IslandStorageMigration.deploy(
-    //   OLD_ISLAND_STORAGE_ADDRESS,
-    //   NEW_ISLAND_STORAGE_ADDRESS,
-    //   await storageManagement.getAddress(),
-    //   GENESIS_ISLANDS_ADDRESS,
-    //   admin.address,
-    //   NEW_ISLAND_MANAGEMENT_ADDRESS
+    //  Deploy the IslandStorageMigration contract
+    const IslandStorageMigration = await ethers.getContractFactory("IslandStorageMigration");
+    const islandStorageMigration = await IslandStorageMigration.deploy(
+      OLD_ISLAND_STORAGE_ADDRESS,
+      NEW_ISLAND_STORAGE_ADDRESS,
+      NEW_STORAGE_MANAGEMENT_ADDRESS,
+      GENESIS_ISLANDS_ADDRESS,
+      admin.address,
+      NEW_ISLAND_MANAGEMENT_ADDRESS
 
-    // );
+    );
 
-    //await checkContractDeployed(await islandStorageMigration.getAddress());
+    await checkContractDeployed(await islandStorageMigration.getAddress());
 
     
-    const IslandStorageMigration = await ethers.getContractFactory("IslandStorageMigration");
-    const islandStorageMigration = await IslandStorageMigration.attach(NEW_ISLAND_STORAGE_MIGRATION_ADDRESS);  
+    //const IslandStorageMigration = await ethers.getContractFactory("IslandStorageMigration");
+    //const islandStorageMigration = await IslandStorageMigration.attach(NEW_ISLAND_STORAGE_MIGRATION_ADDRESS);  
 
-    //console.log("IslandStorageMigration deployed to:", await islandStorageMigration.getAddress());
+    console.log("IslandStorageMigration deployed to:", await islandStorageMigration.getAddress());
+
+    console.log(`npx hardhat verify --network ${network.name} ${await islandStorageMigration.getAddress()} ${OLD_ISLAND_STORAGE_ADDRESS} ${NEW_ISLAND_STORAGE_ADDRESS} ${NEW_STORAGE_MANAGEMENT_ADDRESS} ${GENESIS_ISLANDS_ADDRESS} ${admin.address} ${NEW_ISLAND_MANAGEMENT_ADDRESS}`);
     
     //await centralAuthorizationRegistry.addAuthorizedContract(await islandStorageMigration.getAddress());
 
-    const batchSize = 3;
-    for (let i = 0; i < owners.length; i += batchSize) {
+    // const batchSize = 3;
+    // for (let i = 0; i < owners.length; i += batchSize) {
         
-        const batch_nr = i / batchSize + 1;
-        console.log(`Batch number start: ${batch_nr}`);
-        if (batch_nr <  83) {
-            console.log(`Batch number skip: ${batch_nr}`);
-            continue;
-        }
-        const batchOwners = owners.slice(i, i + batchSize);
-        console.log("batchOwners:", batchOwners);
-        await islandStorageMigration.migrateAllOwners(batchOwners, { gasLimit: '30000000' });
-        console.log(`Batch number done: ${batch_nr}`);
-        //console.log(`Batch migration completed for owners: ${batchOwners.join(', ')}`);
-    }
+    //     const batch_nr = i / batchSize + 1;
+    //     console.log(`Batch number start: ${batch_nr}`);
+    //     if (batch_nr <  83) {
+    //         console.log(`Batch number skip: ${batch_nr}`);
+    //         continue;
+    //     }
+    //     const batchOwners = owners.slice(i, i + batchSize);
+    //     console.log("batchOwners:", batchOwners);
+    //     await islandStorageMigration.migrateAllOwners(batchOwners, { gasLimit: '30000000' });
+    //     console.log(`Batch number done: ${batch_nr}`);
+    //     //console.log(`Batch migration completed for owners: ${batchOwners.join(', ')}`);
+    // }
 
-    for (let i = 0; i < capitalIslandUsers.length; i += batchSize) {
-        const batchCapitalIslandUsers = capitalIslandUsers.slice(i, i + batchSize);
-        const batchCapitalIslandsIDs = capitalIslandsIDs.slice(i, i + batchSize);
-        await islandStorageMigration.migrateCapitalIslands(batchCapitalIslandUsers, batchCapitalIslandsIDs);
-        console.log(`Batch number: ${i / batchSize + 1}`);
-        //console.log(`Batch migration completed for capital islands: ${batchCapitalIslandsIDs.join(', ')}`);
-        //console.log(`Batch migration completed for capital islands: ${batchCapitalIslandUsers.join(', ')}`);
-    }
+    // for (let i = 0; i < capitalIslandUsers.length; i += batchSize) {
+    //     const batchCapitalIslandUsers = capitalIslandUsers.slice(i, i + batchSize);
+    //     const batchCapitalIslandsIDs = capitalIslandsIDs.slice(i, i + batchSize);
+    //     await islandStorageMigration.migrateCapitalIslands(batchCapitalIslandUsers, batchCapitalIslandsIDs);
+    //     console.log(`Batch number: ${i / batchSize + 1}`);
+    //     //console.log(`Batch migration completed for capital islands: ${batchCapitalIslandsIDs.join(', ')}`);
+    //     //console.log(`Batch migration completed for capital islands: ${batchCapitalIslandUsers.join(', ')}`);
+    // }
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    console.log("Waiting for 5 seconds...");
+    // await new Promise(resolve => setTimeout(resolve, 5000));
+    // console.log("Waiting for 5 seconds...");
 
-    const oldStorageAddress = await storageManagement.getStorageByCollection(GENESIS_ISLANDS_ADDRESS);
-    console.log("oldStorageAddress:", oldStorageAddress);
-    console.log("OLD_ISLAND_STORAGE_ADDRESS:", OLD_ISLAND_STORAGE_ADDRESS);
-    if (oldStorageAddress == OLD_ISLAND_STORAGE_ADDRESS) {
-        try {
-            await storageManagement.removeStorageContract(GENESIS_ISLANDS_ADDRESS);
-        } catch (error) {
-            console.error("Failed to remove storage contract:", error);
-        }        
-    }
-    await storageManagement.addStorageContract(GENESIS_ISLANDS_ADDRESS, NEW_ISLAND_STORAGE_ADDRESS);
-    await islandStorageMigration.updateStorageManagement();
+    // const oldStorageAddress = await storageManagement.getStorageByCollection(GENESIS_ISLANDS_ADDRESS);
+    // console.log("oldStorageAddress:", oldStorageAddress);
+    // console.log("OLD_ISLAND_STORAGE_ADDRESS:", OLD_ISLAND_STORAGE_ADDRESS);
+    // if (oldStorageAddress == OLD_ISLAND_STORAGE_ADDRESS) {
+    //     try {
+    //         await storageManagement.removeStorageContract(GENESIS_ISLANDS_ADDRESS);
+    //     } catch (error) {
+    //         console.error("Failed to remove storage contract:", error);
+    //     }        
+    // }
+    // await storageManagement.addStorageContract(GENESIS_ISLANDS_ADDRESS, NEW_ISLAND_STORAGE_ADDRESS);
+    // await islandStorageMigration.updateStorageManagement();
 
-    await new Promise(resolve => setTimeout(resolve, 5000));
-    console.log("Waiting for 5 seconds...");
+    // await new Promise(resolve => setTimeout(resolve, 5000));
+    // console.log("Waiting for 5 seconds...");
 
-    const newStorageAddress = await storageManagement.getStorageByCollection(GENESIS_ISLANDS_ADDRESS);
-    console.log("newStorageAddress:", newStorageAddress);
-    console.log("islandStorage address:", NEW_ISLAND_STORAGE_ADDRESS);
-    if (newStorageAddress === NEW_ISLAND_STORAGE_ADDRESS) {
-        console.log("IslandStorage is the new storage for GENESIS_ISLANDS_ADDRESS.");
-    } else {
-        console.log("IslandStorage is not the new storage for GENESIS_ISLANDS_ADDRESS.");
-    }
+    // const newStorageAddress = await storageManagement.getStorageByCollection(GENESIS_ISLANDS_ADDRESS);
+    // console.log("newStorageAddress:", newStorageAddress);
+    // console.log("islandStorage address:", NEW_ISLAND_STORAGE_ADDRESS);
+    // if (newStorageAddress === NEW_ISLAND_STORAGE_ADDRESS) {
+    //     console.log("IslandStorage is the new storage for GENESIS_ISLANDS_ADDRESS.");
+    // } else {
+    //     console.log("IslandStorage is not the new storage for GENESIS_ISLANDS_ADDRESS.");
+    // }
 
-    const migratedOwners = await islandStorageMigration.getMigratedOwners();
-    console.log("Migrated owners:", migratedOwners.length);
-    const migratedOwnersFilePath = path.join(__dirname, 'migrated_owners.txt');
-    fs.writeFileSync(migratedOwnersFilePath, migratedOwners.join(', ') + '\n');
-    console.log(`Migrated owners logged to file: ${migratedOwnersFilePath}`);
+    // const migratedOwners = await islandStorageMigration.getMigratedOwners();
+    // console.log("Migrated owners:", migratedOwners.length);
+    // const migratedOwnersFilePath = path.join(__dirname, 'migrated_owners.txt');
+    // fs.writeFileSync(migratedOwnersFilePath, migratedOwners.join(', ') + '\n');
+    // console.log(`Migrated owners logged to file: ${migratedOwnersFilePath}`);
     // // Verify all deployed contracts
     
-    const verifyCommands = [
-        `npx hardhat verify --network ${network.name} ${NEW_ISLAND_STORAGE_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_ISLANDS_ADDRESS} true`,
-        `npx hardhat verify --network ${network.name} ${NEW_INHABITANT_STORAGE_ADDRESS} ${centralAuthorizationRegistryAddress} ${InhabitantsAddress} true ${GENESIS_ISLANDS_ADDRESS}`,
-        `npx hardhat verify --network ${network.name} ${NEW_ISLAND_STORAGE_MIGRATION_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS} ${NEW_ISLAND_STORAGE_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS} ${GENESIS_ISLANDS_ADDRESS} ${admin.address} ${NEW_ISLAND_MANAGEMENT_ADDRESS}`,
-        `npx hardhat verify --network ${network.name} ${NEW_STORAGE_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_PIRATES_ADDRESS} ${GENESIS_ISLANDS_ADDRESS} ${PIRATE_STORAGE_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS}`,
-        `npx hardhat verify --network ${network.name} ${NEW_ISLAND_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_ISLANDS_ADDRESS}`,
-        `npx hardhat verify --network ${network.name} ${NEW_PIRATE_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress}`
-    ];
+    // const verifyCommands = [
+    //     `npx hardhat verify --network ${network.name} ${NEW_ISLAND_STORAGE_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_ISLANDS_ADDRESS} true`,
+    //     `npx hardhat verify --network ${network.name} ${NEW_INHABITANT_STORAGE_ADDRESS} ${centralAuthorizationRegistryAddress} ${InhabitantsAddress} true ${GENESIS_ISLANDS_ADDRESS}`,
+    //     `npx hardhat verify --network ${network.name} ${NEW_ISLAND_STORAGE_MIGRATION_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS} ${NEW_ISLAND_STORAGE_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS} ${GENESIS_ISLANDS_ADDRESS} ${admin.address} ${NEW_ISLAND_MANAGEMENT_ADDRESS}`,
+    //     `npx hardhat verify --network ${network.name} ${NEW_STORAGE_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_PIRATES_ADDRESS} ${GENESIS_ISLANDS_ADDRESS} ${PIRATE_STORAGE_ADDRESS} ${OLD_ISLAND_STORAGE_ADDRESS}`,
+    //     `npx hardhat verify --network ${network.name} ${NEW_ISLAND_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress} ${GENESIS_ISLANDS_ADDRESS}`,
+    //     `npx hardhat verify --network ${network.name} ${NEW_PIRATE_MANAGEMENT_ADDRESS} ${centralAuthorizationRegistryAddress}`
+    // ];
 
-    const newDeployedAddresses = [
-        `ISLAND_STORAGE_MIGRATION_ADDRESS=${NEW_ISLAND_STORAGE_MIGRATION_ADDRESS}`,
-        `INHABITANT_STORAGE_ADDRESS=${NEW_INHABITANT_STORAGE_ADDRESS}`,
-        `STORAGE_MANAGEMENT_ADDRESS=${NEW_STORAGE_MANAGEMENT_ADDRESS}`,
-        `PIRATE_MANAGEMENT_ADDRESS=${NEW_PIRATE_MANAGEMENT_ADDRESS}`,
-        `ISLAND_MANAGEMENT_ADDRESS=${NEW_ISLAND_MANAGEMENT_ADDRESS}`,
-        `ISLAND_STORAGE_ADDRESS=${NEW_ISLAND_STORAGE_ADDRESS}`,
-    ];
+    // const newDeployedAddresses = [
+    //     `ISLAND_STORAGE_MIGRATION_ADDRESS=${NEW_ISLAND_STORAGE_MIGRATION_ADDRESS}`,
+    //     `INHABITANT_STORAGE_ADDRESS=${NEW_INHABITANT_STORAGE_ADDRESS}`,
+    //     `STORAGE_MANAGEMENT_ADDRESS=${NEW_STORAGE_MANAGEMENT_ADDRESS}`,
+    //     `PIRATE_MANAGEMENT_ADDRESS=${NEW_PIRATE_MANAGEMENT_ADDRESS}`,
+    //     `ISLAND_MANAGEMENT_ADDRESS=${NEW_ISLAND_MANAGEMENT_ADDRESS}`,
+    //     `ISLAND_STORAGE_ADDRESS=${NEW_ISLAND_STORAGE_ADDRESS}`,
+    // ];
 
-    const newDeployedAddressesFilePath = path.join(__dirname, 'new_deployed_addresses.txt');
-    fs.appendFileSync(newDeployedAddressesFilePath, newDeployedAddresses.join('\n') + '\n');
-    console.log(`New deployed addresses logged to file: ${newDeployedAddressesFilePath}`);
+    // const newDeployedAddressesFilePath = path.join(__dirname, 'new_deployed_addresses.txt');
+    // fs.appendFileSync(newDeployedAddressesFilePath, newDeployedAddresses.join('\n') + '\n');
+    // console.log(`New deployed addresses logged to file: ${newDeployedAddressesFilePath}`);
 
-    const verifyCommandsFilePath = path.join(__dirname, 'verify_commands.txt');
+    // const verifyCommandsFilePath = path.join(__dirname, 'verify_commands.txt');
 
-    fs.writeFileSync(verifyCommandsFilePath, verifyCommands.join('\n') + '\n');
+    // fs.writeFileSync(verifyCommandsFilePath, verifyCommands.join('\n') + '\n');
 
-    console.log(`Verify commands logged to file: ${verifyCommandsFilePath}`);
+    // console.log(`Verify commands logged to file: ${verifyCommandsFilePath}`);
 }
 
 // Run the deployment script

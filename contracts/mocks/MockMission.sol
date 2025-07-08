@@ -2,6 +2,8 @@
 pragma solidity ^0.8.25;
 
 import "../interfaces/IMission.sol";
+import "../interfaces/IMissionsStorage.sol";
+import "../AuthorizationModifiers.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "hardhat/console.sol";
 
@@ -9,7 +11,7 @@ import "hardhat/console.sol";
  * @title MockMission
  * @notice Mock implementation of IMission for testing purposes.
  */
-contract MockMission is IMission, IERC165 {
+contract MockMission is IMission, IERC165, AuthorizationModifiers {
     uint256 public fixedDuration = 600; // Default 10 minutes
     address public lastCaller;
     uint256 public lastShipId;
@@ -22,19 +24,43 @@ contract MockMission is IMission, IERC165 {
     mapping(uint256 => bytes) public missionDataStore;
     mapping(uint256 => bool) public completedMissions;
 
+    constructor(address _centralAuthorizationRegistry) 
+        AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("MockMission")) {}
+
+    function getMissionsStorage() internal view returns (IMissionsStorage) {
+        return IMissionsStorage(
+            centralAuthorizationRegistry.getContractAddress(keccak256(abi.encodePacked("IMissionsStorage")))
+        );
+    }
+
     /**
-     * @notice Simulates starting a mission, stores data, returns fixed duration.
+     * @notice Simulates starting a mission, stores data, returns the missionId from mission data.
      * @param shipId ID of the ship (unused in mock).
      * @param data Encoded mission data, expected to contain missionId.
-     * @return duration Fixed mission duration.
+     * @return missionId The mission ID decoded from the mission data.
      */
-    function startMission(uint256 shipId, bytes calldata data) external override returns (uint256 duration) {
+    function startMission(uint256 shipId, bytes calldata data) external override returns (uint256 missionId) {
         lastCaller = msg.sender;
         lastShipId = shipId;
         lastMissionData = data;
         
+        // Decode missionId from the mission data (first 32 bytes)
+        // MissionsManager prepends missionId to the mission data
+        require(data.length >= 32, "Mission data too short");
+        missionId = abi.decode(data[:32], (uint256));
+        
+        // Simulate calling MissionsStorage.startMission like real mission contracts do
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        missionsStorage.startMission(
+            shipId,
+            missionId,
+            1, // missionType (using 1 for mock)
+            fixedDuration,
+            data[32:] // remaining mission data after missionId
+        );
+        
         emit MissionInstanceStarted(shipId, data, fixedDuration);
-        return fixedDuration;
+        return missionId;
     }
 
     /**

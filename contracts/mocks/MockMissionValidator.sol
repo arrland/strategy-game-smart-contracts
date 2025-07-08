@@ -80,7 +80,13 @@ contract MockMissionValidator is IMissionValidator {
         // No-op for mock
     }
 
-    function validateShipCapacity(uint256 /*shipId*/, uint256 /*amount*/) external view override returns (bool) {
+    function validateShipCapacity(
+        uint256 /*shipId*/, 
+        uint256 /*amount*/,
+        uint256 /*travelDays*/,
+        string calldata /*foodChoice*/,
+        string calldata /*foodRationChoice*/
+    ) external view override returns (bool) {
         return true; // Default to true
     }
 

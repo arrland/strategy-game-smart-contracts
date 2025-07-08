@@ -1,17 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.25;
 
-import "../interfaces/IMissionValidator.sol";
-import "../AuthorizationModifiers.sol";
-import "../interfaces/IMissionsStorage.sol";
-import "../interfaces/storage/IShipStorage.sol";
-import "../interfaces/ships/IShipAndPirateStaking.sol";
-import "../interfaces/IMissionRequirements.sol";
-import "../interfaces/IBuildingStorage.sol";
-import "../interfaces/IFeeManagement.sol";
+import "contracts/interfaces/IMissionValidator.sol";
+import "contracts/AuthorizationModifiers.sol";
+import "contracts/interfaces/IMissionsStorage.sol";
+import "contracts/interfaces/storage/IShipStorage.sol";
+import "contracts/interfaces/ships/IShipAndPirateStaking.sol";
+import "contracts/interfaces/IMissionRequirements.sol";
+import "contracts/interfaces/IBuildingStorage.sol";
+import "contracts/interfaces/IFeeManagement.sol";
 import "../interfaces/IResourceSpendManagement.sol";
 import "../interfaces/ICrewManagement.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import "../core/InterfaceIdentifiers.sol";
+import "hardhat/console.sol";
 
 /**
  * @title MissionValidator
@@ -20,7 +24,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract MissionValidator is IMissionValidator, AuthorizationModifiers {
     constructor(
         address _centralAuthorizationRegistry
-    ) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IMissionValidator")) {}
+    ) AuthorizationModifiers(_centralAuthorizationRegistry, InterfaceIdentifiers.MISSION_VALIDATOR_KEY) {}
 
 
     /**
@@ -76,9 +80,17 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
      * @param amount The amount of resources to check capacity for
      * @return True if the ship has sufficient capacity
      */
-    function validateShipCapacity(uint256 shipId, uint256 amount) external view returns (bool) {
-        IShipStorage shipStorageContract = getShipStorage(); 
-        return shipStorageContract.hasAvailableCapacity(shipId, amount);
+    function validateShipCapacity(
+        uint256 shipId, 
+        uint256 amount,
+        uint256 travelDays,
+        string memory foodChoice,
+        string memory foodRationChoice
+    ) public view override returns (bool) {
+        (uint256 requiredFoodAmount, ) = _calculateNeededStorageAndFoodAmounts(shipId, travelDays, 0, foodChoice, foodRationChoice);
+        uint256 totalRequiredCapacity = amount + requiredFoodAmount;
+        
+        return getShipStorage().hasAvailableCapacity(shipId, totalRequiredCapacity);
     }
 
     /**
@@ -86,9 +98,8 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
      * @param shipId The ID of the ship to check
      * @return locked True if the ship is locked
      */
-    function isShipLocked(uint256 shipId) public view returns (bool) {
-        IShipStorage shipStorage = IShipStorage(getShipStorage());
-        return shipStorage.isResourceLocked(shipId);
+    function isShipLocked(uint256 shipId) public view override returns (bool) {
+        return getShipStorage().isResourceLocked(shipId);
     }
 
     /**
@@ -97,14 +108,10 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
      * @param user Address to check ownership against
      * @return True if the user is the owner of the island
      */
-    function isIslandOwner(uint256 islandId, address user) external view returns (bool) {
-        address islandContract = getIslandManager();
-        (bool success, bytes memory data) = islandContract.staticcall(
-            abi.encodeWithSignature("ownerOf(uint256)", islandId)
-        );
-        require(success, "Island owner check failed");
-        address owner = abi.decode(data, (address));
-        return owner == user;
+    function isIslandOwner(uint256 islandId, address user) public view override returns (bool) {
+        address islandContractAddress = centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY);
+        require(islandContractAddress != address(0), "Island contract not registered");
+        return IERC721(islandContractAddress).ownerOf(islandId) == user;
     }
 
     /**
@@ -112,49 +119,40 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
      * This helps reduce stack depth in the main validation function.
      */
     function _calculateNeededStorageAndFoodAmounts(
+        uint256 shipId,
         uint256 travelDays,
         uint256 intendedCargo,
-        string calldata foodChoice,
-        string calldata foodRationChoice,
-        uint256 totalCrew,
-        IResourceSpendManagement resourceSpend
-    ) internal view returns (uint256 neededStorageInBaseUnits) {
-        uint256 totalPrimaryFoodAmountWei = resourceSpend.calculateTotalFoodAmountForAction(
-            "consumePrimaryFood",
-            foodChoice,
-            totalCrew,
-            travelDays
-        );
-
-        uint256 totalRationFoodAmountWei = resourceSpend.calculateTotalFoodAmountForAction(
-            "consumeRationFood",
-            foodRationChoice,
-            totalCrew,
-            travelDays
-        );
-
-        uint256 primaryFoodCargoUnits;
-        // This conversion assumes that "citrus" and "crate-packed citrus" values from
-        // calculateTotalFoodAmountForAction are in wei (1e18 scale) and need conversion to base units for storage.
-        // Other food types are assumed to be returned in base units already by calculateTotalFoodAmountForAction.
-        // This logic should ideally be driven by metadata from ResourceTypeManager or ResourceSpendManagement
-        // indicating the unit type of amounts returned by calculateTotalFoodAmountForAction.
-        if (
-            keccak256(bytes(foodChoice)) == keccak256(bytes("citrus")) ||
-            keccak256(bytes(foodChoice)) == keccak256(bytes("crate-packed citrus"))
-        ) {
-            primaryFoodCargoUnits = totalPrimaryFoodAmountWei / (10**18);
-        } else {
-            // Assuming other primary food types are already in base units for cargo calculation
-            primaryFoodCargoUnits = totalPrimaryFoodAmountWei; 
+        string memory foodChoice,
+        string memory foodRationChoice
+    ) internal view returns (uint256 requiredFoodAmount, uint256 neededStorageInBaseUnits) {
+        uint256 totalPrimaryFoodAmountWei = 0;
+        uint256 totalRationFoodAmountWei = 0;
+        
+        // Only calculate food amounts if food choices are not "none"
+        if (keccak256(abi.encodePacked(foodChoice)) != keccak256(abi.encodePacked("none"))) {
+            totalPrimaryFoodAmountWei = IResourceSpendManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_SPEND_MANAGEMENT_KEY)).calculateTotalFoodAmountForAction(
+                "consumePrimaryFood",
+                foodChoice,
+                getTotalCrewCount(shipId),
+                travelDays
+            );
         }
+        
+        if (keccak256(abi.encodePacked(foodRationChoice)) != keccak256(abi.encodePacked("none"))) {
+            totalRationFoodAmountWei = IResourceSpendManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_SPEND_MANAGEMENT_KEY)).calculateTotalFoodAmountForAction(
+                "consumeRationFood",
+                foodRationChoice,
+                getTotalCrewCount(shipId),
+                travelDays
+            );
+        }
+        
+        // Convert food amounts from wei to base units for cargo calculation
+        uint256 primaryFoodCargoUnits = totalPrimaryFoodAmountWei / 1 ether;
+        uint256 rationFoodCargoUnits = totalRationFoodAmountWei / 1 ether;
 
-        // Assuming all ration food amounts from calculateTotalFoodAmountForAction are in wei
-        // and need conversion to base units for storage.
-        uint256 rationFoodCargoUnits = totalRationFoodAmountWei / (10**18);
-
-        neededStorageInBaseUnits = primaryFoodCargoUnits + rationFoodCargoUnits + intendedCargo;
-        return neededStorageInBaseUnits;
+        requiredFoodAmount = primaryFoodCargoUnits + rationFoodCargoUnits;
+        neededStorageInBaseUnits = requiredFoodAmount + intendedCargo;
     }
 
     /**
@@ -174,29 +172,24 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
         string calldata foodRationChoice,
         address user
     ) external override onlyAuthorized {
-        uint256 nftCrew = getNFTCrewCount(shipId);
         uint256 totalCrew = getTotalCrewCount(shipId);
         
-        IResourceSpendManagement resourceSpend = IResourceSpendManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceSpendManagement")));
-
-        uint256 totalResourcesNeededForShipStorage = _calculateNeededStorageAndFoodAmounts(
+        // 1. Validate Ship Capacity
+        (, uint256 totalResourcesNeededForShipStorage) = _calculateNeededStorageAndFoodAmounts(
+            shipId,
             travelDays,
             intendedCargo,
             foodChoice,
-            foodRationChoice,
-            totalCrew,
-            resourceSpend
+            foodRationChoice
         );
         
         IShipStorage shipStorage = getShipStorage();
-        uint256 availableCapacity = shipStorage.getAvailableCapacity(shipId);
+        require(totalResourcesNeededForShipStorage <= shipStorage.getAvailableCapacity(shipId), "Not enough ship storage for food and cargo");
         
+        IFeeManagement feeManagement = IFeeManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.FEE_MANAGEMENT_KEY));
+        feeManagement.useRum(user, travelDays * getNFTCrewCount(shipId));
 
-        require(totalResourcesNeededForShipStorage <= availableCapacity, "Not enough ship storage for food and cargo");
-        
-        IFeeManagement feeManagement = IFeeManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IFeeManagement")));
-        feeManagement.useRum(user, travelDays * nftCrew);
-
+        IResourceSpendManagement resourceSpend = IResourceSpendManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.RESOURCE_SPEND_MANAGEMENT_KEY));
         resourceSpend.burnMissionStartFoods(
             address(shipStorage),
             shipId,
@@ -224,7 +217,7 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
 
     function getNonNFTCrewCount(uint256 shipId) public view returns (uint256 totalNonNFT) {
         IShipAndPirateStaking staking = getShipAndPirateStaking();
-        ICrewManagement crewManagement = ICrewManagement(centralAuthorizationRegistry.getContractAddress(keccak256("ICrewManagement")));
+        ICrewManagement crewManagement = ICrewManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.CREW_MANAGEMENT_KEY));
         (uint256 captainId, address captainCollection, uint256[] memory genesisCrew, uint256[] memory inhabitantsCrew) = staking.getShipCrewDetails(shipId);
         address genesisAddr = staking.getGenesisPiratesAddress();
         address inhabitantsAddr = staking.getInhabitantsAddress();
@@ -260,30 +253,27 @@ contract MissionValidator is IMissionValidator, AuthorizationModifiers {
     // Internal access to system contracts
     function getMissionsStorage() internal view returns (IMissionsStorage) {
         return IMissionsStorage(
-            centralAuthorizationRegistry.getContractAddress(keccak256("IMissionsStorage"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSIONS_STORAGE_KEY)
         );
     }
 
     function getShipAndPirateStaking() internal view returns (IShipAndPirateStaking) {
         return IShipAndPirateStaking(
-            centralAuthorizationRegistry.getContractAddress(keccak256("IShipAndPirateStaking"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.SHIP_AND_PIRATE_STAKING_KEY)
         );
     }
 
     function getShipStorage() internal view returns (IShipStorage) {
         return IShipStorage(
-            centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage"))
+            centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.SHIP_STORAGE_KEY)
         );
     }
 
     function getMissionRequirements() internal view returns (IMissionRequirements) {
-        return IMissionRequirements(
-            centralAuthorizationRegistry.getContractAddress(keccak256("MISSION_REQUIREMENTS"))
-        );
-    }
-
-    function getIslandManager() internal view returns (address) {
-        return centralAuthorizationRegistry.getContractAddress(keccak256("IIslandManager"));
+        address missionReqAddr = centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.MISSION_REQUIREMENTS_KEY);
+        console.log("MissionValidator: getMissionRequirements() retrieved address:", missionReqAddr);
+        require(missionReqAddr != address(0), "MISSION_REQUIREMENTS not registered in CAR");
+        return IMissionRequirements(missionReqAddr);
     }
 
     function getShipHomeIsland(uint256 shipId) external view override returns (uint256) {

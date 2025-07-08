@@ -1,0 +1,474 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "inputs": [],
+    "name": "ReentrancyGuardReentrantCall",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "damage",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newDurability",
+        "type": "uint256"
+      }
+    ],
+    "name": "DamageTaken",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "RepairCancelled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "RepairCompleted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "endTime",
+        "type": "uint256"
+      }
+    ],
+    "name": "RepairStarted",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "BASE_REPAIR_TIME",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "INTERFACE_ID",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MAX_DURABILITY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_DURABILITY_FOR_MISSION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "shipType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "damageAmount",
+        "type": "uint256"
+      }
+    ],
+    "name": "applyDamage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "canStartMission",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "cancelRepair",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "centralAuthorizationRegistry",
+    "outputs": [
+      {
+        "internalType": "contract ICentralAuthorizationRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "completeRepair",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getDurability",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "shipType",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRepairResourcesNeeded",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "planks",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "wood",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "yarn",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ironAccessories",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "fabric",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "marineItems",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "cannons",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "ironBar",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "tinBar",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "copperBar",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct ShipDamage.RepairResources",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getRepairStatus",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "isRepairing",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "repairEndTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "currentDurability",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "repairResourcesRequired",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "planks",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "wood",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "yarn",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ironAccessories",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "fabric",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "marineItems",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "cannons",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "ironBar",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tinBar",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "copperBar",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_centralAuthorizationRegistry",
+        "type": "address"
+      }
+    ],
+    "name": "setCentralAuthorizationRegistry",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "shipDamageStates",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "currentDurability",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "lastRepairTime",
+        "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "isRepairing",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "repairEndTime",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shipId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "shipType",
+        "type": "uint256"
+      }
+    ],
+    "name": "startRepair",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

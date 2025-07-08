@@ -5,6 +5,8 @@ import "../../AuthorizationModifiers.sol";
 import "../../interfaces/IMissionsStorage.sol";
 import "../../interfaces/mission-storage/IMissionTypeStorage.sol";
 
+import "hardhat/console.sol";
+
 /**
  * @title MissionsStorage
  * @notice Central mission storage with registry for specialized storage
@@ -146,14 +148,18 @@ contract MissionsStorage is IMissionsStorage, AuthorizationModifiers {
             missionType: missionType,
             missionId: missionId
         });
+
+        console.log("MissionsStorage: Mission started for shipId:");
         
         // Add to mission type index
         _addShipToMissionType(shipId, missionType);
+
+        console.log("MissionsStorage: Mission added to mission type index");
         
         // Delegate to specialized storage
         address storageAddr = specializedStorage[missionType];
         require(storageAddr != address(0), "No specialized storage for mission type");
-        
+        console.log("MissionsStorage: Delegate to specialized storage");
         IMissionTypeStorage(storageAddr).initializeMission(
             missionId,
             missionData

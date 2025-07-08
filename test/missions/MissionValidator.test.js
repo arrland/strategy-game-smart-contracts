@@ -72,7 +72,7 @@ describe("MissionValidator", function () {
             islandStorage, buildingStorage, resourceManagement, resourceSpendManagement, resourceTypeManager,
             crewTypeManager, crewManagement, pirateSkills, pirateSkillsReader,
             shipMetadata, shipStorage, dockingManagement, shipAndPirateStaking, missionsStorage, // staking is ShipAndPirateStaking
-            mockIslandManager, missionValidator, // missionValidator is from core pack
+            missionValidator, // missionValidator is from core pack
             storageManagement, // Added
             // missionRequirements is also from coreContractsPack if setupCoreGameContracts provides it as a mock
             missionRequirements 
@@ -131,6 +131,7 @@ describe("MissionValidator", function () {
             
             // Spread all contracts from the core pack
             ...coreContractsPack,
+            islandNft: nfts.islandNft,
             config: ValidatorTestConfig
         };
     }
@@ -218,43 +219,83 @@ describe("MissionValidator", function () {
     });
 
     describe("validateShipCapacity", function () {
+        const travelDays = 1;
+        const foodChoice = "none";
+        const foodRationChoice = "none";
+
         it("should return true if ship has enough capacity", async function () {
             // Destructure from state
-            const { missionValidator, shipStorage, shipMetadata, admin, config, owner } = state; 
+            const { 
+                missionValidator, shipStorage, shipMetadata, admin, config, owner,
+                shipAndPirateStaking, shipNFT, genesisPiratesNFT, arrcToken, feeManagement
+            } = state; 
             const shipId = config.ships.SHIP_1.id;
+            const captainId = config.pirates.CAPTAIN.id;
+            const genesisAddr = await genesisPiratesNFT.getAddress();
             const amountToValidate = ethers.parseUnits("100", 0); // Changed to 0 decimals for cargo units
+
+            // STAKE THE SHIP FIRST (required for crew count calculation)
+            const stakeFee = await feeManagement.calculateStakingArrcFee(1);
+            await arrcToken.connect(owner).approve(await shipAndPirateStaking.getAddress(), stakeFee);
+            await shipNFT.connect(owner).approve(await shipAndPirateStaking.getAddress(), shipId);
+            await genesisPiratesNFT.connect(owner).setApprovalForAll(await shipAndPirateStaking.getAddress(), true);
+            await stakeShipWithPirates(shipAndPirateStaking, owner, shipId, captainId, genesisAddr);
 
             // Capacity is set by ShipMetadata in fixture (e.g., 500)
             // Current cargo is 0 as no resources have been added yet.
             // Available capacity = metadata.cargoBay - 0. If cargoBay is 500, available is 500.
             // 500 > 100, so this should be true.
 
-            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate)).to.be.true;
+            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate, travelDays, foodChoice, foodRationChoice)).to.be.true;
         });
 
         it("should return false if ship does not have enough capacity", async function () {
             // Destructure from state
-            const { missionValidator, shipStorage, shipMetadata, admin, config, owner } = state; 
+            const { 
+                missionValidator, shipStorage, shipMetadata, admin, config, owner,
+                shipAndPirateStaking, shipNFT, genesisPiratesNFT, arrcToken, feeManagement
+            } = state; 
             const shipId = config.ships.SHIP_1.id;
+            const captainId = config.pirates.CAPTAIN.id;
+            const genesisAddr = await genesisPiratesNFT.getAddress();
             const amountToValidate = ethers.parseUnits("600", 18); // More than capacity (e.g. 500)
+
+            // STAKE THE SHIP FIRST (required for crew count calculation)
+            const stakeFee = await feeManagement.calculateStakingArrcFee(1);
+            await arrcToken.connect(owner).approve(await shipAndPirateStaking.getAddress(), stakeFee);
+            await shipNFT.connect(owner).approve(await shipAndPirateStaking.getAddress(), shipId);
+            await genesisPiratesNFT.connect(owner).setApprovalForAll(await shipAndPirateStaking.getAddress(), true);
+            await stakeShipWithPirates(shipAndPirateStaking, owner, shipId, captainId, genesisAddr);
 
             // Capacity from metadata (e.g. 500). Current cargo is 0.
             // Available capacity = 500. 500 < 600, so this should be false.
 
-            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate)).to.be.false;
+            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate, travelDays, foodChoice, foodRationChoice)).to.be.false;
         });
 
         it("should return true if amount equals available capacity", async function () {
             // Destructure from state
-            const { missionValidator, shipStorage, shipMetadata, admin, config, owner } = state; 
+            const { 
+                missionValidator, shipStorage, shipMetadata, admin, config, owner,
+                shipAndPirateStaking, shipNFT, genesisPiratesNFT, arrcToken, feeManagement
+            } = state; 
             const shipId = config.ships.SHIP_1.id;
+            const captainId = config.pirates.CAPTAIN.id;
+            const genesisAddr = await genesisPiratesNFT.getAddress();
             // Amount should be equal to shipAttributes.cargoBay from ValidatorTestConfig
             const amountToValidate = ethers.parseUnits(config.shipAttributes.cargoBay.toString(), 0);
+
+            // STAKE THE SHIP FIRST (required for crew count calculation)
+            const stakeFee = await feeManagement.calculateStakingArrcFee(1);
+            await arrcToken.connect(owner).approve(await shipAndPirateStaking.getAddress(), stakeFee);
+            await shipNFT.connect(owner).approve(await shipAndPirateStaking.getAddress(), shipId);
+            await genesisPiratesNFT.connect(owner).setApprovalForAll(await shipAndPirateStaking.getAddress(), true);
+            await stakeShipWithPirates(shipAndPirateStaking, owner, shipId, captainId, genesisAddr);
 
             // Capacity from metadata (e.g. 500). Current cargo is 0.
             // Available capacity = 500. If amountToValidate is 500, this should be true.
 
-            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate)).to.be.true;
+            expect(await missionValidator.validateShipCapacity(shipId, amountToValidate, travelDays, foodChoice, foodRationChoice)).to.be.true;
         });
 
         // Add more tests for this function (e.g., zero capacity)
@@ -295,24 +336,25 @@ describe("MissionValidator", function () {
     describe("isIslandOwner", function () {
         it("should return true if caller is the island owner", async function () {
             // Destructure from state
-            const { missionValidator, mockIslandManager, admin, owner } = state; 
+            const { missionValidator, islandNft, admin, owner } = state; 
             const islandId = 1;
 
-            // Use mockIslandManager to set ownership for the test
-            await mockIslandManager.connect(admin).setOwner(islandId, owner.address);
+            // Mint island to the owner to establish ownership - use mintSpecific instead of safeMint
+            await islandNft.connect(admin).mintSpecific(owner.address, islandId);
 
-            expect(await missionValidator.connect(owner).isIslandOwner(islandId, owner.address)).to.be.true;
+            expect(await missionValidator.isIslandOwner(islandId, owner.address)).to.be.true;
         });
 
         it("should return false if caller is not the island owner", async function () {
             // Destructure from state
-            const { missionValidator, mockIslandManager, admin, owner, otherAccount } = state; 
+            const { missionValidator, islandNft, admin, owner, otherAccount } = state; 
             const islandId = 1;
 
-            // Use mockIslandManager to set ownership for the test
-            await mockIslandManager.connect(admin).setOwner(islandId, owner.address);
+            // Mint island to the owner - use mintSpecific instead of safeMint
+            await islandNft.connect(admin).mintSpecific(owner.address, islandId);
 
-            expect(await missionValidator.connect(otherAccount).isIslandOwner(islandId, otherAccount.address)).to.be.false;
+            // Check ownership for a different account
+            expect(await missionValidator.isIslandOwner(islandId, otherAccount.address)).to.be.false;
         });
     });
 

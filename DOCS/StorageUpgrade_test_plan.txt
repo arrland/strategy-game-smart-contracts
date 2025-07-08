@@ -1,0 +1,94 @@
+Unit Test Plan for StorageUpgrade.sol
+
+General Structure:
+- Setup: Initialize contracts and set up any necessary state.
+- Execution: Call functions with various inputs to simulate different scenarios.
+- Assertions: Check that the results match expected outcomes.
+
+Tests to Include:
+
+1. Initialization Tests
+   - Verify that the contract initializes with the correct parameters.
+   - Check that initial state variables are set as expected.
+
+2. Functionality Tests
+   - upgradeStorage:
+     - Test with valid and invalid levels.
+     - Ensure resources are correctly spent and storage capacity is updated.
+     - Check that events are emitted correctly.
+   - startUpgradeStorage:
+     - Validate handling of ERC721 and ERC1155 tokens.
+     - Test with valid and invalid NFT collections and IDs.
+     - Verify that the staking information is updated correctly.
+     - Ensure correct fee calculation and deduction in RUM or MATIC.
+     - Test food consumption logic for different food choices.
+     - Mock dependencies to isolate function behavior.
+   - finishStorageUpgrade:
+     - Ensure upgrades are completed and states are reset.
+     - Check for correct handling of already completed upgrades.
+
+3. Helper Function Tests
+   - getNewUpgradeReq:
+     - Test with various levels and collections.
+     - Ensure it returns the correct current level, upgrade time, fees, and food requirements.
+     - Verify the resources required for the next level are accurate.
+
+4. Security and Access Control
+   - Test that only authorized users can perform certain actions.
+   - Verify that modifiers like nonReentrant and whenNotPaused work as expected.
+
+5. Edge Cases
+   - Test boundary conditions, such as the maximum and minimum levels.
+   - Ensure proper handling of edge cases like zero or negative values.
+
+6. Failure Scenarios
+   - Simulate scenarios where functions should revert and ensure they do so correctly.
+   - Test with invalid inputs to ensure robust error handling.
+
+7. Comprehensive Test Plan
+
+Initialization Tests
+- [ ] Verify contract initializes with correct parameters.
+- [ ] Check initial state variables are set as expected.
+
+Functionality Tests
+- `upgradeStorage`:
+  - [ ] Test valid and invalid levels.
+  - [ ] Ensure resources are correctly spent and storage capacity is updated.
+  - [ ] Check that events are emitted correctly.
+- `startUpgradeStorage`:
+  - [ ] Validate handling of ERC721 and ERC1155 tokens.
+  - [ ] Test valid and invalid NFT collections and IDs.
+  - [ ] Verify that staking information is updated correctly.
+  - [ ] Ensure correct fee calculation and deduction in RUM or MATIC.
+  - [ ] Test food consumption logic for different food choices.
+  - [ ] Mock dependencies to isolate function behavior.
+- `finishStorageUpgrade`:
+  - [ ] Ensure upgrades are completed and states are reset.
+  - [ ] Check for correct handling of already completed upgrades.
+
+Helper Function Tests
+- `getNewUpgradeReq`:
+  - [ ] Test with various levels and collections.
+  - [ ] Ensure it returns the correct current level, upgrade time, fees, and food requirements.
+  - [ ] Verify the resources required for the next level are accurate.
+
+Security and Access Control
+- [ ] Test that only authorized users can perform certain actions.
+- [ ] Verify that modifiers like `nonReentrant` and `whenNotPaused` work as expected.
+
+Edge Cases
+- [ ] Test boundary conditions, such as the maximum and minimum levels.
+- [ ] Ensure proper handling of edge cases like zero or negative values.
+
+Failure Scenarios
+- [ ] Simulate scenarios where functions should revert and ensure they do so correctly.
+- [ ] Test with invalid inputs to ensure robust error handling.
+
+Integration Tests
+- [ ] Test the contract's integration with other components, such as `IStorageManagement` and `IResourceManagement`, to ensure seamless interaction.
+- [ ] Verify that changes in one contract are correctly reflected in others.
+
+Performance and Gas Usage Tests
+- [ ] Analyze the gas consumption of critical functions to identify potential optimizations.
+- [ ] Test the contract's performance under heavy load or with large datasets.

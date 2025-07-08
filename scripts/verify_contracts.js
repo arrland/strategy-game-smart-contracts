@@ -13,19 +13,15 @@ async function main() {
     const Blocks28Days = process.env.BLOCKS_28_DAYS;
 
     const contracts = [
-        { name: "ResourceTypeManager", address: process.env.RESOURCE_TYPE_MANAGER, args: [CentralAuthorizationRegistry] },
-        { name: "ResourceManagement", address: process.env.RESOURCE_MANAGEMENT, args: [CentralAuthorizationRegistry] },
-        { name: "CentralAuthorizationRegistry", address: process.env.CENTRAL_AUTHORIZATION_REGISTRY, args: [] },
-        { name: "FeeManagement", address: process.env.FEE_MANAGEMENT, args: [CentralAuthorizationRegistry, RumTokenAddress, MaticFeeRecipient] },
-        { name: "PirateManagement", address: process.env.PIRATE_MANAGEMENT, args: [CentralAuthorizationRegistry] },
-        { name: "PirateStorage", address: process.env.PIRATE_STORAGE, args: [CentralAuthorizationRegistry, GenesisPiratesAddress, false] },
-        { name: "IslandStorage", address: process.env.ISLAND_STORAGE, args: [CentralAuthorizationRegistry, GenesisIslandsAddress, true] },
-        { name: "IslandManagement", address: process.env.ISLAND_MANAGEMENT, args: [CentralAuthorizationRegistry, GenesisIslandsAddress] },
-        { name: "StorageManagement", address: process.env.STORAGE_MANAGEMENT, args: [CentralAuthorizationRegistry, GenesisPiratesAddress, GenesisIslandsAddress, PirateStorageAddress, IslandStorageAddress] },
-        { name: "ResourceSpendManagement", address: process.env.RESOURCE_SPEND_MANAGEMENT, args: [CentralAuthorizationRegistry] },
-        { name: "ResourceFarmingRules", address: process.env.RESOURCE_FARMING_RULES, args: [CentralAuthorizationRegistry] },
-        { name: "ResourceFarming", address: process.env.RESOURCE_FARMING, args: [CentralAuthorizationRegistry] },
-        { name: "ActivityStats", address: process.env.ACTIVITY_STATS, args: [CentralAuthorizationRegistry, 1, LastRewardMintBlock, Blocks28Days] }
+        { name: "InhabitantNFT", address: process.env.INHABITANT_NFT_ADDRESS, args: [process.env.ADMIN_MULTI_SIG, process.env.MINTER_ADDRESS, process.env.MATIC_FEE_RECIPIENT] },
+        //{ name: "IslandManagement", address: process.env.ISLAND_MANAGEMENT, args: [CentralAuthorizationRegistry, GenesisIslandsAddress] },
+        //{ name: "StorageManagement", address: process.env.STORAGE_MANAGEMENT, args: [CentralAuthorizationRegistry, GenesisPiratesAddress, GenesisIslandsAddress, PirateStorageAddress, IslandStorageAddress] },
+        //{ name: "ResourceSpendManagement", address: process.env.RESOURCE_SPEND_MANAGEMENT, args: [CentralAuthorizationRegistry] },
+        //{ name: "ResourceFarmingRules", address: process.env.RESOURCE_FARMING_RULES, args: [CentralAuthorizationRegistry] },
+        //{ name: "ResourceFarming", address: process.env.RESOURCE_FARMING, args: [CentralAuthorizationRegistry] },
+        //{ name: "ActivityStats", address: process.env.ACTIVITY_STATS, args: [CentralAuthorizationRegistry, 1, LastRewardMintBlock, Blocks28Days] }
+
+        
     ];
 
     for (const contract of contracts) {

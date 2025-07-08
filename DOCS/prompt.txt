@@ -1,0 +1,507 @@
+Write white paper for On chain strategy game Arrland, based on ResourceSpendManagement, ResourceFarmingRules smart contracts. Focus on on chain farming  
+
+
+I want docs that outline in non technical words 
+
+- what resources types there are
+- what are rules for farminng of each resource and what skills are required 
+- what resources and amounts are required to spend to produce given type of resource
+- based on tools csv file, outline what tool gives what bonus to skill that is required for farming
+- use tabular format where its good to use it
+- make it easy to understand for crypto players 
+- outline what skills are required for farming and which ones are optional(and or) based on source code of ResourceSpendManagement 
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "./AuthorizationModifiers.sol";
+import "./interfaces/IResourceManagement.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "./interfaces/IResourceTypeManager.sol";
+
+
+contract ResourceSpendManagement is AuthorizationModifiers {
+    using Strings for string;
+
+    uint256 constant ONE_ETHER = 10**18;
+
+    enum CalculationMethod { PerDay, Divide }
+
+    struct ResourceAmount {
+        string resource;
+        uint256 amount;
+        CalculationMethod method;
+    }
+
+    struct ResourceRequirement {
+        ResourceAmount[] optionalResources;
+        ResourceAmount[] mandatoryResources;
+    }
+
+    mapping(string => ResourceRequirement) internal resourceRequirements;
+    mapping(string => bool) public resourcesRequiringBurn;
+
+    // Define a struct to represent the tuple
+    struct ResourceTuple {
+        string resource;
+        uint256 amount;
+        CalculationMethod method;
+    }
+
+    constructor(address _centralAuthorizationRegistry) AuthorizationModifiers(_centralAuthorizationRegistry, keccak256("IResourceSpendManagement")) {    
+        _initializeResourceRequirements();
+    }
+
+    function _initializeResourceRequirements() internal {
+        _setResourceRequirements("wood", _createResourceAmounts([
+            ResourceTuple("fish", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("coconut", 2 * ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("meat", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 100, CalculationMethod.PerDay), // 0.01 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 200, CalculationMethod.PerDay) // 0.005 * ONE_ETHER
+        ]), new ResourceAmount[](0));
+
+        _setResourceRequirements("planks", _createResourceAmounts([            
+            ResourceTuple("fish", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("coconut", 2* ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("meat", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 100, CalculationMethod.PerDay), // 0.01 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 200, CalculationMethod.PerDay) // 0.005 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("wood", 2*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("crates", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("planks", 2*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("barrels", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("planks", 4 * ONE_ETHER, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("bags", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("cotton", 1*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("bag-packed tobacco", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("tobacco", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("bags", 1*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("bag-packed grain", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("grain", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("bags", 1*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("bag-packed cotton", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("cotton", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("bags", 1*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("bag-packed sugarcane", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("sugarcane", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("bags", 1*10**18, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("pig", new ResourceAmount[](0), _createResourceAmounts([
+            ResourceTuple("bag-packed grain", ONE_ETHER / 1000, CalculationMethod.PerDay) // 0.001 * ONE_ETHER
+        ]));
+
+        _setResourceRequirements("wild game", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("bag-packed tobacco", ONE_ETHER / 100, CalculationMethod.PerDay) // 0.01 * ONE_ETHER
+        ]));
+
+        _setResourceRequirements("coconut liquor", _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER, CalculationMethod.PerDay),
+            ResourceTuple("fish", ONE_ETHER / 2, CalculationMethod.PerDay), // 0.5 * ONE_ETHER
+            ResourceTuple("meat", ONE_ETHER / 4, CalculationMethod.PerDay), // 0.25 * ONE_ETHER
+            ResourceTuple("barrel-packed fish", ONE_ETHER / 200, CalculationMethod.PerDay), // 0.005 * ONE_ETHER
+            ResourceTuple("barrel-packed meat", ONE_ETHER / 10000, CalculationMethod.PerDay) // 0.0001 * ONE_ETHER
+        ]), _createResourceAmounts([
+            ResourceTuple("bag-packed sugarcane", 100 * ONE_ETHER, CalculationMethod.Divide),
+            ResourceTuple("bag-packed coconut", 25 * ONE_ETHER, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("meat", _createResourceAmounts([
+            ResourceTuple("pig", ONE_ETHER / 50, CalculationMethod.Divide), // 0.02 * ONE_ETHER
+            ResourceTuple("wild game", ONE_ETHER / 50, CalculationMethod.Divide) // 0.02 * ONE_ETHER
+        ]), new ResourceAmount[](0));
+
+        _setResourceRequirements("barrel-packed fish", new ResourceAmount[](0), _createResourceAmounts([
+            ResourceTuple("barrels", ONE_ETHER, CalculationMethod.Divide),
+            ResourceTuple("fish", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("crate-packed citrus", 10 * ONE_ETHER, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("barrel-packed meat", new ResourceAmount[](0), _createResourceAmounts([
+            ResourceTuple("barrels", ONE_ETHER, CalculationMethod.Divide),
+            ResourceTuple("meat", ONE_ETHER / 100, CalculationMethod.Divide), // 0.01 * ONE_ETHER
+            ResourceTuple("crate-packed citrus", 10 * ONE_ETHER, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("crate-packed citrus", new ResourceAmount[](0), _createResourceAmounts([
+            ResourceTuple("citrus", ONE_ETHER / 50, CalculationMethod.Divide), // 0.02 * ONE_ETHER
+            ResourceTuple("crates", ONE_ETHER, CalculationMethod.Divide)
+        ]));
+
+        _setResourceRequirements("crate-packed coconuts", new ResourceAmount[](0), _createResourceAmounts([
+            ResourceTuple("coconut", ONE_ETHER / 25, CalculationMethod.Divide), // 0.04 * ONE_ETHER
+            ResourceTuple("crates", ONE_ETHER, CalculationMethod.Divide)
+        ]));
+    }
+
+    function _createResourceAmounts(ResourceTuple[] memory resources) internal pure returns (ResourceAmount[] memory) {
+        ResourceAmount[] memory resourceAmounts = new ResourceAmount[](resources.length);
+        for (uint256 i = 0; i < resources.length; i++) {
+            resourceAmounts[i] = ResourceAmount(resources[i].resource, resources[i].amount, resources[i].method);
+        }
+        return resourceAmounts;
+    }
+
+    function getResourceTypeManager() internal view returns (IResourceTypeManager) {
+        return IResourceTypeManager(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceTypeManager")));
+    }
+
+    modifier validResourceName(string memory resource) {
+        IResourceTypeManager resourceTypeManager = getResourceTypeManager();
+        require(resourceTypeManager.isValidResourceType(resource), "Invalid resource name");
+        _;
+    }
+
+    function _setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) internal validResourceName(resource) {
+        resourceRequirements[resource] = ResourceRequirement(optionalResources, mandatoryResources);
+        resourcesRequiringBurn[resource] = true;
+    }
+
+    function setResourceRequirements(string memory resource, ResourceAmount[] memory optionalResources, ResourceAmount[] memory mandatoryResources) public onlyAdmin validResourceName(resource) {
+        _setResourceRequirements(resource, optionalResources, mandatoryResources);
+    }
+
+    function getResourceRequirements(string memory resource) public view returns (ResourceRequirement memory) {
+        return resourceRequirements[resource];
+    }
+
+    struct ResourceRequirementAmount {
+        string resourceName;
+        uint256 amount;
+        bool isMandatory;
+    }
+
+    function getResourceRequirementAmounts(string memory resource, uint256 daysCount, uint256 resourcesProduced) public view returns (ResourceRequirementAmount[] memory) {
+        uint256 totalResources = resourceRequirements[resource].optionalResources.length + resourceRequirements[resource].mandatoryResources.length;
+        ResourceRequirementAmount[] memory amounts = new ResourceRequirementAmount[](totalResources);
+
+        uint256 index = 0;
+        for (uint256 i = 0; i < resourceRequirements[resource].optionalResources.length; i++) {
+            amounts[index] = ResourceRequirementAmount({
+                resourceName: resourceRequirements[resource].optionalResources[i].resource,
+                amount: _calculateRequiredAmount(resourceRequirements[resource].optionalResources[i], daysCount, resourcesProduced),
+                isMandatory: false
+            });
+            index++;
+        }
+
+        for (uint256 i = 0; i < resourceRequirements[resource].mandatoryResources.length; i++) {
+            amounts[index] = ResourceRequirementAmount({
+                resourceName: resourceRequirements[resource].mandatoryResources[i].resource,
+                amount: _calculateRequiredAmount(resourceRequirements[resource].mandatoryResources[i], daysCount, resourcesProduced),
+                isMandatory: true
+            });
+            index++;
+        }
+
+        return amounts;
+    }
+
+    function doesResourceRequireBurning(string memory resource) public view returns (bool) {
+        return resourcesRequiringBurn[resource];
+    }
+
+    function _calculateRequiredAmount(ResourceAmount memory resourceAmount, uint256 daysCount, uint256 resourcesProduced) internal pure returns (uint256) {
+        if (resourceAmount.method == CalculationMethod.PerDay) {            
+            return resourceAmount.amount * daysCount;
+        } else {          
+            return (resourcesProduced * 10**18) / resourceAmount.amount;
+        }
+    }
+
+    function _burnRequiredResources(address storageContract, uint256 tokenId, address user, string memory resource, string[] memory resourcesToBurn, uint256 daysCount, uint256 resourcesProduced) internal {
+        IResourceManagement resourceManagement = IResourceManagement(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceManagement")));
+        
+        ResourceRequirement memory requirement = resourceRequirements[resource];
+        
+        // Burn mandatory resources
+        for (uint256 i = 0; i < requirement.mandatoryResources.length; i++) {
+            ResourceAmount memory resourceToSpend = requirement.mandatoryResources[i];
+            uint256 requiredAmount = _calculateRequiredAmount(resourceToSpend, daysCount, resourcesProduced);
+            uint256 userResourceBalance = resourceManagement.getResourceBalance(storageContract, tokenId, resourceToSpend.resource);
+            require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));            
+            resourceManagement.burnResource(storageContract, tokenId, user, resourceToSpend.resource, requiredAmount);
+        }
+
+        // Burn optional resources
+        bool burnedOptional = false;
+        for (uint256 i = 0; i < resourcesToBurn.length; i++) {
+            for (uint256 j = 0; j < requirement.optionalResources.length; j++) {
+                if (keccak256(bytes(resourcesToBurn[i])) == keccak256(bytes(requirement.optionalResources[j].resource))) {
+                    ResourceAmount memory resourceToSpend = requirement.optionalResources[j];
+                    uint256 requiredAmount = _calculateRequiredAmount(resourceToSpend, daysCount, resourcesProduced);
+                    uint256 userResourceBalance = resourceManagement.getResourceBalance(storageContract, tokenId, resourceToSpend.resource);
+                    require(userResourceBalance >= requiredAmount, string(abi.encodePacked("Insufficient resource balance for ", resourceToSpend.resource)));
+                    resourceManagement.burnResource(storageContract, tokenId, user, resourceToSpend.resource, requiredAmount);
+                    burnedOptional = true;
+                    break;
+                }
+            }
+            if (burnedOptional) break;
+        }
+        require(burnedOptional, "At least one optional resource must be burned");
+    }
+
+    function handleResourceBurning(
+        address storageContract,
+        uint256 tokenId,
+        address user,
+        string memory resource,
+        uint256 daysCount,
+        uint256 resourcesProduced,
+        string[] memory resourcesToBurn
+    ) external onlyAuthorized() { 
+        require(resourcesRequiringBurn[resource], "Resource does not require burning");
+
+        _burnRequiredResources(storageContract, tokenId, user, resource, resourcesToBurn, daysCount, resourcesProduced);
+    }
+}
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.25;
+
+import "./interfaces/IPirateManagement.sol";
+import "@openzeppelin/contracts/utils/Strings.sol";
+import "./AuthorizationModifiers.sol";
+
+
+contract ResourceFarmingRules is AuthorizationModifiers {
+    using Strings for string;
+
+    constructor(address _centralAuthorizationRegistryContract) AuthorizationModifiers(_centralAuthorizationRegistryContract, keccak256("IResourceFarmingRules")) {}
+    
+    function calculateResourceOutput(
+        IPirateManagement.PirateSkills memory pirate,
+        string memory resource,
+        uint256 durationSeconds
+    ) public pure returns (uint256) {
+        uint256 output;
+        
+        if (resource.equal("coconut")) {
+            output = (pirate.characterSkills.agility + pirate.specialSkills.fruitPicking) * durationSeconds/ 1 days;
+        } else if (resource.equal("citrus")) {
+            output = (pirate.characterSkills.agility + pirate.specialSkills.fruitPicking) * durationSeconds/ 1 days;
+        } else if (resource.equal("fish")) {
+            output = (((pirate.characterSkills.swimming + pirate.characterSkills.luck)/2) + pirate.specialSkills.fishing) * durationSeconds/ 1 days;
+        } else if (resource.equal("tobacco")) {
+            output = (((pirate.characterSkills.stamina + pirate.toolsSkills.harvest + pirate.toolsSkills.cultivation + 7 ether)/15) * durationSeconds / 1 days);
+        } else if (resource.equal("cotton")) {
+            output = (((pirate.characterSkills.stamina * 8) + pirate.toolsSkills.cultivation)/20) * durationSeconds / 1 days;
+        } else if (resource.equal("pig")) {
+            if (pirate.toolsSkills.husbandry > 0) {
+                output = ((((pirate.characterSkills.stamina*2) + pirate.toolsSkills.husbandry) / 30) * durationSeconds / 1 days);
+            } else {
+                output = (((pirate.characterSkills.stamina*2)/30) * durationSeconds / 1 days);
+            }
+        } else if (resource.equal("wood")) {            
+            if (pirate.toolsSkills.woodcutting > 0) {
+                output = (((pirate.characterSkills.melee + pirate.toolsSkills.woodcutting) / 10 ) * durationSeconds / 1 days);
+            } else {                
+                output = (((pirate.characterSkills.strength + pirate.characterSkills.luck) / 30 ) * durationSeconds / 1 days);
+            }
+        } else if (resource.equal("sugarcane")) {
+            require(pirate.toolsSkills.harvest > 0, "Pirate does not have harvesting tool");
+            output = (((((pirate.characterSkills.stamina/1e18 * pirate.toolsSkills.harvest/1e18)*10**18) + pirate.toolsSkills.cultivation)/30) * durationSeconds / 1 days);
+        } else if (resource.equal("grain")) {
+            require(pirate.toolsSkills.harvest > 0, "Pirate does not have harvesting tool");
+            output = (((((pirate.characterSkills.stamina/1e18 * pirate.toolsSkills.harvest/1e18)*10**18) + pirate.toolsSkills.cultivation)/20) * durationSeconds / 1 days);
+        } else if (resource.equal("planks")) {
+            require(pirate.toolsSkills.woodcutting >= 4 ether, "Pirate does not have woodcutting tool");
+            output = (((pirate.characterSkills.agility + pirate.characterSkills.strength) /10) * durationSeconds / 1 days);
+        } else if (resource.equal("meat")) {
+            require(pirate.toolsSkills.slaughter > 0, "Pirate does not have slaughtering tool");
+            output = ((pirate.characterSkills.melee + pirate.toolsSkills.slaughter) / 10) * durationSeconds / 1 days;
+        } else if (resource.equal("barrel-packed fish")) {
+            output = (pirate.characterSkills.agility + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+        } else if (resource.equal("barrel-packed meat")) {
+            output = (pirate.characterSkills.agility + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+        } else if (resource.equal("crates")) {
+            require(pirate.specialSkills.crafting > 0, "Pirate does not have crafting tool");
+            output = (pirate.characterSkills.agility) * durationSeconds / 1 days;
+        } else if (resource.equal("barrels")) {
+            require(pirate.specialSkills.crafting > 0, "Pirate does not have crafting tool");
+            output = ((pirate.characterSkills.agility + pirate.characterSkills.wisdom) / 5) * durationSeconds / 1 days;
+        } else if (resource.equal("bags")) {            
+            output = (pirate.characterSkills.agility) * durationSeconds / 1 days;
+        } else if (resource.equal("bag-packed tobacco")) {
+            if (pirate.toolsSkills.slaughter == 3 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else {
+                output = (pirate.characterSkills.strength + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+            }
+        } else if (resource.equal("bag-packed grain")) {
+            if (pirate.toolsSkills.husbandry == 8 ether && pirate.toolsSkills.excavation == 8 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 3) * durationSeconds / 1 days;
+            } else if (pirate.toolsSkills.husbandry == 8 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else if (pirate.toolsSkills.excavation == 8 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else {
+                output = (pirate.characterSkills.strength + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+            }
+        } else if (resource.equal("bag-packed cotton")) {
+            if (pirate.toolsSkills.slaughter == 3 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else {
+                output = (pirate.characterSkills.strength + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+            }
+        } else if (resource.equal("bag-packed sugarcane")) {
+            if (pirate.toolsSkills.husbandry == 8 ether && pirate.toolsSkills.harvest == 3 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 3) * durationSeconds / 1 days;
+            } else if (pirate.toolsSkills.husbandry == 8 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else if (pirate.toolsSkills.harvest == 3 ether) {
+                output = ((pirate.characterSkills.strength + pirate.characterSkills.stamina) * 2) * durationSeconds / 1 days;
+            } else {
+                output = (pirate.characterSkills.strength + pirate.characterSkills.stamina) * durationSeconds / 1 days;
+            }
+        } else if (resource.equal("wild game")) {
+            require(pirate.toolsSkills.hunting > 0, "Pirate does not have hunting tool");
+            output = ((pirate.toolsSkills.hunting + pirate.characterSkills.luck + pirate.characterSkills.shooting) / 10) * durationSeconds / 1 days;
+        } else if (resource.equal("coconut liquor")) {
+            output = ((pirate.characterSkills.agility + pirate.characterSkills.wisdom) / 3) * durationSeconds / 1 days;
+        } else if (resource.equal("crate-packed citrus")) {
+            output = ((pirate.characterSkills.agility + pirate.characterSkills.stamina)*2) * durationSeconds / 1 days;
+        } else if (resource.equal("crate-packed coconuts")) {
+            output = ((pirate.characterSkills.agility + pirate.characterSkills.stamina)*2) * durationSeconds / 1 days;
+        } else {
+            revert("Invalid resource type");
+        }
+
+        return output;
+    }
+}
+
+TOOLS skills csv:
+
+Tools,Harvest,Mining,Quarrying,Excavation,Husbandry,Woodcutting,Slaughter,Hunting,Cultivation,Wisdom,FruitPicking,Fishing,Building,Crafting
+Sickle,8,0,0,0,0,0,0,0,0,0,0,0,0,0
+Hammer,0,2,2,0,0,0,0,0,0,0,0,0,*2,1
+Pickaxe,0,8,2,2,0,0,0,0,2,0,0,0,0,0
+Fork,0,0,0,0,8,0,0,0,2,0,0,0,0,0
+Shovel,0,0,0,8,2,0,0,0,5,0,0,0,"*1,2",0
+Hoe,0,0,0,5,0,0,0,0,8,0,0,0,0,0
+Axe,0,0,0,0,0,8,8,0,0,0,0,0,"*1,5",0
+Boarding Axe,0,0,0,0,0,4,6,0,0,0,0,0,"*1,2",0
+Sabre,2,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sword,2,0,0,0,0,0,0,0,0,0,0,0,0,0
+Golden Sword,1,0,0,0,0,1,0,0,0,0,0,0,0,0
+Medieval Sword,3,0,0,0,0,1,0,0,0,0,0,0,0,0
+Cutlass,3,0,0,0,0,1,0,0,0,0,0,0,0,0
+Dagger,1,0,0,1,0,0,1,0,0,0,0,0,0,0
+Knife,1,0,0,1,0,0,3,0,0,0,0,0,0,0
+Rifle,0,0,0,0,0,0,0,8,0,0,0,0,0,0
+Blunderbuss,0,0,0,0,0,0,0,5,0,0,0,0,0,0
+Dragoon Pistol,0,0,0,0,0,0,0,6,0,0,0,0,0,0
+Pistol,0,0,0,0,0,0,0,3,0,0,0,0,0,0
+Gunbelt With 3 Dragoon Pistols,0,0,0,0,0,0,0,6,0,0,0,0,0,0
+Slingshot,0,0,0,0,0,0,0,1,0,0,0,0,0,0
+Parrot,0,0,0,0,0,0,0,0,4,0,0,0,0,0
+Rope,0,1,0,0,0,0,0,0,0,0,1,1,0,0
+Strong Rope,0,2,0,0,0,0,0,0,0,0,2,2,0,0
+Rainbow Rope,0,3,0,0,0,0,0,0,0,0,3,3,0,0
+Arrlandum Rope,0,4,0,0,0,0,0,0,0,0,4,4,0,0
+Torch,0,2,0,0,0,0,0,0,0,0,0,0,0,0
+Burning Torch,0,3,0,0,0,0,0,0,0,0,0,0,0,0
+Apprentice Book,0,0,0,0,0,0,0,0,0,2,0,0,0,0
+Master Book,0,0,0,0,0,0,0,0,0,3,0,0,0,0
+Genie Lamp,0,0,0,0,0,0,0,0,0,5,0,0,0,0
+Monocle,0,0,0,0,0,0,0,1,0,1,0,0,0,0
+SpyGlass,0,0,0,0,0,0,0,2,0,0,0,0,0,0
+Pipe,0,0,0,0,0,0,0,1,0,0,0,0,0,0
+Lit_Pipe,0,0,0,0,0,0,0,1,0,0,0,0,0,0
+Cigar,0,0,0,0,0,0,0,2,0,0,0,0,0,0
+Lit_Cigar,0,0,0,0,0,0,0,2,0,0,0,0,0,0
+Bottle,1,1,1,1,0,0,0,-2,0,0,0,0,0,0
+
+Pirate Class skills CSV
+
+Class,Strength,Stamina,Swimming,Melee,Shooting,Cannons ,Agility,Engineering,Wisdom,Luck,Health,Speed
+Fat,3,1,2,2,1,3,0,3,2,1,3,1
+Wicked,3,3,1,3,1,1,2,1,1,2,2,2
+Decent,1,2,2,3,2,2,2,2,2,0,2,2
+Slyboots,2,2,2,2,3,2,2,2,1,1,1,2
+Bonehead,1,3,2,2,2,1,3,0,0,3,2,3
+Kind,2,2,3,1,2,1,3,0,3,0,2,3
+Brave,2,2,2,3,1,0,3,0,2,2,2,3
+Balanced,1,2,2,2,2,1,2,2,2,2,2,2
+Bourgeoisie,2,2,0,0,2,3,2,2,2,3,2,2
+Lady,1,2,1,1,3,1,2,3,3,3,1,1
+Harpy,1,3,2,2,3,1,2,1,1,2,1,3
+Rogue,0,2,3,2,2,0,3,3,1,3,1,2
+Metalurgist,2,1,2,1,1,3,0,2,2,1,2,1
+Soldier,2,2,1,3,1,1,1,0,1,2,2,2
+Warlock,1,2,2,1,2,1,2,2,2,0,1,2
+Woodcutter,2,2,2,2,2,1,1,2,0,1,1,2
+Farmer,1,2,1,1,1,1,2,0,1,3,2,3
+Sailor,1,1,3,2,2,1,2,0,2,0,2,2
+Craftswoman,1,2,2,2,1,0,2,1,2,2,1,2
+Witch,1,2,2,1,2,1,2,1,2,2,0,2
+Townswoman,2,1,0,0,2,2,2,2,2,2,1,2
+Intellectual,1,1,1,1,2,0,2,2,3,3,0,2
+Huntress,1,2,2,2,2,0,2,0,1,2,2,2
+Fisherwoman,0,2,2,1,1,0,2,2,1,3,2,2

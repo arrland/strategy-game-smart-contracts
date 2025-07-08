@@ -9,12 +9,14 @@ async function main() {
   const resourceAddition = ResourceAddition.attach(resourceAdditionAddress);
 
   // Parameters for addResource
-  const collectionAddress = "0xbD90d1984BAbE50Cb1d9D75EB1eD08688d3Dea59"; // Replace with your NFT collection address
-  const tokenId = 142; // Replace with your token ID
+  const collectionAddress = "0xbCab2d7264B555227e3B6C1eF686C5FCA3863942"; // Replace with your NFT collection address
+  const tokenId = 373; // Replace with your token ID
   // List of resources to add
   const resources = [    
-    { name: "fish", amount: "200" },
-    //{ name: "wood", amount: "500" }
+    { name: "fish", amount: "7" },
+    { name: "wood", amount: "5" },
+    { name: "cotton", amount: "25" }
+
   ];
 
   console.log("Adding resources...");

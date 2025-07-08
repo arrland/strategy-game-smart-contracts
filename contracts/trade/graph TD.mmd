@@ -1,0 +1,82 @@
+graph TD
+    A[User Initiates Trade Mission] --> B{Ship Validation}
+    B -->|Pass| C[Validate Trade Order]
+    B -->|Fail| Z1[Revert: Ship Requirements]
+    
+    C -->|Pass| D[Calculate Journey Times]
+    C -->|Fail| Z2[Revert: Invalid Trade Order]
+    
+    D --> E[Burn Resources & RUM]
+    E --> F[TradeManager.initiateTrade]
+    F --> G[Lock Ship for Mission]
+    G --> H[Store Mission Data]
+    
+    H --> I["Mission State: ToDestination<br/>Journey Phase 1"]
+    
+    I --> J{Time >= OutboundEndTime?}
+    J -->|No| J
+    J -->|Yes| K[User Calls completeMission]
+    
+    K --> L[TradeMission.advanceMission]
+    L --> M[TradeManager.completeTrade]
+    M --> N[Transfer Resources/ARRC]
+    N --> O[TradeManager.startReturnJourney]
+    O --> P[Update Journey State to Returning]
+    P --> Q[Update End Time for Return]
+    Q --> R["Mission State: Returning<br/>Journey Phase 2"]
+    
+    R --> S{Time >= ReturnEndTime?}
+    S -->|No| S
+    S -->|Yes| T[User Calls completeMission Again]
+    
+    T --> U[TradeMission.completeReturnJourney]
+    U --> V{Is Ship Buying?}
+    V -->|Yes| W[Transfer Resources to Origin Island]
+    V -->|No| X[ARRC Already Handled]
+    
+    W --> Y[TradeManager.completeEntireTradeMission]
+    X --> Y
+    Y --> Z[Unlock Ship]
+    Z --> AA[Clear Mission from Storage]
+    AA --> BB[Mission Complete - Ship Available]
+    
+    subgraph "Ship State Changes"
+        E1["Ship Locked<br/>Food & RUM Burned"]
+        E2["Ship Traveling<br/>Outbound Journey"]
+        E3["Ship at Destination<br/>Trade Executed"]
+        E4["Ship Returning<br/>Carrying Trade Results"]
+        E5["Ship Unlocked<br/>Mission Complete"]
+    end
+    
+    subgraph "Island State Changes"
+        F1["Origin: Resources/ARRC Reserved"]
+        F2["Target: Trade Order Active"]
+        F3["Target: Trade Executed<br/>Resources/ARRC Transferred"]
+        F4["Origin: Receives Trade Results"]
+    end
+    
+    subgraph "Storage Updates"
+        G1["TradeMissionStorage:<br/>journeyState = ToDestination<br/>endTime = outboundTime"]
+        G2["TradeMissionStorage:<br/>journeyState = Returning<br/>endTime = outbound + return"]
+        G3["MissionsStorage:<br/>Mission Cleared<br/>Ship Available"]
+    end
+    
+    H -.-> E1
+    I -.-> E2
+    I -.-> F1
+    I -.-> G1
+    
+    L -.-> E3
+    R -.-> E4
+    R -.-> F3
+    R -.-> G2
+    
+    BB -.-> E5
+    BB -.-> F4
+    BB -.-> G3
+    
+    style I fill:#e1f5fe
+    style R fill:#fff3e0
+    style BB fill:#e8f5e8
+    style Z1 fill:#ffebee
+    style Z2 fill:#ffebee

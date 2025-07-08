@@ -1,0 +1,112 @@
+We are building a smart contract system for Building Development.
+
+After each change always update Building System Architecture docs in DOCS/building_system_architecture.md
+
+
+# Smart Contract Design Patterns
+
+## 1. Authorization Patterns
+- Modular Authorization System
+  - Central registry for managing contract authorizations
+  - Role-based access control (onlyAuthorized, onlyAdmin)
+  - Separation of concerns for access control
+
+## 2. Storage Patterns
+- Proxy Storage Pattern
+  - Base storage contract inheritance
+  - Flexible storage implementations
+  - Upgradeable storage mechanisms
+
+- Hierarchical Storage Pattern
+  - Dedicated storage contracts for different assets
+  - Storage contract registry
+  - Mapped storage tracking
+
+## 3. Factory Pattern
+- Storage Contract Factory
+  - Storage contract instance creation
+  - Contract registry maintenance
+  - Dynamic contract management
+
+## 4. Interface Segregation Pattern
+- Modular Interfaces
+  - Specific functionality interfaces
+  - Interface Segregation Principle
+  - Contract interaction modularity
+
+## 5. Resource Management Patterns
+- Resource Calculation Pattern
+  - Pure calculation functions
+  - Deterministic outputs
+  - Separated calculation logic
+
+- Resource Transfer Pattern
+  - Secure resource transfers
+  - Ownership verification
+  - Balance maintenance
+
+## 6. Guard Check Pattern
+- Security Guards
+  - ReentrancyGuard implementation
+  - Input validation
+  - Ownership verification
+
+## 7. Event Pattern
+- State Change Events
+  - Important state change tracking
+  - Off-chain monitoring
+  - Transaction transparency
+
+## 8. State Machine Pattern
+- Farming State Management
+  - Structured state data
+  - Progress tracking
+  - State transitions
+
+## 9. Inheritance Pattern
+- Contract Inheritance
+  - Common functionality sharing
+  - Contract specialization
+  - Interface consistency
+
+## 10. Data Validation Pattern
+- Thorough Validation
+  - Storage limit checks
+  - Capacity validation
+  - Operation verification
+
+## Best Practices
+1. Use modifiers for access control
+2. Implement events for important state changes
+3. Validate inputs thoroughly
+4. Check conditions before state changes
+5. Use pure/view functions where possible
+6. Maintain clear separation of concerns
+7. Follow interface segregation
+8. Implement proper error handling
+9. Use safe math operations
+10. Document code thoroughly
+
+## Security Considerations
+1. Protect against reentrancy
+2. Validate ownership
+3. Check storage limits
+4. Verify resource balances
+5. Implement access controls
+6. Handle edge cases
+7. Validate inputs
+8. Check contract states
+9. Verify calculations
+10. Monitor events
+
+## Architecture Guidelines
+1. Keep contracts modular
+2. Use inheritance wisely
+3. Implement clear interfaces
+4. Maintain state consistency
+5. Follow upgrade patterns
+6. Use events for logging
+7. Implement proper access control
+8. Handle errors gracefully
+9. Document thoroughly
+10. Test extensively

@@ -1,0 +1,277 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "level",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "timeElapsed",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateConsumption",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "level",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "timeElapsed",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateProduction",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "level",
+        "type": "uint256"
+      }
+    ],
+    "name": "getConsumptionRates",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "rates",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "level",
+        "type": "uint256"
+      }
+    ],
+    "name": "getProductionRates",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "rates",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "level",
+        "type": "uint256"
+      }
+    ],
+    "name": "getStorageCapacities",
+    "outputs": [
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "capacities",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "islandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      }
+    ],
+    "name": "getTotalStorageCapacity",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "islandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "hasStorageCapacity",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "islandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "islandContract",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "resource",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "name": "spendResource",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "fromIslandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "toIslandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "string[]",
+        "name": "resources",
+        "type": "string[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "amounts",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "validateResourceTransfer",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

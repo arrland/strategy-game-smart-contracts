@@ -3,7 +3,17 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "admin",
+        "name": "defaultAdmin",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_minter",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_royaltyRecipient",
         "type": "address"
       }
     ],
@@ -29,6 +39,75 @@
       }
     ],
     "name": "AccessControlUnauthorizedAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "numerator",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "denominator",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC2981InvalidDefaultRoyalty",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC2981InvalidDefaultRoyaltyReceiver",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "numerator",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "denominator",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC2981InvalidTokenRoyalty",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "ERC2981InvalidTokenRoyaltyReceiver",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ERC721EnumerableForbiddenBatchMint",
     "type": "error"
   },
   {
@@ -132,6 +211,22 @@
       }
     ],
     "name": "ERC721NonexistentToken",
+    "type": "error"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "ERC721OutOfBoundsIndex",
     "type": "error"
   },
   {
@@ -350,6 +445,76 @@
   {
     "inputs": [
       {
+        "internalType": "address[]",
+        "name": "to",
+        "type": "address[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "batchMint",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "burn",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "contractURI",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllMintedTokenIds",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getAllOwners",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
@@ -361,6 +526,19 @@
         "internalType": "address",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getBaseURI",
+    "outputs": [
+      {
+        "internalType": "string",
+        "name": "",
+        "type": "string"
       }
     ],
     "stateMutability": "view",
@@ -431,94 +609,36 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
+        "internalType": "bytes32",
+        "name": "role",
+        "type": "bytes32"
       }
     ],
-    "name": "getShipAttributes",
+    "name": "getRoleMembers",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "class",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "durability",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "speed",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "agility",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "viewingRange",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "numberOfCannons",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "armor",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "ramming",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "crewMin",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "crewMax",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "cargoBay",
-            "type": "uint256"
-          },
-          {
-            "internalType": "string",
-            "name": "special",
-            "type": "string"
-          },
-          {
-            "internalType": "bool",
-            "name": "oars",
-            "type": "bool"
-          },
-          {
-            "internalType": "bool",
-            "name": "shallowWaters",
-            "type": "bool"
-          },
-          {
-            "internalType": "string",
-            "name": "shipType",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct ShipNFT.ShipAttributes",
+        "internalType": "address[]",
         "name": "",
-        "type": "tuple"
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "getTokenIdsByOwner",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "",
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -591,106 +711,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "to",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "tokenId",
-        "type": "uint256"
-      },
-      {
-        "components": [
-          {
-            "internalType": "string",
-            "name": "class",
-            "type": "string"
-          },
-          {
-            "internalType": "uint256",
-            "name": "durability",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "speed",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "agility",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "viewingRange",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "numberOfCannons",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "armor",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "ramming",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "crewMin",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "crewMax",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "cargoBay",
-            "type": "uint256"
-          },
-          {
-            "internalType": "string",
-            "name": "special",
-            "type": "string"
-          },
-          {
-            "internalType": "bool",
-            "name": "oars",
-            "type": "bool"
-          },
-          {
-            "internalType": "bool",
-            "name": "shallowWaters",
-            "type": "bool"
-          },
-          {
-            "internalType": "string",
-            "name": "shipType",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct ShipNFT.ShipAttributes",
-        "name": "attributes",
-        "type": "tuple"
-      }
-    ],
-    "name": "mintShip",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "name",
     "outputs": [
@@ -754,6 +774,71 @@
       }
     ],
     "name": "revokeRole",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "salePrice",
+        "type": "uint256"
+      }
+    ],
+    "name": "royaltyInfo",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "amount",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "safeMint",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "to",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "safeMintMany",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -830,90 +915,78 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "shipAttributes",
-    "outputs": [
-      {
         "internalType": "string",
-        "name": "class",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "durability",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "speed",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "agility",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "viewingRange",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "numberOfCannons",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "armor",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "ramming",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "crewMin",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "crewMax",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "cargoBay",
-        "type": "uint256"
-      },
-      {
-        "internalType": "string",
-        "name": "special",
-        "type": "string"
-      },
-      {
-        "internalType": "bool",
-        "name": "oars",
-        "type": "bool"
-      },
-      {
-        "internalType": "bool",
-        "name": "shallowWaters",
-        "type": "bool"
-      },
-      {
-        "internalType": "string",
-        "name": "shipType",
+        "name": "newBaseURI",
         "type": "string"
       }
     ],
-    "stateMutability": "view",
+    "name": "setBaseURI",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint96",
+        "name": "feeNumerator",
+        "type": "uint96"
+      }
+    ],
+    "name": "setDefaultRoyalty",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint96",
+        "name": "feeNumerator",
+        "type": "uint96"
+      }
+    ],
+    "name": "setTokenRoyalties",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "recipient",
+        "type": "address"
+      },
+      {
+        "internalType": "uint96",
+        "name": "feeNumerator",
+        "type": "uint96"
+      }
+    ],
+    "name": "setTokenRoyalty",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -952,6 +1025,49 @@
     "inputs": [
       {
         "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenByIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "index",
+        "type": "uint256"
+      }
+    ],
+    "name": "tokenOfOwnerByIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
         "name": "tokenId",
         "type": "uint256"
       }
@@ -962,6 +1078,19 @@
         "internalType": "string",
         "name": "",
         "type": "string"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalSupply",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",

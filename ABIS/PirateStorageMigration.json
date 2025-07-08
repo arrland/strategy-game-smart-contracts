@@ -24,15 +24,34 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "batchStart",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "batchEnd",
+        "type": "uint256"
+      }
+    ],
+    "name": "BatchMigrated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "totalMigrated",
         "type": "uint256"
       }
     ],
@@ -53,6 +72,29 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "primaryCollection",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "primaryTokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "addAssigment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "centralAuthorizationRegistry",
     "outputs": [
@@ -66,13 +108,47 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "getMigratedOwners",
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "getMigrationProgress",
     "outputs": [
       {
-        "internalType": "address[]",
+        "internalType": "bool",
+        "name": "completed",
+        "type": "bool"
+      },
+      {
+        "internalType": "uint256",
+        "name": "totalAssignments",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "migratedAssignments",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "remainingAssignments",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getStorageTokensInProgress",
+    "outputs": [
+      {
+        "internalType": "uint256[]",
         "name": "",
-        "type": "address[]"
+        "type": "uint256[]"
       }
     ],
     "stateMutability": "view",
@@ -81,24 +157,31 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "owner",
-            "type": "address"
-          },
-          {
-            "internalType": "uint256[]",
-            "name": "tokenIds",
-            "type": "uint256[]"
-          }
-        ],
-        "internalType": "struct PirateStorageMigration.OwnerTokens[]",
-        "name": "ownerTokensList",
-        "type": "tuple[]"
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
-    "name": "migrateAllOwners",
+    "name": "isStorageMigrated",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "storageTokenIds",
+        "type": "uint256[]"
+      }
+    ],
+    "name": "migrateBatch",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -122,25 +205,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "name": "migratedOwners",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "migrationCompleted",
     "outputs": [
@@ -155,10 +219,10 @@
   },
   {
     "inputs": [],
-    "name": "newPirateStorage",
+    "name": "newStorage",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IBaseStorage",
         "name": "",
         "type": "address"
       }
@@ -168,15 +232,28 @@
   },
   {
     "inputs": [],
-    "name": "oldPirateStorage",
+    "name": "oldStorage",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IBaseStorage",
         "name": "",
         "type": "address"
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "primaryTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "removeAssignment",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -193,10 +270,86 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "storageAssignmentCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "storageMigratedCount",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "storageTokensInProgress",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "updateStorageManagement",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "storageTokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "verifyMigration",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

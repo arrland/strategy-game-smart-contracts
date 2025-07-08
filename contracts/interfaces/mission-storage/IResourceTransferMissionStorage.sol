@@ -22,4 +22,6 @@ interface IResourceTransferMissionStorage is IMissionTypeStorage {
         );
     
     function setResourcesClaimed(uint256 missionId) external;
+    
+    function isReturnFromTradeMission(uint256 missionId) external view returns (bool isReturnJourney);
 } 

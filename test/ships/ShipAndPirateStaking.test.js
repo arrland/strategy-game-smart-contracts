@@ -107,7 +107,7 @@ describe("ShipAndPirateStaking", function () {
             shipMetadata, dockingManagement, shipAndPirateStaking, // shipAndPirateStaking is coreContractsPack.shipAndPirateStaking
             cooldownManager, travelTimeCalculator, missionTravelCalculator, missionValidator,
             missionsStorage, // This will be MockMissionsStorage by default from setupCoreGameContracts
-            mockIslandManager, missionRequirements,
+            missionRequirements,
             islandRegionManagement // <-- Destructure islandRegionManagement here
         } = coreContractsPack;
 

@@ -15,7 +15,7 @@ contract MockMissionRequirements is IMissionRequirements, AuthorizationModifiers
     // Mock state for getBuildingRequirements
     mapping(uint256 => BuildingRequirement[]) private _buildingReqs;
 
-    constructor(address _car) AuthorizationModifiers(_car, keccak256("MISSION_REQUIREMENTS")) {}
+    constructor(address _car) AuthorizationModifiers(_car, keccak256("IMissionRequirements")) {}
 
     // --- Mock Control Functions ---
     function setIslandValidity(uint256 islandId, uint256 missionType, bool isValid) external {

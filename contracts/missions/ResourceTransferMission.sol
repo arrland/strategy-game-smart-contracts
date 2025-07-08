@@ -14,8 +14,12 @@ import "../interfaces/IMissionRegistration.sol";
 import "./MissionRegistration.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "../interfaces/IResourceTypeManager.sol";
 import "../interfaces/IBuildingStorage.sol";
+import "../core/InterfaceIdentifiers.sol";
+import "../interfaces/ITradeManager.sol";
+
 
 /**
  * @title ResourceTransferMission
@@ -50,14 +54,14 @@ contract ResourceTransferMission is BaseMission {
 
     constructor(
         address _centralAuthorizationRegistry
-    ) BaseMission(_centralAuthorizationRegistry, keccak256("IResourceTransferMission"), "Resource Transfer") {}
+    ) BaseMission(_centralAuthorizationRegistry, keccak256(abi.encodePacked("IResourceTransferMission")), "ResourceTransfer") {
+    }
 
     /**
      * @notice Get mission type
      * @return missionType Numeric ID for ResourceTransfer
      */
     function getMissionType() public view override returns (uint256) {
-        // Get mission type ID from mission registration
         MissionRegistration missionRegistry = getMissionRegistration();
         return missionRegistry.getMissionTypeByName("ResourceTransfer");
     }
@@ -66,101 +70,128 @@ contract ResourceTransferMission is BaseMission {
      * @notice Get MissionRegistration instance
      */
     function getMissionRegistration() internal view returns (MissionRegistration) {
-        return MissionRegistration(centralAuthorizationRegistry.getContractAddress(keccak256("IMissionRegistration")));
+        return MissionRegistration(centralAuthorizationRegistry.getContractAddress(keccak256(abi.encodePacked("IMissionRegistration"))));
     }
 
     /**
      * @notice Get ResourceTypeManager instance
      */
     function getResourceTypeManager() internal view returns (IResourceTypeManager) {
-        return IResourceTypeManager(centralAuthorizationRegistry.getContractAddress(keccak256("IResourceTypeManager")));
+        return IResourceTypeManager(centralAuthorizationRegistry.getContractAddress(keccak256(abi.encodePacked("IResourceTypeManager"))));
     }
 
     /**
-     * @notice Start a resource transfer mission
-     * @param shipId Ship identifier
-     * @param missionData Encoded mission parameters
-     * @return duration Total mission duration in seconds
+     * @notice Get Island NFT contract instance
      */
+    function getIslandNFT() internal view returns (IERC721) {
+        address islandNFTAddress = centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY);
+        require(islandNFTAddress != address(0), "Island NFT contract not registered");
+        return IERC721(islandNFTAddress);
+    }
+
+    /**
+     * @notice Validate that the user owns the specified island
+     * @param islandId The ID of the island to check ownership for
+     * @param user The address to check ownership against
+     */
+    function validateIslandOwnership(uint256 islandId, address user) internal view {
+        IERC721 islandNFT = getIslandNFT();
+        address islandOwner = islandNFT.ownerOf(islandId);
+        require(islandOwner == user, "User does not own the origin island");
+    }
+
     function startMission(
-        uint256 shipId,
-        bytes calldata missionData
+        uint256 shipIdParam, 
+        bytes calldata missionData 
     ) external override onlyMissionsManager returns (uint256) {
-        // Decode mission data
         uint256 missionId = abi.decode(missionData[:32], (uint256));
+        bytes memory innerDataSlice = missionData[32:];
+
         (uint256 originIslandId, uint256 targetIslandId, string memory resourceType, uint256 amount, bool isReturnFromTradeMission, string memory foodChoice, string memory foodRationChoice) = 
-            abi.decode(missionData[32:], (uint256, uint256, string, uint256, bool, string, string));
-        // Validate resource type
+            abi.decode(innerDataSlice, (uint256, uint256, string, uint256, bool, string, string));
+        
+        // Get the ship owner who is initiating the mission
+        address user = getShipOwner(shipIdParam);
+        
+        // VALIDATIONS
         require(getResourceTypeManager().isValidResourceType(resourceType), "Invalid resource type");
         
-        // Use centralized validator for all validation
-        validateIslandRequirements(originIslandId, targetIslandId, getMissionType());
-        validateBaseMissionRequirements(shipId);
-        require(validateShipCapacity(shipId, amount), "Insufficient ship capacity");
+        // Validate that the user owns the origin island (can only transfer resources from islands you own)
+        validateIslandOwnership(originIslandId, user);
         
-        // Calculate both outbound and inbound travel times in a single call
-        (uint256 outboundTime, uint256 inboundTime) = calculateRoundTripTravelTime(
-            originIslandId, 
-            targetIslandId, 
-            shipId
-        );
+        validateIslandRequirements(originIslandId, targetIslandId, getMissionType());
+        validateBaseMissionRequirements(shipIdParam);
+        
+        // TIME CALCULATIONS
+        uint256 travelTime = calculateTravelTime(originIslandId, targetIslandId, shipIdParam);
 
-        // Get port levels
-        IBuildingStorage buildingStorage = IBuildingStorage(centralAuthorizationRegistry.getContractAddress(keccak256("IBuildingStorage")));
-        uint256 PORT_TYPE = 3; // Replace with your actual port type
-        uint256 originPortLevel = buildingStorage.getBuilding(originIslandId, PORT_TYPE).level;
-        uint256 targetPortLevel = buildingStorage.getBuilding(targetIslandId, PORT_TYPE).level;
+        IBuildingStorage buildingStorage = IBuildingStorage(centralAuthorizationRegistry.getContractAddress(keccak256(abi.encodePacked("IBuildingStorage"))));
+        uint256 PORT_TYPE = 3;
+        IBuildingStorage.BuildingInfo memory originPortInfo = buildingStorage.getBuilding(originIslandId, PORT_TYPE);
+        uint256 originPortLevel = originPortInfo.level;
 
-        // Get crew count
-        uint256 crewCount = getMissionValidator().getTotalCrewCount(shipId);
+        IBuildingStorage.BuildingInfo memory targetPortInfo = buildingStorage.getBuilding(targetIslandId, PORT_TYPE);
+        uint256 targetPortLevel = targetPortInfo.level;
 
-        // Calculate load/unload times
+        uint256 crewCount = getMissionValidator().getTotalCrewCount(shipIdParam); 
         uint256 loadTime = getMissionTravelCalculator().calculateLoadTime(amount, crewCount, originPortLevel);
         uint256 unloadTime = getMissionTravelCalculator().calculateLoadTime(amount, crewCount, targetPortLevel);
 
-        // Total mission duration is outbound + inbound time + load + unload
-        uint256 totalTime = outboundTime + inboundTime + loadTime + unloadTime;
+        uint256 totalTime = travelTime + loadTime + unloadTime;
+        require(totalTime > 0, "RTM: Total time must be > 0");
+        uint256 travelDays = totalTime / SECONDS_IN_DAY;
+        if (totalTime % SECONDS_IN_DAY != 0) {
+            travelDays++;
+        }
 
-        // Validate and burn mission start resources (RUM, food)
+        // SHIP CAPACITY VALIDATION
+        require(validateShipCapacity(shipIdParam, amount / 1 ether, travelDays, foodChoice, foodRationChoice), "Insufficient ship capacity");
+        
+        // VALIDATE AND BURN MISSION START RESOURCES (RUM, FOOD)
         getMissionValidator().validateAndBurnMissionStartResources(
-            shipId,
-            totalTime / 1 days, // travelDays (assuming totalTime is in seconds)
-            amount, // intended cargo
+            shipIdParam,
+            travelDays,
+            amount, // intendedCargo
             foodChoice,
             foodRationChoice,
-            tx.origin
+            user
+        );
+
+        getMissionResourceHandler().transferResourceFromIslandToShip(
+            originIslandId,
+            shipIdParam,
+            resourceType,
+            amount
         );
         
-        // Lock ship for the entire mission duration (outbound + inbound)
-        lockShipForMission(shipId, missionId, totalTime);
+        // LOCK SHIP FOR MISSION
+        lockShipForMission(shipIdParam, missionId, totalTime);
         
-        // Prepare the data for the specialized storage
+        // PREPARE SPECIALIZED DATA
         bytes memory specializedData = abi.encode(
-            shipId,
+            shipIdParam,
             originIslandId,
             targetIslandId,
             resourceType,
             amount,
-            isReturnFromTradeMission,
-            block.timestamp,  // outboundStartTime
-            block.timestamp + outboundTime,  // outboundEndTime
-            block.timestamp + totalTime  // missionEndTime
+            block.timestamp,
+            block.timestamp + totalTime,
+            isReturnFromTradeMission
         );
         
-        // Store mission in central indexing storage with link to specialized data
+        // STORE MISSION IN MISSIONSSTORAGE
         IMissionsStorage missionsStorage = getMissionsStorage();
         missionsStorage.startMission(
-            shipId,
+            shipIdParam,
             missionId,
             getMissionType(),
             totalTime,
             specializedData
         );
         
-        // Emit transfer-specific event
         emit ResourceTransferStarted(
             missionId,
-            shipId,
+            shipIdParam,
             originIslandId,
             targetIslandId,
             resourceType,
@@ -178,71 +209,46 @@ contract ResourceTransferMission is BaseMission {
      * @param missionId ID of the mission to complete
      */
     function completeMission(uint256 missionId) external override onlyAuthorized {
-        // Get mission information from central storage
         IMissionsStorage missionsStorage = getMissionsStorage();
-        IMissionsStorage.MissionBasicInfo memory basicInfo = missionsStorage.getMissionBasicInfo(missionId);
         
-        // In this implementation, missionId is the same as shipId
-        uint256 shipId = missionId;
-        require(basicInfo.isActive, "Mission is not active");
-        require(block.timestamp >= basicInfo.endTime, "Mission not yet complete");
-        
-        // Get specialized storage for this mission type
         address resourceTransferStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
         IResourceTransferMissionStorage resourceTransferStorage = IResourceTransferMissionStorage(resourceTransferStorageAddr);
         
-        // Get resource transfer details
-        (
-            uint256 _shipId,
-            uint256 fromIslandId,
-            uint256 toIslandId,
-            string memory resourceType,
-            uint256 amount,
-            , // uint256 startTime
-            , // uint256 endTime
-            , // bool isReturnFromTradeMission
-            bool resourcesClaimed
-        ) = resourceTransferStorage.getMissionDetails(missionId);
+        (uint256 shipId, uint256 fromIslandId, uint256 toIslandId, string memory resourceType, uint256 amount, , , , bool resourcesClaimed)
+             = resourceTransferStorage.getMissionDetails(missionId);
         
+        IMissionsStorage.MissionBasicInfo memory basicInfo = missionsStorage.getMissionBasicInfo(shipId);
+        
+        require(basicInfo.isActive, "Mission is not active");
+        require(block.timestamp >= basicInfo.endTime, "Mission not yet complete");
         require(!resourcesClaimed, "Resources already claimed");
         
-        // Get ship storage to check resource balance
-        address shipStorageAddress = centralAuthorizationRegistry.getContractAddress(keccak256("IShipStorage"));
+        // Check if this is a return journey from a trade mission
+        bool isReturnFromTradeMission = isReturnJourneyFromTrade(missionId);
         
-        // Check ship still has the resources
-        uint256 shipResourceBalance = IShipStorage(shipStorageAddress).getResourceBalance(
-            shipId, 
-            resourceType
-        );
-        require(shipResourceBalance >= amount, "Ship no longer has resources for delivery");
-        
-        // Get contract addresses and interfaces
-        IMissionResourceHandler resourceHandler = getMissionResourceHandler();
-        
-        // Check target island can receive the resources
-        require(
-            resourceHandler.hasIslandStorageCapacity(toIslandId, amount),
-            "Target island doesn't have enough capacity"
-        );
-        
-        // Transfer resources from ship to target island
-        resourceHandler.transferResourceFromShipToIsland(
+        getMissionResourceHandler().transferResourceFromShipToIsland(
             shipId,
             toIslandId,
             resourceType,
             amount
         );
-        
-        // Unlock ship
+
         unlockShipAfterMission(shipId);
-        
-        // Mark resources as claimed in specialized storage
-        resourceTransferStorage.setResourcesClaimed(missionId);
-        
-        // Complete mission in central storage
         missionsStorage.completeMission(shipId);
         
-        // Emit completion event
+        // If this was a return journey from a trade mission, notify TradeManager
+        if (isReturnFromTradeMission) {
+            address shipOwner = getShipOwner(shipId);
+            ITradeManager tradeManager = getTradeManager();
+            
+            try tradeManager.completeEntireTradeMission(shipOwner, shipId) returns (bool success) {
+                require(success, "Failed to complete entire trade mission");
+            } catch {
+                // Log error but don't fail the ResourceTransferMission completion
+                // The trade mission can be completed manually if needed
+            }
+        }
+        
         emit ResourceTransferCompleted(
             missionId,
             shipId,
@@ -250,94 +256,61 @@ contract ResourceTransferMission is BaseMission {
             toIslandId,
             resourceType,
             amount,
-            false // Would need to be retrieved from specialized storage
+            isReturnFromTradeMission
         );
+    }
+
+    /**
+     * @notice Check if this ResourceTransferMission is a return journey from a trade mission
+     * @param missionId Mission identifier
+     * @return isReturnJourney True if this is a return journey from a trade mission
+     */
+    function isReturnJourneyFromTrade(uint256 missionId) internal view returns (bool isReturnJourney) {
+        try this.getResourceTransferMissionStorage().isReturnFromTradeMission(missionId) returns (bool result) {
+            return result;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * @notice Get ResourceTransferMissionStorage instance
+     */
+    function getResourceTransferMissionStorage() public view returns (IResourceTransferMissionStorage) {
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        address storageAddr = missionsStorage.getSpecializedStorage(getMissionType());
+        return IResourceTransferMissionStorage(storageAddr);
+    }
+
+    /**
+     * @notice Get TradeManager instance
+     */
+    function getTradeManager() internal view returns (ITradeManager) {
+        return ITradeManager(centralAuthorizationRegistry.getContractAddress(keccak256("ITradeManager")));
     }
 
     /**
      * @notice Get mission details
-     * @param missionId Mission identifier
-     * @return Encoded mission details
+     * @param missionId ID of the mission
+     * @return missionDetails Encoded mission details
      */
-    function getMissionDetails(uint256 missionId) external view override returns (bytes memory) {
-        // Get mission information from both central and specialized storage
+    function getMissionDetails(uint256 missionId) external view override returns (bytes memory missionDetails) {
         IMissionsStorage missionsStorage = getMissionsStorage();
-        IMissionsStorage.MissionBasicInfo memory basicInfo = missionsStorage.getMissionBasicInfo(missionId);
-        
-        // Ensure mission exists and is of the correct type
-        require(basicInfo.missionId == missionId, "Mission does not exist");
-        require(basicInfo.missionType == getMissionType(), "Not a resource transfer mission");
-        
-        // Get specialized storage for this mission type
-        address resourceTransferStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
-        IResourceTransferMissionStorage resourceTransferStorage = IResourceTransferMissionStorage(resourceTransferStorageAddr);
-        
-        // Get resource transfer details
-        (
-            uint256 _shipId,
-            uint256 fromIslandId,
-            uint256 toIslandId,
-            string memory _resourceType,
-            uint256 amount,
-            , // uint256 startTime
-            , // uint256 endTime
-            , // IMissionStates.JourneyState journeyState
-            bool resourcesClaimed
-        ) = resourceTransferStorage.getMissionDetails(missionId);
-        
-        // Convert resource type hash back to string (simplified approach)
-        string memory resourceTypeStr = "resource"; // This would need proper conversion in production
-        
-        return abi.encode(
-            _shipId,
-            fromIslandId,
-            toIslandId,
-            resourceTypeStr,
-            amount,
-            basicInfo.startTime,
-            basicInfo.endTime,
-            block.timestamp >= basicInfo.endTime, // isComplete flag
-            resourcesClaimed // isReturnFromTradeMission - would need to be retrieved from specialized storage
-        );
-    }
-
-    /**
-     * @notice Check if a mission is ready to be claimed
-     * @param shipId The ship ID involved in the mission
-     * @return True if the mission is ready to be claimed
-     */
-    function isMissionReadyForClaim(uint256 shipId) internal view override returns (bool) {
-        IMissionsStorage missionsStorage = getMissionsStorage();
-        require(missionsStorage.isOnMission(shipId), "Ship not on mission");
-        
-        IMissionsStorage.MissionInfo memory info = missionsStorage.getMissionInfo(shipId);
-        
-        // Check if mission is active and completed time-wise
-        if (!info.isActive || block.timestamp < info.endTime) {
-            return false;
-        }
-        
-        // Get specialized storage to check if resources are already claimed
-        uint256 missionType = info.missionType;
-        address specializedStorageAddr = missionsStorage.getSpecializedStorage(missionType);
-        
-        // Cast to appropriate interface
+        address specializedStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
         IResourceTransferMissionStorage resourceTransferStorage = IResourceTransferMissionStorage(specializedStorageAddr);
         
-        // Get resource transfer details to check if resources are claimed
-        (
-            , //uint256 _shipId3,
-            , //uint256 _originIslandId3,
-            , //uint256 _targetIslandId3,
-            , //string memory _resourceType3,
-            , //uint256 _amount3,
-            , // uint256 startTime
-            , // uint256 endTime
-            , // IMissionStates.JourneyState journeyState
-            bool resourcesClaimed
-        ) = resourceTransferStorage.getMissionDetails(info.missionId);
-        
-        // Mission is ready for claim if it's not already completed
-        return !resourcesClaimed;
+        (uint256 shipId, uint256 fromIslandId, uint256 toIslandId, string memory resourceType, uint256 amount, uint256 startTime, uint256 endTime, IMissionStates.JourneyState journeyState, bool resourcesClaimed) = resourceTransferStorage.getMissionDetails(missionId);
+
+        return abi.encode(
+            shipId,
+            fromIslandId,
+            toIslandId,
+            resourceType,
+            amount,
+            startTime,
+            endTime,
+            journeyState,
+            resourcesClaimed
+        );
     }
 }

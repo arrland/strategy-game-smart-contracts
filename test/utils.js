@@ -21,6 +21,41 @@ const {
   setupPirateSkillsViaPirateManagement
 } = skillsHelpers;
 
+const InterfaceIdentifiers = {
+    COOLDOWN_MANAGER_KEY: ethers.keccak256(ethers.toUtf8Bytes("ICooldownManager")),
+    MISSION_FACTORY_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionFactory")),
+    FEE_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IFeeManagement")),
+    ISLAND_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IIslandStorage")),
+    PIRATE_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IPirateStorage")),
+    INHABITANT_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IInhabitantStorage")),
+    SHIP_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IShipStorage")),
+    STORAGE_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IStorageManagement")),
+    RESOURCE_TYPE_MANAGER_KEY: ethers.keccak256(ethers.toUtf8Bytes("IResourceTypeManager")),
+    RESOURCE_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IResourceManagement")),
+    BUILDING_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IBuildingStorage")),
+    RESOURCE_SPEND_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IResourceSpendManagement")),
+    CREW_TYPE_MANAGER_KEY: ethers.keccak256(ethers.toUtf8Bytes("ICrewTypeManager")),
+    CREW_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("ICrewManagement")),
+    PIRATE_SKILLS_KEY: ethers.keccak256(ethers.toUtf8Bytes("IPirateSkills")),
+    PIRATE_SKILLS_READER_KEY: ethers.keccak256(ethers.toUtf8Bytes("IPirateSkillsReader")),
+    SHIP_METADATA_KEY: ethers.keccak256(ethers.toUtf8Bytes("IShipMetadata")),
+    DOCKING_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IDockingManagement")),
+    SHIP_AND_PIRATE_STAKING_KEY: ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking")),
+    TRAVEL_TIME_CALCULATOR_KEY: ethers.keccak256(ethers.toUtf8Bytes("ITravelTimeCalculator")),
+    MISSION_TRAVEL_CALCULATOR_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionTravelCalculator")),
+    MISSION_VALIDATOR_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionValidator")),
+    MISSIONS_STORAGE_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionsStorage")),
+    MISSION_REQUIREMENTS_KEY: ethers.keccak256(ethers.toUtf8Bytes("MISSION_REQUIREMENTS")),
+    ISLAND_REGION_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IIslandRegionManagement")),
+    SHIP_NFT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IShipNFT")),
+    ISLAND_NFT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IIslandNFT")),
+    PIRATE_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("IPirateManagement")),
+    CAPITAL_ISLAND_MANAGEMENT_KEY: ethers.keccak256(ethers.toUtf8Bytes("ICapitalIslandManagement")),
+    GAME_REWARDS_KEY: ethers.keccak256(ethers.toUtf8Bytes("IGameRewards")),
+    ARRC_DISTRIBUTION_KEY: ethers.keccak256(ethers.toUtf8Bytes("IARRCDistribution")),
+    MISSION_REGISTRATION_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionRegistration")),
+};
+
 /**
  * Deploys a standard base infrastructure with Central Authorization Registry
  * @returns {Object} Object containing admin, user, and centralAuthorizationRegistry
@@ -551,7 +586,7 @@ async function setupTokenInfrastructure(centralAuthorizationRegistry, admin, use
         let shipStakingAddress = ethers.ZeroAddress;
         try {
             shipStakingAddress = await centralAuthorizationRegistry.getContractAddress(
-            ethers.keccak256(ethers.toUtf8Bytes("IShipAndPirateStaking"))
+            InterfaceIdentifiers.SHIP_AND_PIRATE_STAKING_KEY
         );
         
         } catch (error) {            
@@ -649,7 +684,7 @@ async function setupNFTsForStaking(admin, user, centralAuthorizationRegistry) {
   // Register ShipNFT in CAR (assuming it needs to be registered)
   const shipNFTAddress = await shipNFT.getAddress();
   await centralAuthorizationRegistry.setContractAddress(
-    ethers.keccak256(ethers.toUtf8Bytes("IShipNFT")), // Use the correct interface ID if applicable
+    InterfaceIdentifiers.SHIP_NFT_KEY, // Use the correct interface ID if applicable
     shipNFTAddress
   );
   
@@ -920,17 +955,25 @@ async function setupCoreGameContracts(admin, user, centralAuthorizationRegistry,
     const missionTravelCalculator = await deployAndRegisterContract("MissionTravelCalculator", centralAuthorizationRegistry, "IMissionTravelCalculator");
     const missionValidator = await deployAndRegisterContract("MissionValidator", centralAuthorizationRegistry, "IMissionValidator");
     
+    // Deploy TradeManager and register
+    const tradeManager = await deployAndRegisterContract("TradeManager", centralAuthorizationRegistry, "ITradeManager");
+
+    // Deploy MissionsManager
+    const missionsManager = await deployAndRegisterContract("MissionsManager", centralAuthorizationRegistry, "IMissionsManager");
+
     let missionsStorageInstance;
     if (options.deployRealMissionsStorage) {
         missionsStorageInstance = await deployAndRegisterContract("MissionsStorage", centralAuthorizationRegistry, "IMissionsStorage");
     } else {
-        // deployAndRegisterMock expects (contractName, registryKey, car, ...args)
-        // MockMissionsStorage constructor only takes CAR address.
         missionsStorageInstance = await deployAndRegisterMock("MockMissionsStorage", "IMissionsStorage", centralAuthorizationRegistry);
     }
     
-    const mockIslandManager = await deployAndRegisterMock("MockIslandManager", "IIslandManager", centralAuthorizationRegistry);
-    const missionRequirements = await deployAndRegisterMock("MockMissionRequirements", "MISSION_REQUIREMENTS", centralAuthorizationRegistry);
+    let missionRequirements;
+    if (options.deployRealMissionRequirements) {
+        missionRequirements = await deployAndRegisterContract("MissionRequirements", centralAuthorizationRegistry, "IMissionRequirements");
+    } else {
+        missionRequirements = await deployAndRegisterMock("MockMissionRequirements", "IMissionRequirements", centralAuthorizationRegistry);
+    }
 
     // Deploy IslandRegionManagement
     const islandRegionManagement = await deployAndRegisterContract("IslandRegionManagement", centralAuthorizationRegistry, "IIslandRegionManagement");
@@ -942,6 +985,8 @@ async function setupCoreGameContracts(admin, user, centralAuthorizationRegistry,
     await islandStorage.connect(admin).setIslandSize(2, 2); 
     await islandStorage.connect(admin).setIslandSize(3, 0); 
 
+    await centralAuthorizationRegistry.setContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY, genesisIslandsAddress);
+
     return {
         arrcToken, rumToken, feeManagement,
         islandStorage, pirateStorage, inhabitantStorage, shipStorage, storageManagement,
@@ -950,8 +995,9 @@ async function setupCoreGameContracts(admin, user, centralAuthorizationRegistry,
         pirateSkills, pirateSkillsReader,
         shipMetadata, dockingManagement, shipAndPirateStaking,
         cooldownManager, travelTimeCalculator, missionTravelCalculator, missionValidator,
+        tradeManager,
+        missionsManager,
         missionsStorage: missionsStorageInstance,
-        mockIslandManager,
         missionRequirements,
         islandRegionManagement
     };
@@ -1183,6 +1229,497 @@ async function setupEmptyResourceProduction(admin, resourceSpendManagement, reso
     }
 }
 
+/**
+ * Sets up a ship for mission testing with complete staking, crew, tokens, and food preparation.
+ * This is a comprehensive helper that covers the standard setup needed for most mission tests.
+ * @param {ethers.Signer} user - The user who owns the ship
+ * @param {ethers.Signer} admin - Admin signer for minting tokens and resources
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {Object} nftsSetup - Object containing NFT contract instances
+ * @param {number} shipId - ID of the ship to setup
+ * @param {number} captainPirateId - ID of the captain pirate
+ * @param {number} homeIslandId - ID of the home island for staking
+ * @param {Object} options - Optional configuration
+ * @param {number} options.targetTotalCrew - Total crew count (default: 10)
+ * @param {string} options.shipClass - Ship class for staking (default: "Small")
+ * @param {string} options.rumAmount - RUM amount to mint and approve (default: "10")
+ * @param {string} options.citrusAmount - Citrus food amount (default: "50")
+ * @param {string} options.fishAmount - Fish ration amount (default: "50")
+ */
+async function setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, homeIslandId, options = {}) {
+    const {
+        targetTotalCrew = 10,
+        shipClass = "Small",
+        rumAmount = "10",
+        citrusAmount = "50",
+        fishAmount = "50"
+    } = options;
+
+    const nonNftCrewForStaking = targetTotalCrew - 1;
+    
+    // Set up default metadata for the ship to ensure it has valid attributes for staking.
+    await setupShipMetadata(coreContracts.shipMetadata, admin, [shipId]);
+
+    // Set up skills for the captain BEFORE staking
+    await setupPirateSkills(coreContracts.pirateSkills, admin, nftsSetup.genesisPiratesAddress, nftsSetup.inhabitantsAddress, { genesis: [captainPirateId] });
+
+    // NEW: Attach non-NFT "sailor" crew to the captain pirate to meet essential crew requirements for staking.
+    await coreContracts.crewManagement.connect(admin).addCrew(
+        nftsSetup.genesisPiratesAddress, // pirate collection
+        captainPirateId,                 // pirate ID to attach crew to
+        user.address,                    // owner of the crew
+        "sailor",                        // crew type (must be an essential crew type)
+        nonNftCrewForStaking             // number of crew members to add
+    );
+
+    // Mint origin island to user (user owns it) - REQUIRED for island ownership validation
+    // Check if the island NFT already exists before minting
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(homeIslandId);
+        // If we get here, the NFT exists. Check if user already owns it
+        if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+            console.warn(`Island ${homeIslandId} already exists and is owned by ${currentOwner}, not ${user.address}`);
+        }
+    } catch (error) {
+        // NFT doesn't exist, mint it to the user
+        await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, homeIslandId);
+    }
+    
+    const actualShipNFT = coreContracts.shipNFT || nftsSetup.shipNFT;
+    const genesisPiratesNFT = nftsSetup.genesisPiratesNFT;
+    
+    const stakingData = {
+        shipId,
+        captainCollection: await nftsSetup.genesisPiratesNFT.getAddress(),
+        captainId: captainPirateId,
+        genesisPirateIds: [],
+        inhabitantIds: []
+    };
+    
+    await actualShipNFT.connect(user).approve(coreContracts.shipAndPirateStaking.target, shipId);
+    await genesisPiratesNFT.connect(user).setApprovalForAll(coreContracts.shipAndPirateStaking.target, true);
+    await coreContracts.shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingData, homeIslandId, shipClass);
+
+    // Provide RUM tokens
+    const rumRequired = ethers.parseEther(rumAmount);
+    await coreContracts.rumToken.connect(admin).mint(user.address, rumRequired);
+    await coreContracts.rumToken.connect(user).approve(coreContracts.feeManagement.target, rumRequired);
+    
+    // Add food to ship
+    const citrusNeeded = ethers.parseUnits(citrusAmount, 18);
+    const fishNeeded = ethers.parseUnits(fishAmount, 18);
+    await coreContracts.shipStorage.connect(admin).addResource(shipId, user.address, "citrus", citrusNeeded);
+    await coreContracts.shipStorage.connect(admin).addResource(shipId, user.address, "fish", fishNeeded);
+
+    // Get balances AFTER minting/adding resources for proper test calculations
+    const rumBalanceBefore = await coreContracts.rumToken.balanceOf(user.address);
+    const citrusBalanceBefore = await coreContracts.shipStorage.getResourceBalance(shipId, "citrus");
+    const fishBalanceBefore = await coreContracts.shipStorage.getResourceBalance(shipId, "fish");
+
+    return {
+        stakingData,
+        rumRequired,
+        citrusNeeded,
+        fishNeeded,
+        rumBalanceBefore,
+        citrusBalanceBefore,
+        fishBalanceBefore,
+        targetTotalCrew
+    };
+}
+
+/**
+ * Sets up a ship for mission testing without food resources.
+ * Useful for testing food validation errors.
+ * @param {ethers.Signer} user - The user who owns the ship
+ * @param {ethers.Signer} admin - Admin signer for minting tokens
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {Object} nftsSetup - Object containing NFT contract instances
+ * @param {number} shipId - ID of the ship to setup
+ * @param {number} captainPirateId - ID of the captain pirate
+ * @param {number} homeIslandId - ID of the home island for staking
+ * @param {Object} options - Optional configuration
+ */
+async function setupShipForMissionWithoutFood(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, homeIslandId, options = {}) {
+    const {
+        targetTotalCrew = 10,
+        shipClass = "Small",
+        rumAmount = "10"
+    } = options;
+
+    const nonNftCrewForStaking = targetTotalCrew - 1;
+    
+    // Mint origin island to user (user owns it) - REQUIRED for island ownership validation
+    // Check if the island NFT already exists before minting
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(homeIslandId);
+        // If we get here, the NFT exists. Check if user already owns it
+        if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+            console.warn(`Island ${homeIslandId} already exists and is owned by ${currentOwner}, not ${user.address}`);
+        }
+    } catch (error) {
+        // NFT doesn't exist, mint it to the user
+        await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, homeIslandId);
+    }
+    
+    const actualShipNFT = coreContracts.shipNFT || nftsSetup.shipNFT;
+    const genesisPiratesNFT = nftsSetup.genesisPiratesNFT;
+    
+    const stakingData = {
+        shipId,
+        captainCollection: await nftsSetup.genesisPiratesNFT.getAddress(),
+        captainId: captainPirateId,
+        genesisPirateIds: [],
+        inhabitantIds: [],
+        nonNftCrewCount: nonNftCrewForStaking
+    };
+    
+    await actualShipNFT.connect(user).approve(coreContracts.shipAndPirateStaking.target, shipId);
+    await genesisPiratesNFT.connect(user).setApprovalForAll(coreContracts.shipAndPirateStaking.target, true);
+    await coreContracts.shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingData, homeIslandId, shipClass);
+
+    // Provide RUM tokens but NO FOOD
+    const rumRequired = ethers.parseEther(rumAmount);
+    await coreContracts.rumToken.connect(admin).mint(user.address, rumRequired);
+    await coreContracts.rumToken.connect(user).approve(coreContracts.feeManagement.target, rumRequired);
+
+    return {
+        stakingData,
+        rumRequired,
+        targetTotalCrew
+    };
+}
+
+/**
+ * Sets up a ship for mission testing without RUM token approval.
+ * Useful for testing RUM validation errors.
+ * @param {ethers.Signer} user - The user who owns the ship
+ * @param {ethers.Signer} admin - Admin signer for minting tokens and resources
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {Object} nftsSetup - Object containing NFT contract instances
+ * @param {number} shipId - ID of the ship to setup
+ * @param {number} captainPirateId - ID of the captain pirate
+ * @param {number} homeIslandId - ID of the home island for staking
+ * @param {Object} options - Optional configuration
+ */
+async function setupShipForMissionWithoutRUMApproval(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, homeIslandId, options = {}) {
+    const {
+        targetTotalCrew = 10,
+        shipClass = "Small",
+        rumAmount = "10",
+        citrusAmount = "50",
+        fishAmount = "50"
+    } = options;
+
+    const nonNftCrewForStaking = targetTotalCrew - 1;
+    
+    // Mint origin island to user (user owns it) - REQUIRED for island ownership validation
+    // Check if the island NFT already exists before minting
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(homeIslandId);
+        // If we get here, the NFT exists. Check if user already owns it
+        if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+            console.warn(`Island ${homeIslandId} already exists and is owned by ${currentOwner}, not ${user.address}`);
+        }
+    } catch (error) {
+        // NFT doesn't exist, mint it to the user
+        await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, homeIslandId);
+    }
+    
+    const actualShipNFT = coreContracts.shipNFT || nftsSetup.shipNFT;
+    const genesisPiratesNFT = nftsSetup.genesisPiratesNFT;
+    
+    const stakingData = {
+        shipId,
+        captainCollection: await nftsSetup.genesisPiratesNFT.getAddress(),
+        captainId: captainPirateId,
+        genesisPirateIds: [],
+        inhabitantIds: [],
+        nonNftCrewCount: nonNftCrewForStaking
+    };
+    
+    await actualShipNFT.connect(user).approve(coreContracts.shipAndPirateStaking.target, shipId);
+    await genesisPiratesNFT.connect(user).setApprovalForAll(coreContracts.shipAndPirateStaking.target, true);
+    await coreContracts.shipAndPirateStaking.connect(user).stakeShipWithPirates(stakingData, homeIslandId, shipClass);
+
+    // Provide RUM tokens but explicitly ensure NO APPROVAL
+    const rumRequired = ethers.parseEther(rumAmount);
+    await coreContracts.rumToken.connect(admin).mint(user.address, rumRequired);
+    
+    // Explicitly set allowance to zero to ensure test isolation
+    const currentAllowance = await coreContracts.rumToken.allowance(user.address, coreContracts.feeManagement.target);
+    if (currentAllowance > 0) {
+        await coreContracts.rumToken.connect(user).approve(coreContracts.feeManagement.target, 0);
+    }
+
+    // Add food to ship
+    const citrusNeeded = ethers.parseUnits(citrusAmount, 18);
+    const fishNeeded = ethers.parseUnits(fishAmount, 18);
+    await coreContracts.shipStorage.connect(admin).addResource(shipId, user.address, "citrus", citrusNeeded);
+    await coreContracts.shipStorage.connect(admin).addResource(shipId, user.address, "fish", fishNeeded);
+
+    return {
+        stakingData,
+        rumRequired,
+        citrusNeeded,
+        fishNeeded,
+        targetTotalCrew
+    };
+}
+
+/**
+ * Starts a test mission with default parameters for ResourceTransfer mission type.
+ * This is a convenience function for quickly setting up a basic mission for testing.
+ * @param {ethers.Signer} user - The user starting the mission
+ * @param {ethers.Signer} admin - Admin signer for setup
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {Object} missionRegistration - MissionRegistration contract instance
+ * @param {number} shipId - ID of the ship for the mission
+ * @param {number} islandId1 - Origin island ID
+ * @param {number} islandId2 - Destination island ID
+ * @param {Object} nftsSetup - Object containing NFT contract instances
+ * @param {number} captainPirateId - ID of the captain pirate
+ * @param {Object} options - Optional mission parameters
+ * @param {string} options.resourceType - Resource type to transfer (default: "wood")
+ * @param {string} options.amount - Amount to transfer in ether units (default: "100")
+ * @param {boolean} options.isReturnFromTradeMission - Return trade mission flag (default: false)
+ * @param {string} options.foodChoice - Primary food choice (default: "citrus")
+ * @param {string} options.foodRationChoice - Ration food choice (default: "fish")
+ * @returns {Promise<number>} The mission ID of the started mission
+ */
+async function startTestResourceTransferMission(user, admin, coreContracts, missionRegistration, shipId, islandId1, islandId2, nftsSetup, captainPirateId, options = {}) {
+    const {
+        resourceType = "wood",
+        amount = "100",
+        isReturnFromTradeMission = false,
+        foodChoice = "citrus",
+        foodRationChoice = "fish"
+    } = options;
+
+    const amountWei = ethers.parseUnits(amount, 18);
+
+    // Mint origin island to user (user owns it) - REQUIRED for island ownership validation
+    // Check if the island NFT already exists before minting
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(islandId1);
+        // If we get here, the NFT exists. Check if user already owns it
+        if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+            console.warn(`Island ${islandId1} already exists and is owned by ${currentOwner}, not ${user.address}`);
+        }
+    } catch (error) {
+        // NFT doesn't exist, mint it to the user
+        await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, islandId1);
+    }
+
+    // Setup ship for mission
+    await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, islandId1);
+    
+    // Add resource to origin island
+    await coreContracts.islandStorage.connect(admin).addResource(islandId1, user.address, resourceType, amountWei);
+
+    // Get mission type and encode mission data
+    const resourceTransferMissionType = await missionRegistration.getMissionTypeByName("ResourceTransfer");
+    const encodedInnerMissionData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "uint256", "string", "uint256", "bool", "string", "string"],
+        [islandId1, islandId2, resourceType, amountWei, isReturnFromTradeMission, foodChoice, foodRationChoice]
+    );
+
+    // Start the mission
+    const startTx = await coreContracts.missionsManager.connect(user).startMission(shipId, resourceTransferMissionType, encodedInnerMissionData);
+    const receipt = await startTx.wait();
+    const missionStartedEvent = receipt.logs.find(e => e.address === coreContracts.missionsManager.target && e.eventName === 'MissionStarted');
+    
+    return missionStartedEvent.args.missionId;
+}
+
+/**
+ * Sets up mission-related infrastructure including MissionRegistration, MissionFactory, and specialized storage.
+ * This helper reduces boilerplate in mission test fixtures.
+ * @param {ethers.Signer} admin - Admin signer
+ * @param {Object} centralAuthorizationRegistry - CAR contract instance
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {string} missionContractName - Name of the mission contract to deploy (e.g., "ResourceTransferMission")
+ * @param {string} missionTypeName - Name of the mission type (e.g., "ResourceTransfer")
+ * @param {string} [missionStorageContractName] - Optional specialized storage contract name
+ * @returns {Promise<Object>} Object containing deployed mission infrastructure
+ */
+async function setupMissionInfrastructure(admin, centralAuthorizationRegistry, coreContracts, missionContractName, missionTypeName, missionStorageContractName = null) {
+    // Deploy MissionRegistration and register it in CAR
+    const MissionRegistration = await ethers.getContractFactory("MissionRegistration");
+    const missionRegistration = await MissionRegistration.deploy(centralAuthorizationRegistry.target);
+    await missionRegistration.waitForDeployment();
+    await centralAuthorizationRegistry.connect(admin).setContractAddress(ethers.id("IMissionRegistration"), missionRegistration.target);
+    
+    // Deploy specialized storage if provided
+    let missionStorage = null;
+    if (missionStorageContractName) {
+        const MissionStorageFactory = await ethers.getContractFactory(missionStorageContractName);
+        missionStorage = await MissionStorageFactory.deploy(centralAuthorizationRegistry.target);
+        await missionStorage.waitForDeployment();
+        
+        // Register the mission type and storage with MissionsStorage
+        const missionType = await missionRegistration.getMissionTypeByName(missionTypeName);
+        await coreContracts.missionsStorage.connect(admin).registerMissionType(missionType, missionTypeName);
+        await coreContracts.missionsStorage.connect(admin).registerSpecializedStorage(missionType, missionStorage.target);
+    }
+
+    // Deploy the mission contract
+    const MissionFactory = await ethers.getContractFactory(missionContractName);
+    const missionContract = await MissionFactory.deploy(centralAuthorizationRegistry.target);
+    await missionContract.waitForDeployment();
+
+    // Deploy and register MissionFactory
+    const MissionFactoryContract = await ethers.getContractFactory("MissionFactory");
+    const missionFactory = await MissionFactoryContract.deploy(centralAuthorizationRegistry.target);
+    await missionFactory.waitForDeployment();
+    await centralAuthorizationRegistry.connect(admin).setContractAddress(ethers.id("IMissionFactory"), missionFactory.target);
+    await centralAuthorizationRegistry.connect(admin).addAuthorizedContract(missionFactory.target);
+    
+    // Register the mission contract with the factory
+    const missionType = await missionRegistration.getMissionTypeByName(missionTypeName);
+    await missionFactory.connect(admin).registerMissionContract(missionType, missionContract.target);
+    
+    // Authorize mission contract in the CAR
+    await centralAuthorizationRegistry.connect(admin).addAuthorizedContract(missionContract.target);
+
+    return {
+        missionRegistration,
+        missionContract,
+        missionFactory,
+        missionStorage,
+        missionType
+    };
+}
+
+/**
+ * Extracts mission ID from a transaction receipt containing MissionStarted event.
+ * @param {Object} receipt - Transaction receipt
+ * @param {string} missionsManagerAddress - Address of the MissionsManager contract
+ * @returns {number} The extracted mission ID
+ */
+function extractMissionIdFromReceipt(receipt, missionsManagerAddress) {
+    const missionStartedEvent = receipt.logs.find(
+        e => e.address === missionsManagerAddress && e.eventName === 'MissionStarted'
+    );
+    
+    if (!missionStartedEvent) {
+        throw new Error("MissionStarted event not found in transaction receipt");
+    }
+    
+    return missionStartedEvent.args.missionId;
+}
+
+/**
+ * Fast-forwards time to complete a mission and then calls completeMission.
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {ethers.Signer} user - User who owns the ship
+ * @param {number} missionId - ID of the mission to complete
+ * @param {number} shipId - ID of the ship on the mission
+ * @returns {Promise<Object>} Transaction receipt from completeMission call
+ */
+async function fastForwardAndCompleteMission(coreContracts, user, missionId, shipId) {
+    // Get the mission's end time and fast-forward
+    const missionInfo = await coreContracts.missionsManager.getMissionStatus(missionId);
+    await time.setNextBlockTimestamp(missionInfo.endTime + 1n);
+
+    // Complete the mission
+    const completeTx = await coreContracts.missionsManager.connect(user).completeMission(shipId);
+    return await completeTx.wait();
+}
+
+/**
+ * Starts a test mission with default parameters for TradeMission type.
+ * This is a convenience function for quickly setting up a basic trade mission for testing.
+ * @param {ethers.Signer} user - The user starting the mission
+ * @param {ethers.Signer} admin - Admin signer for setup
+ * @param {Object} coreContracts - Object containing core contract instances
+ * @param {Object} missionRegistration - MissionRegistration contract instance
+ * @param {number} shipId - ID of the ship for the mission
+ * @param {number} islandId1 - Origin island ID
+ * @param {number} islandId2 - Destination island ID
+ * @param {Object} nftsSetup - Object containing NFT contract instances
+ * @param {number} captainPirateId - ID of the captain pirate
+ * @param {Object} options - Optional mission parameters
+ * @param {string} options.resourceType - Resource type to trade (default: "wood")
+ * @param {string} options.amount - Amount to trade in ether units (default: "100")
+ * @param {number} options.tradeOrderId - Trade order ID (default: 1)
+ * @param {string} options.foodChoice - Primary food choice (default: "citrus")
+ * @param {string} options.foodRationChoice - Ration food choice (default: "fish")
+ * @returns {Promise<number>} The mission ID of the started mission
+ */
+async function startTestTradeMission(user, admin, coreContracts, missionRegistration, shipId, islandId1, islandId2, nftsSetup, captainPirateId, options = {}) {
+    const {
+        resourceType = "wood",
+        amount = "100",
+        tradeOrderId = undefined, // will be set below
+        foodChoice = "citrus",
+        foodRationChoice = "fish"
+    } = options;
+
+    const amountWei = ethers.parseUnits(amount, 18);
+
+    // Mint origin and target islands if needed
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(islandId1);
+        if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+            // Already exists, but not owned by user
+        }
+    } catch (error) {
+        await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, islandId1);
+    }
+    try {
+        const currentOwner = await nftsSetup.islandNft.ownerOf(islandId2);
+        if (currentOwner.toLowerCase() !== admin.address.toLowerCase()) {
+            // Already exists, but not owned by admin
+        }
+    } catch (error) {
+        await nftsSetup.islandNft.connect(admin).mintSpecific(admin.address, islandId2);
+    }
+
+    // Setup ship for mission
+    await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, islandId1);
+
+    // Setup a valid trade order if tradeManager is present
+    let tradeOrderIdToUse = 1;
+    if (coreContracts.tradeManager) {
+        // Use user as the island owner, islandId2 as the trade island
+        const price = ethers.parseEther("1");
+        // Always ensure user is the owner of islandId2
+        try {
+            const currentOwner = await nftsSetup.islandNft.ownerOf(islandId2);
+            if (currentOwner.toLowerCase() !== user.address.toLowerCase()) {
+                // Transfer from current owner to user
+                await nftsSetup.islandNft.connect(admin).transferFrom(currentOwner, user.address, islandId2);
+            }
+        } catch (error) {
+            // If not minted, mint to user
+            await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, islandId2);
+        }
+        // Approve resource if needed (skip for now, assume enough balance)
+        // Create the trade order
+        const tx = await coreContracts.tradeManager.connect(user).createTradeOrder(islandId2, resourceType, amountWei, price);
+        const receipt = await tx.wait();
+        // Find TradeOrderCreated event
+        const event = receipt.logs.find(e => e.eventName === 'TradeOrderCreated');
+        tradeOrderIdToUse = event ? event.args.tradeOrderId : 1;
+    }
+
+    // Encode mission data for TradeMission
+    const encodedInnerMissionData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "uint256", "string", "uint256", "uint256", "string", "string"],
+        [islandId1, islandId2, resourceType, amountWei, tradeOrderIdToUse, foodChoice, foodRationChoice]
+    );
+
+    // Get mission type
+    const tradeMissionType = await missionRegistration.getMissionTypeByName("Trade");
+
+    // Start the mission
+    const startTx = await coreContracts.missionsManager.connect(user).startMission(shipId, tradeMissionType, encodedInnerMissionData);
+    const receipt = await startTx.wait();
+    const missionStartedEvent = receipt.logs.find(e => e.address === coreContracts.missionsManager.target && e.eventName === 'MissionStarted');
+    return missionStartedEvent.args.missionId;
+}
+
 module.exports = {
   deployBaseInfrastructure,
   deployAndAuthorizeContract,
@@ -1216,5 +1753,14 @@ module.exports = {
   deployAndRegisterMock,
   setupCoreGameContracts,
   prepareShipForJourney,
-  setupEmptyResourceProduction
+  setupEmptyResourceProduction,
+  // Mission-related utilities
+  setupShipForMissionTesting,
+  setupShipForMissionWithoutFood,
+  setupShipForMissionWithoutRUMApproval,
+  startTestResourceTransferMission,
+  setupMissionInfrastructure,
+  extractMissionIdFromReceipt,
+  fastForwardAndCompleteMission,
+  startTestTradeMission
 };

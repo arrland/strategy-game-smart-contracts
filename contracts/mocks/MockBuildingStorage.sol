@@ -34,24 +34,27 @@ contract MockBuildingStorage is IBuildingStorage, AuthorizationModifiers {
     /**
      * @notice Get building information for a specific building on an island
      * @dev Always returns an operational building with maximum level
-     * @param islandIdParam ID of the island (unused in mock)
+     * @param islandIdParam ID of the island (now used for logging)
      * @param buildingType Type of the building
-     * @return BuildingInfo struct containing mock building data
+     * @return info BuildingInfo struct containing mock building data
      */
     function getBuilding(
-        uint256 islandIdParam, // unused parameter
+        uint256 islandIdParam, // now used for logging
         uint256 buildingType
-    ) external view override returns (BuildingInfo memory) {
+    ) external view override returns (BuildingInfo memory info) {
+        console.log("MockBuildingStorage: getBuilding CALLED for islandId:", islandIdParam, "buildingType:", buildingType);
         // Always return an operational building with level 10
-        return BuildingInfo({
+        info = BuildingInfo({
             id: 1,
             buildingType: buildingType,
             level: 10,
-            state: BuildingState.Operational,
+            state: BuildingState.Operational, // Operational is 2
             constructionStartTime: 0,
             constructionEndTime: 0,
             owner: address(0)
         });
+        console.log("MockBuildingStorage: RETURNING level:", info.level, "state:", uint(info.state));
+        return info;
     }
 
     /**

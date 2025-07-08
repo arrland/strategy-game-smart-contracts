@@ -8,7 +8,7 @@ interface IMissionsManager {
         bytes calldata missionData
     ) external returns (uint256 missionId);
     
-    function completeMission(uint256 missionId) external;
+    function completeMission(uint256 shipId) external;
     
     function getMissionStatus(uint256 missionId) external view returns (
         bool isActive,

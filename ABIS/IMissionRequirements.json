@@ -1,0 +1,86 @@
+[
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "buildingType",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "missionType",
+        "type": "uint256"
+      }
+    ],
+    "name": "canBuildingSupportMission",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "missionType",
+        "type": "uint256"
+      }
+    ],
+    "name": "getBuildingRequirements",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "buildingType",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "minLevel",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bool",
+            "name": "required",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct IMissionRequirements.BuildingRequirement[]",
+        "name": "",
+        "type": "tuple[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "islandId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "missionType",
+        "type": "uint256"
+      }
+    ],
+    "name": "validateBuildingRequirements",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

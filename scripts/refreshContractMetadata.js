@@ -64,9 +64,10 @@ async function checkNftMetadata() {
     const nfts = await getNftsForAllOwners();
     const tokenIDsToRefresh = [];
     for (const nft of nfts) {
-        if (!nft.raw.metadata || Object.keys(nft.raw.metadata).length === 0) {            
-            tokenIDsToRefresh.push(parseInt(nft.tokenId));
-        }
+        tokenIDsToRefresh.push(parseInt(nft.tokenId));
+        // if (!nft.raw.metadata || Object.keys(nft.raw.metadata).length === 0) {            
+        //     tokenIDsToRefresh.push(parseInt(nft.tokenId));
+        // }
     }
     console.log(`Total tokens to refresh: ${tokenIDsToRefresh.length}`);
     console.log(tokenIDsToRefresh);

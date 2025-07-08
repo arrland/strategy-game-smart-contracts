@@ -28,6 +28,7 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         IMissionStates.JourneyState journeyState;
         bool isShipBuying;
         bool resourcesClaimed;
+        uint256 returnJourneyDuration; // Added field for return journey duration
     }
 
     // Mission data mapping: missionId => TradeMissionData
@@ -70,7 +71,7 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         uint256 missionId,
         bytes memory _initialMissionDataBytes
     ) external onlyAuthorized override {
-        // Decode the mission data (10 values)
+        // Decode the mission data (11 values now, including returnJourneyDuration)
         (
             uint256 shipId,
             uint256 originIslandId,
@@ -78,13 +79,14 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
             string memory resourceType,
             uint256 amount,
             uint256 price,
-            uint256 tradeOrderId,    // Added decoding
+            uint256 tradeOrderId,
             uint256 startTime,
             uint256 endTime,
-            bool isShipBuying       // Added decoding
+            bool isShipBuying,
+            uint256 returnJourneyDuration
         ) = abi.decode(
             _initialMissionDataBytes,
-            (uint256, uint256, uint256, string, uint256, uint256, uint256, uint256, uint256, bool) // Updated tuple type
+            (uint256, uint256, uint256, string, uint256, uint256, uint256, uint256, uint256, bool, uint256)
         );
         
         // Store the mission data
@@ -92,15 +94,16 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         data.shipId = shipId;
         data.originIslandId = originIslandId;
         data.targetIslandId = targetIslandId;
-        data.tradeOrderId = tradeOrderId; // Store decoded value
+        data.tradeOrderId = tradeOrderId;
         data.resourceType = resourceType;
         data.amount = amount;
         data.price = price;
         data.startTime = startTime;
         data.endTime = endTime;
         data.journeyState = IMissionStates.JourneyState.ToDestination;
-        data.isShipBuying = isShipBuying; // Store decoded value
+        data.isShipBuying = isShipBuying;
         data.resourcesClaimed = false;
+        data.returnJourneyDuration = returnJourneyDuration;
         
         emit TradeMissionInitialized(
             missionId,
@@ -119,9 +122,25 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
     function completeMission(uint256 missionId) external onlyAuthorized override {
         TradeMissionData storage data = missionData[missionId];
         require(data.shipId != 0, "Mission does not exist");
-        data.journeyState = IMissionStates.JourneyState.Completed;
         
-        emit TradeMissionCompleted(missionId, data.shipId);
+        uint256 shipId = data.shipId; // Save shipId for event
+        
+        // Clear mission data by resetting to default values
+        data.shipId = 0;
+        data.originIslandId = 0;
+        data.targetIslandId = 0;
+        data.tradeOrderId = 0;
+        data.resourceType = "";
+        data.amount = 0;
+        data.price = 0;
+        data.startTime = 0;
+        data.endTime = 0;
+        data.journeyState = IMissionStates.JourneyState.NotStarted;
+        data.isShipBuying = false;
+        data.resourcesClaimed = false;
+        data.returnJourneyDuration = 0;
+        
+        emit TradeMissionCompleted(missionId, shipId);
     }
 
     /**
@@ -142,7 +161,8 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
             data.endTime,
             uint8(data.journeyState),
             data.isShipBuying,
-            data.resourcesClaimed
+            data.resourcesClaimed,
+            data.returnJourneyDuration // Include return journey duration in encoding
         );
     }
 
@@ -173,20 +193,18 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         bool resourcesClaimed
     ) {
         TradeMissionData storage data = missionData[missionId];
-        uint256 fetchedTradeOrderId = data.tradeOrderId;
-        bool fetchedIsShipBuying = data.isShipBuying;
         return (
             data.shipId,
             data.originIslandId,
             data.targetIslandId,
-            fetchedTradeOrderId,
+            data.tradeOrderId,
             data.resourceType,
             data.amount,
             data.price,
             data.startTime,
             data.endTime,
             data.journeyState,
-            fetchedIsShipBuying,
+            data.isShipBuying,
             data.resourcesClaimed
         );
     }
@@ -201,6 +219,25 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         emit TradeMissionJourneyStateUpdated(missionId, newState);
     }
 
+    /**
+     * @notice Get the return journey duration for a trade mission
+     * @param missionId Trade mission ID
+     * @return duration Return journey duration in seconds
+     */
+    function getReturnJourneyDuration(uint256 missionId) external view returns (uint256 duration) {
+        return missionData[missionId].returnJourneyDuration;
+    }
+
+    /**
+     * @notice Update the mission end time (used when transitioning to return journey)
+     * @param missionId Mission identifier
+     * @param newEndTime New end time for the mission
+     */
+    function updateEndTime(uint256 missionId, uint256 newEndTime) external onlyAuthorized {
+        TradeMissionData storage data = missionData[missionId];
+        require(data.shipId != 0, "Mission does not exist");
+        data.endTime = newEndTime;
+    }
 
     function markResourcesClaimed(uint256 missionId) external onlyAuthorized {
         TradeMissionData storage data = missionData[missionId];
@@ -226,25 +263,37 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
     function getTimeRemaining(uint256 missionId) external view override returns (uint256 timeRemaining) {
         TradeMissionData memory data = missionData[missionId];
         
-        // Use the overall mission end time for now
-        uint256 currentPhaseEndTime = data.endTime;
-        
-        if (block.timestamp >= currentPhaseEndTime) {
+        // For ToDestination phase, use the outbound end time
+        if (data.journeyState == IMissionStates.JourneyState.ToDestination) {
+            if (block.timestamp >= data.endTime) {
             return 0;
+            }
+            return data.endTime - block.timestamp;
         }
         
-        return currentPhaseEndTime - block.timestamp;
+        // For Returning phase, the return journey is handled by ResourceTransferMission
+        // So this should return 0 as the TradeMission itself is waiting for ResourceTransferMission completion
+        return 0;
     }
     
     /**
      * @notice Check if the current mission phase is complete.
-     * @dev For simplicity, assumes phase is complete if current time is past overall end time.
-     *      A more complex implementation might track individual phase end times.
+     * @dev For ToDestination phase, checks if outbound time has elapsed.
+     *      For Returning phase, the completion is handled by ResourceTransferMission.
      * @inheritdoc ITradeMissionStorage
      */
     function isPhaseComplete(uint256 missionId) external view override returns (bool isComplete) {
         TradeMissionData memory data = missionData[missionId];
-        // Use the overall mission end time for simplicity
+        
+        if (data.journeyState == IMissionStates.JourneyState.ToDestination) {
+            // Phase is complete if outbound journey time has elapsed
         return block.timestamp >= data.endTime;
+        } else if (data.journeyState == IMissionStates.JourneyState.Returning) {
+            // Return journey completion is handled by ResourceTransferMission
+            // TradeMission is waiting for external completion signal
+            return false;
+        }
+        
+        return false;
     }
 } 
