@@ -199,28 +199,44 @@ async function setupPirateSkills(pirateSkills, admin, genesisPiratesAddress, inh
     if (pirateIds.genesis && pirateIds.genesis.length > 0) {
         // Add skills for genesis captain
         if (pirateIds.genesis[0]) {
-            await pirateSkills.connect(admin).addAllSkills(
-                genesisPiratesAddress,
-                pirateIds.genesis[0],
-                captainCharacterSkills,
-                captainToolsSkills,
-                captainSpecialSkills,
-                captainShipSkills,
-                captainMagicSkills
-            );
+            try {
+                // Try to add skills - if they already exist, this will fail and we'll catch the error
+                await pirateSkills.connect(admin).addAllSkills(
+                    genesisPiratesAddress,
+                    pirateIds.genesis[0],
+                    captainCharacterSkills,
+                    captainToolsSkills,
+                    captainSpecialSkills,
+                    captainShipSkills,
+                    captainMagicSkills
+                );
+            } catch (error) {
+                // Skills already exist - ignore the error
+                if (!error.message.includes("Character skills already exist")) {
+                    throw error; // Re-throw if it's a different error
+                }
+            }
         }
         
         // Add skills for genesis crew
         for (let i = 1; i < pirateIds.genesis.length; i++) {
-            await pirateSkills.connect(admin).addAllSkills(
-                genesisPiratesAddress,
-                pirateIds.genesis[i],
-                crewCharacterSkills,
-                crewToolsSkills,
-                crewSpecialSkills,
-                crewShipSkills,
-                crewMagicSkills
-            );
+            try {
+                // Try to add skills - if they already exist, this will fail and we'll catch the error
+                await pirateSkills.connect(admin).addAllSkills(
+                    genesisPiratesAddress,
+                    pirateIds.genesis[i],
+                    crewCharacterSkills,
+                    crewToolsSkills,
+                    crewSpecialSkills,
+                    crewShipSkills,
+                    crewMagicSkills
+                );
+            } catch (error) {
+                // Skills already exist - ignore the error
+                if (!error.message.includes("Character skills already exist")) {
+                    throw error; // Re-throw if it's a different error
+                }
+            }
         }
     }
     
@@ -228,28 +244,44 @@ async function setupPirateSkills(pirateSkills, admin, genesisPiratesAddress, inh
     if (pirateIds.inhabitants && pirateIds.inhabitants.length > 0) {
         // Add skills for inhabitant captain
         if (pirateIds.inhabitants[0]) {
-            await pirateSkills.connect(admin).addAllSkills(
-                inhabitantsAddress,
-                pirateIds.inhabitants[0],
-                captainCharacterSkills,
-                captainToolsSkills,
-                captainSpecialSkills,
-                captainShipSkills,
-                captainMagicSkills
-            );
+            try {
+                // Try to add skills - if they already exist, this will fail and we'll catch the error
+                await pirateSkills.connect(admin).addAllSkills(
+                    inhabitantsAddress,
+                    pirateIds.inhabitants[0],
+                    captainCharacterSkills,
+                    captainToolsSkills,
+                    captainSpecialSkills,
+                    captainShipSkills,
+                    captainMagicSkills
+                );
+            } catch (error) {
+                // Skills already exist - ignore the error
+                if (!error.message.includes("Character skills already exist")) {
+                    throw error; // Re-throw if it's a different error
+                }
+            }
         }
         
         // Add skills for inhabitant crew
         for (let i = 1; i < pirateIds.inhabitants.length; i++) {
-            await pirateSkills.connect(admin).addAllSkills(
-                inhabitantsAddress,
-                pirateIds.inhabitants[i],
-                crewCharacterSkills,
-                crewToolsSkills,
-                crewSpecialSkills,
-                crewShipSkills,
-                crewMagicSkills
-            );
+            try {
+                // Try to add skills - if they already exist, this will fail and we'll catch the error
+                await pirateSkills.connect(admin).addAllSkills(
+                    inhabitantsAddress,
+                    pirateIds.inhabitants[i],
+                    crewCharacterSkills,
+                    crewToolsSkills,
+                    crewSpecialSkills,
+                    crewShipSkills,
+                    crewMagicSkills
+                );
+            } catch (error) {
+                // Skills already exist - ignore the error
+                if (!error.message.includes("Character skills already exist")) {
+                    throw error; // Re-throw if it's a different error
+                }
+            }
         }
     }
 }
@@ -1260,17 +1292,61 @@ async function setupShipForMissionTesting(user, admin, coreContracts, nftsSetup,
     // Set up default metadata for the ship to ensure it has valid attributes for staking.
     await setupShipMetadata(coreContracts.shipMetadata, admin, [shipId]);
 
-    // Set up skills for the captain BEFORE staking
-    await setupPirateSkills(coreContracts.pirateSkills, admin, nftsSetup.genesisPiratesAddress, nftsSetup.inhabitantsAddress, { genesis: [captainPirateId] });
+    // Set up skills for the captain BEFORE staking - use try-catch to handle existing skills
+    try {
+        await setupPirateSkills(coreContracts.pirateSkills, admin, nftsSetup.genesisPiratesAddress, nftsSetup.inhabitantsAddress, { genesis: [captainPirateId] });
+    } catch (error) {
+        // Skills already exist - ignore the error
+        if (!error.message.includes("Character skills already exist")) {
+            throw error; // Re-throw if it's a different error
+        }
+    }
 
     // NEW: Attach non-NFT "sailor" crew to the captain pirate to meet essential crew requirements for staking.
-    await coreContracts.crewManagement.connect(admin).addCrew(
-        nftsSetup.genesisPiratesAddress, // pirate collection
-        captainPirateId,                 // pirate ID to attach crew to
-        user.address,                    // owner of the crew
-        "sailor",                        // crew type (must be an essential crew type)
-        nonNftCrewForStaking             // number of crew members to add
-    );
+    // Ships typically require at least 2 essential crew members (crewMin: 2 in default ship attributes)
+    const minEssentialCrew = 2;
+    
+    try {
+        // Get current crew counts for this pirate
+        const currentTotalCrew = await coreContracts.crewManagement.getTotalCrewCount(nftsSetup.genesisPiratesAddress, captainPirateId);
+        const currentEssentialCrew = await coreContracts.crewManagement.getEssentialCrewCount(nftsSetup.genesisPiratesAddress, captainPirateId);
+        
+        // Calculate how much essential crew we need to add
+        const essentialCrewNeeded = Math.max(0, minEssentialCrew - Number(currentEssentialCrew.toString()));
+        
+        if (essentialCrewNeeded > 0) {
+            // Check capacity using crewTypeManager
+            const crewCapacity = await coreContracts.crewTypeManager.getPirateCrewCapacity(nftsSetup.genesisPiratesAddress, captainPirateId);
+            const availableCapacity = Math.max(0, Number(crewCapacity.toString()) - Number(currentTotalCrew.toString()));
+            const crewToAdd = Math.min(essentialCrewNeeded, availableCapacity);
+            
+            if (crewToAdd > 0) {
+                await coreContracts.crewManagement.connect(admin).addCrew(
+                    nftsSetup.genesisPiratesAddress, // pirate collection
+                    captainPirateId,                 // pirate ID to attach crew to
+                    user.address,                    // owner of the crew
+                    "sailor",                        // crew type (essential crew type)
+                    crewToAdd                        // number of essential crew members to add
+                );
+            }
+        }
+    } catch (error) {
+        console.warn(`Capacity check failed for pirate ${captainPirateId}:`, error.message);
+        
+        // Fall back: try to add at least minimum required essential crew members directly
+        try {
+            await coreContracts.crewManagement.connect(admin).addCrew(
+                nftsSetup.genesisPiratesAddress,
+                captainPirateId,
+                user.address,
+                "sailor",
+                minEssentialCrew // Add minimum required essential crew (2)
+            );
+        } catch (addCrewError) {
+            console.warn(`Could not add crew to pirate ${captainPirateId}:`, addCrewError.message);
+            // Continue without adding crew - test will fail with meaningful error
+        }
+    }
 
     // Mint origin island to user (user owns it) - REQUIRED for island ownership validation
     // Check if the island NFT already exists before minting

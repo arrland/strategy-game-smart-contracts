@@ -114,7 +114,7 @@ contract ExplorationMission is BaseMission {
     
     function completeMission(
         uint256 missionId
-    ) external override onlyAuthorized nonReentrant {
+    ) external override onlyAuthorized nonReentrant returns (bool isFullyComplete) {
         IMissionsStorage missionsStorage = getMissionsStorage();
         
         // Get ship ID (same as mission ID for simplicity)
@@ -177,6 +177,9 @@ contract ExplorationMission is BaseMission {
         unlockShipAfterMission(shipId);
         
         emit ExplorationCompleted(missionId, shipId, discoveryType);
+        
+        // ExplorationMission is always fully complete in one phase
+        return true;
     }
     
     function getMissionDetails(uint256 missionId) external view override returns (bytes memory) {

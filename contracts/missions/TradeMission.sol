@@ -467,28 +467,32 @@ contract TradeMission is BaseMission {
     // trade mission completion automatically via TradeManager integration
 
     function completeMission(
-        uint256 shipId
-    ) external override onlyMissionsManager {
+        uint256 missionId
+    ) external override onlyMissionsManager returns (bool isFullyComplete) {
         // Get mission information from central storage
         IMissionsStorage missionsStorage = getMissionsStorage();
-        require(missionsStorage.isOnMission(shipId), "Ship not on mission");
-        
-        uint256 missionId = missionsStorage.getMissionId(shipId);
-        
-        // Get mission state to determine what to do
         address tradeStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
         ITradeMissionStorage tradeMissionStorage = ITradeMissionStorage(tradeStorageAddr);
         
+        // Get shipId from mission data
+        (uint256 shipId, , , , , , , , , , , ) = tradeMissionStorage.getMissionDetails(missionId);
+        require(shipId != 0, "Mission does not exist");
+        require(missionsStorage.isOnMission(shipId), "Ship not on mission");
+        
+        // Get mission state to determine what to do
         (, , , , , , , , uint256 endTime, IMissionStates.JourneyState journeyState, , ) = 
             tradeMissionStorage.getMissionDetails(missionId);
         
         if (journeyState == IMissionStates.JourneyState.ToDestination) {
+            // Validate timing for outbound journey
+            require(block.timestamp >= endTime, "Outbound journey not yet complete");
+            
             // If in ToDestination phase, advance to Returning
             advanceMission(missionId);
             
-            // Mission advanced but is not complete - don't complete in MissionsManager
-            // Just return without calling completion logic
-            return;
+            // Mission advanced but is not fully complete yet
+            return false;
+            
         } else if (journeyState == IMissionStates.JourneyState.Returning) {
             // If in Returning phase, complete the entire trade mission
             require(block.timestamp >= endTime, "Return journey not yet complete");
@@ -506,7 +510,13 @@ contract TradeMission is BaseMission {
             missionsStorage.completeMission(shipId);
             
             emit TradeMissionCompleted(missionId, shipId, originIslandId, targetIslandId, resourceType, amount, price);
+            
+            // Mission is fully complete
+            return true;
         }
+        
+        // Should not reach here - invalid journey state
+        revert("Invalid journey state for completion");
     }
 
     function getMissionState(uint256 missionId) external view returns (
@@ -703,6 +713,37 @@ contract TradeMission is BaseMission {
         } catch {
             return false;
         }
+    }
+
+    /**
+     * @notice Get mission details
+     * @param missionId ID of the mission
+     * @return missionDetails Encoded mission details
+     */
+    function getMissionDetails(uint256 missionId) external view override returns (bytes memory missionDetails) {
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        address tradeStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
+        ITradeMissionStorage tradeMissionStorage = ITradeMissionStorage(tradeStorageAddr);
+        
+        (uint256 shipId, uint256 originIslandId, uint256 targetIslandId, uint256 tradeOrderId, 
+         string memory resourceType, uint256 amount, uint256 price, uint256 startTime, 
+         uint256 endTime, IMissionStates.JourneyState journeyState, bool isShipBuying, bool resourcesClaimed) = 
+            tradeMissionStorage.getMissionDetails(missionId);
+
+        return abi.encode(
+            shipId,
+            originIslandId,
+            targetIslandId,
+            tradeOrderId,
+            resourceType,
+            amount,
+            price,
+            uint8(journeyState),
+            startTime,
+            endTime,
+            isShipBuying,
+            resourcesClaimed
+        );
     }
 
     /**

@@ -66,29 +66,57 @@ describe("ResourceTransferMission", function () {
         if (!pirateSkills) {
             throw new Error("PirateSkills contract not found in coreContracts from setupFixture. It's needed to set up captain skills.");
         }
-        await setupPirateSkills( 
-            pirateSkills,      
-            admin,              
-            await nftsSetup.genesisPiratesNFT.getAddress(), 
-            ethers.ZeroAddress, 
-            { genesis: [captainPirateId], inhabitants: [] } 
-        );
+        
+        // Try to add skills - if they already exist, this will fail and we'll catch the error
+        try {
+            await setupPirateSkills( 
+                pirateSkills,      
+                admin,              
+                await nftsSetup.genesisPiratesNFT.getAddress(), 
+                ethers.ZeroAddress, 
+                { genesis: [captainPirateId], inhabitants: [] } 
+            );
+        } catch (error) {
+            // Skills already exist - ignore the error
+            if (!error.message.includes("Character skills already exist")) {
+                throw error; // Re-throw if it's a different error
+            }
+        }
 
         // Also, ensure the captain has crew registered in CrewManagement
         const { crewManagement } = coreContracts;
         if (!crewManagement) {
             throw new Error("CrewManagement contract not found in coreContracts. It's needed to set up captain's crew.");
         }
-        await setupCrewForPirates(
-            crewManagement,
-            admin,
-            await nftsSetup.genesisPiratesNFT.getAddress(),
-            ethers.ZeroAddress, // No inhabitants for this captain
-            user, // Owner of the crew (can be user or admin)
-            { genesis: [captainPirateId], inhabitants: [] },
-            "sailor", // Default crew type
-            { captain: 3, crew: 0 } // Captain provides 3 essential crew, no regular crew for this setup call
-        );
+        
+        // Check if crew already exists for this pirate before adding
+        try {
+            const existingCrew = await crewManagement.getCrewForPirate(captainPirateId);
+            if (existingCrew.length === 0) {
+                await setupCrewForPirates(
+                    crewManagement,
+                    admin,
+                    await nftsSetup.genesisPiratesNFT.getAddress(),
+                    ethers.ZeroAddress, // No inhabitants for this captain
+                    user, // Owner of the crew (can be user or admin)
+                    { genesis: [captainPirateId], inhabitants: [] },
+                    "sailor", // Default crew type
+                    { captain: 3, crew: 0 } // Captain provides 3 essential crew, no regular crew for this setup call
+                );
+            }
+        } catch (error) {
+            // If getCrewForPirate fails, it means no crew exists, so we can add them
+            await setupCrewForPirates(
+                crewManagement,
+                admin,
+                await nftsSetup.genesisPiratesNFT.getAddress(),
+                ethers.ZeroAddress, // No inhabitants for this captain
+                user, // Owner of the crew (can be user or admin)
+                { genesis: [captainPirateId], inhabitants: [] },
+                "sailor", // Default crew type
+                { captain: 3, crew: 0 } // Captain provides 3 essential crew, no regular crew for this setup call
+            );
+        }
 
         // Set a RUM requirement in ResourceSpendManagement for mission travel
         const { resourceSpendManagement, resourceTypeManager } = coreContracts;

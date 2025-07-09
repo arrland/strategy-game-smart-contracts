@@ -208,7 +208,7 @@ contract ResourceTransferMission is BaseMission {
      * @notice Complete a resource transfer mission
      * @param missionId ID of the mission to complete
      */
-    function completeMission(uint256 missionId) external override onlyAuthorized {
+    function completeMission(uint256 missionId) external override onlyAuthorized returns (bool isFullyComplete) {
         IMissionsStorage missionsStorage = getMissionsStorage();
         
         address resourceTransferStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
@@ -258,6 +258,9 @@ contract ResourceTransferMission is BaseMission {
             amount,
             isReturnFromTradeMission
         );
+        
+        // ResourceTransferMission is always fully complete in one phase
+        return true;
     }
 
     /**

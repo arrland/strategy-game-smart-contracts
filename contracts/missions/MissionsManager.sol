@@ -161,78 +161,46 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         address owner = getShipAndPirateStaking().getShipOwner(shipId);
         IMissionsStorage missionsStorage = getMissionsStorage();
         uint256 missionType = missionsStorage.getMissionType(shipId);
+        
+        // Check if this is a trade mission for authorization
         MissionRegistration missionRegistration = getMissionRegistration();
         string memory missionTypeName = missionRegistration.getMissionTypeName(missionType);
         bool isTradeMission = (keccak256(bytes(missionTypeName)) == keccak256(bytes("Trade")));
-        address islandOwner = address(0);
-        address missionContractAddress = getMissionFactory().getMissionContract(missionType);
-        require(missionContractAddress != address(0), "No implementation for this mission type");
+        
+        // For trade missions, allow both ship owner and island owner to complete
         if (isTradeMission) {
+            address missionContractAddress = getMissionFactory().getMissionContract(missionType);
+            require(missionContractAddress != address(0), "No implementation for this mission type");
             ( , , uint256 targetIslandId, , , , , , , , , ) = ITradeMission(missionContractAddress).getMissionState(missionId);
-            islandOwner = IERC721(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY)).ownerOf(targetIslandId);
+            address islandOwner = IERC721(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY)).ownerOf(targetIslandId);
             require(msg.sender == owner || msg.sender == islandOwner, "Caller is not ship or island owner");
         } else {
-        require(msg.sender == owner, "Caller is not the ship owner");
+            require(msg.sender == owner, "Caller is not the ship owner");
         }
 
-        console.log("MissionsManager: completeMission called for missionId:", missionId);
         MissionInfo storage mission = missions[missionId];
         
-        console.log("MissionsManager: Checking mission.isActive for missionId:", missionId, "IsActive:", mission.isActive);
         require(mission.isActive, "No active mission with this ID");
-        console.log("MissionsManager: Checking !mission.isCompleted for missionId:", missionId, "IsCompleted:", mission.isCompleted);
         require(!mission.isCompleted, "Mission already completed");
-        
-        console.log("MissionsManager: Checking block.timestamp >= mission.endTime.");
-        console.log("MissionsManager: - missionId:", missionId);
-        console.log("MissionsManager: - Timestamp:", block.timestamp);
-        console.log("MissionsManager: - EndTime:", mission.endTime);
         require(block.timestamp >= mission.endTime, "Mission not yet complete");        
         
-        console.log("MissionsManager: Getting MissionFactory");
-        IMissionFactory factory = getMissionFactory();
-        console.log("MissionsManager: Checking missionContractAddress != address(0). Address:", missionContractAddress);
+        address missionContractAddress = getMissionFactory().getMissionContract(missionType);
         require(missionContractAddress != address(0), "No implementation for this mission type");
         
         IMission missionContract = IMission(missionContractAddress);
         
-        console.log("MissionsManager: Calling missionContract.completeMission for shipId:", shipId);
-        missionContract.completeMission(shipId);
+        // Let the mission contract determine if it's fully complete or just advanced
+        bool isFullyComplete = missionContract.completeMission(missionId);
         
-        // Check if the mission is actually complete or just advanced
-        // For trade missions, check if they're still in an active state after calling completeMission
-        bool shouldComplete = true;
-        if (isTradeMission) {
-            // Check the journey state after calling completeMission
-                         try ITradeMission(missionContractAddress).getMissionState(missionId) returns (
-                 uint256, uint256, uint256, uint256, string memory, uint256, uint256,
-                 uint8 journeyStateRaw, uint256, uint256, bool, bool
-             ) {
-                 // Convert uint8 to enum
-                 IMissionStates.JourneyState journeyState = IMissionStates.JourneyState(journeyStateRaw);
-                 // If still in ToDestination or just moved to Returning, don't complete the mission tracking
-                 if (journeyState == IMissionStates.JourneyState.Returning) {
-                     shouldComplete = false; // Mission advanced but not complete
-                     console.log("MissionsManager: Trade mission advanced to Returning phase, keeping active");
-                 }
-            } catch {
-                // If we can't get state, assume it completed
-                shouldComplete = true;
-            }
-        }
-        
-        if (shouldComplete) {
+        // Only complete the mission tracking if the mission contract says it's fully done
+        if (isFullyComplete) {
             mission.isCompleted = true;
             mission.isActive = false;
             shipToActiveMission[mission.shipId] = 0;
-            console.log("MissionsManager: Mission status updated for missionId:", missionId, "shipToActiveMission cleared for shipId:", mission.shipId);
-        } else {
-            console.log("MissionsManager: Mission advanced but not completed for missionId:", missionId, "keeping active");
-            return; // Don't emit completion event
+            
+            emit MissionCompleted(missionId, mission.shipId, mission.missionType);
         }
-        
-        console.log("MissionsManager: Emitting MissionCompleted event for missionId:", missionId);
-        emit MissionCompleted(missionId, mission.shipId, mission.missionType);
+        // If not fully complete, mission just advanced to next phase - don't emit completion event
     }
 
     function getMissionStatus(uint256 missionId) external view override returns (

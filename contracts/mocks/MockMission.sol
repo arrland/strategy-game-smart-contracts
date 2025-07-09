@@ -67,9 +67,10 @@ contract MockMission is IMission, IERC165, AuthorizationModifiers {
      * @notice Marks a mission as complete.
      * @param missionId ID of the mission to complete.
      */
-    function completeMission(uint256 missionId) external override {
+    function completeMission(uint256 missionId) external override returns (bool isFullyComplete) {
         completedMissions[missionId] = true;
         emit MissionInstanceCompleted(missionId);
+        return true; // Mock missions are always fully complete
     }
 
     /**

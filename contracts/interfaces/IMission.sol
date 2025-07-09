@@ -21,8 +21,9 @@ interface IMission {
     /**
      * @notice Complete a mission
      * @param missionId Mission identifier
+     * @return isFullyComplete True if mission is fully complete, false if just advanced to next phase
      */
-    function completeMission(uint256 missionId) external;
+    function completeMission(uint256 missionId) external returns (bool isFullyComplete);
     
     /**
      * @notice Get mission details

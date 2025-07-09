@@ -737,6 +737,22 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
     }
 
     /**
+     * @notice Get the total count of active trade orders across all islands
+     * @return count The total number of active trade orders
+     */
+    function getActiveTradeOrdersCount() external view returns (uint256) {
+        uint256 count = 0;
+        
+        for (uint256 i = 1; i < nextTradeOrderId; i++) {
+            if (tradeOrders[i].isActive) {
+                count++;
+            }
+        }
+        
+        return count;
+    }
+
+    /**
      * @notice Get the active trade count for an island
      * @param islandId The island ID to check
      * @return count The number of active trade orders for the island
