@@ -7,6 +7,7 @@ import "../interfaces/IMissionFactory.sol";
 import "../interfaces/IMissionsManager.sol";
 import "../interfaces/IMissionsStorage.sol";
 import "../interfaces/IMission.sol";
+import "../interfaces/IMissionAuthorization.sol";
 import "../AuthorizationModifiers.sol";
 import "./MissionRegistration.sol";
 import "../interfaces/ICooldownManager.sol";
@@ -14,8 +15,6 @@ import "../interfaces/ICooldownManager.sol";
 import "../core/InterfaceIdentifiers.sol";
 import "../interfaces/ships/IShipAndPirateStaking.sol";
 import "hardhat/console.sol";
-import "../interfaces/ITradeMission.sol";
-import "../interfaces/mission-storage/IMissionStates.sol";
 
 // Custom Errors
 error ShipAlreadyOnMission(uint256 shipId, uint256 activeMissionId);
@@ -158,34 +157,22 @@ contract MissionsManager is IMissionsManager, AuthorizationModifiers {
         uint256 missionId = shipToActiveMission[shipId];
         require(missionId != 0, "Ship is not on an active mission");
 
-        address owner = getShipAndPirateStaking().getShipOwner(shipId);
         IMissionsStorage missionsStorage = getMissionsStorage();
         uint256 missionType = missionsStorage.getMissionType(shipId);
         
-        // Check if this is a trade mission for authorization
-        MissionRegistration missionRegistration = getMissionRegistration();
-        string memory missionTypeName = missionRegistration.getMissionTypeName(missionType);
-        bool isTradeMission = (keccak256(bytes(missionTypeName)) == keccak256(bytes("Trade")));
+        // Get mission contract and check authorization through the mission contract
+        address missionContractAddress = getMissionFactory().getMissionContract(missionType);
+        require(missionContractAddress != address(0), "No implementation for this mission type");
         
-        // For trade missions, allow both ship owner and island owner to complete
-        if (isTradeMission) {
-            address missionContractAddress = getMissionFactory().getMissionContract(missionType);
-            require(missionContractAddress != address(0), "No implementation for this mission type");
-            ( , , uint256 targetIslandId, , , , , , , , , ) = ITradeMission(missionContractAddress).getMissionState(missionId);
-            address islandOwner = IERC721(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY)).ownerOf(targetIslandId);
-            require(msg.sender == owner || msg.sender == islandOwner, "Caller is not ship or island owner");
-        } else {
-            require(msg.sender == owner, "Caller is not the ship owner");
-        }
-
+        // Use generic authorization interface - each mission defines its own authorization rules
+        IMissionAuthorization authContract = IMissionAuthorization(missionContractAddress);
+        require(authContract.isAuthorizedToComplete(missionId, msg.sender), "Caller not authorized to complete this mission");
+        
         MissionInfo storage mission = missions[missionId];
         
         require(mission.isActive, "No active mission with this ID");
         require(!mission.isCompleted, "Mission already completed");
         require(block.timestamp >= mission.endTime, "Mission not yet complete");        
-        
-        address missionContractAddress = getMissionFactory().getMissionContract(missionType);
-        require(missionContractAddress != address(0), "No implementation for this mission type");
         
         IMission missionContract = IMission(missionContractAddress);
         

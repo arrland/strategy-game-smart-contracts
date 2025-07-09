@@ -3,6 +3,7 @@ pragma solidity ^0.8.25;
 
 import "../interfaces/IMission.sol";
 import "../interfaces/IMissionsStorage.sol";
+import "../interfaces/IMissionAuthorization.sol";
 import "../AuthorizationModifiers.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "hardhat/console.sol";
@@ -11,7 +12,7 @@ import "hardhat/console.sol";
  * @title MockMission
  * @notice Mock implementation of IMission for testing purposes.
  */
-contract MockMission is IMission, IERC165, AuthorizationModifiers {
+contract MockMission is IMission, IMissionAuthorization, IERC165, AuthorizationModifiers {
     uint256 public fixedDuration = 600; // Default 10 minutes
     address public lastCaller;
     uint256 public lastShipId;
@@ -103,5 +104,16 @@ contract MockMission is IMission, IERC165, AuthorizationModifiers {
 
     function setMissionDataForId(uint256 missionId, bytes calldata data) external {
         missionDataStore[missionId] = data;
+    }
+
+    /**
+     * @notice Check if caller is authorized to complete this mission
+     * @param missionId Mission identifier  
+     * @param caller Address of the caller
+     * @return isAuthorized Whether the caller can complete this mission
+     */
+    function isAuthorizedToComplete(uint256 missionId, address caller) external view override returns (bool isAuthorized) {
+        // For mock missions, any caller is authorized (for testing flexibility)
+        return true;
     }
 }

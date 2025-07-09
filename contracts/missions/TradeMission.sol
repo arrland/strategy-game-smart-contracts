@@ -22,11 +22,12 @@ import "../islands/IslandRegionManagement.sol";
 import "../interfaces/IResourceTypeManager.sol";
 import "../interfaces/IMissionValidator.sol";
 import "../interfaces/IMissionTravelCalculator.sol";
+import "../interfaces/IMissionAuthorization.sol";
 import "../core/InterfaceIdentifiers.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
 
-contract TradeMission is BaseMission {
+contract TradeMission is BaseMission, IMissionAuthorization {
     event TradeJourneyStarted(
         uint256 indexed missionId,
         uint256 indexed shipId,
@@ -466,9 +467,41 @@ contract TradeMission is BaseMission {
     // NOTE: completeReturnJourney method removed - ResourceTransferMission now handles 
     // trade mission completion automatically via TradeManager integration
 
+    /**
+     * @notice Check if caller is authorized to complete this trade mission
+     * @param missionId Trade mission ID
+     * @param caller Address of the caller
+     * @return isAuthorized Whether the caller can complete this mission
+     */
+    function isAuthorizedToComplete(uint256 missionId, address caller) external view returns (bool isAuthorized) {
+        // Get mission information from central storage
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        address tradeStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());
+        ITradeMissionStorage tradeMissionStorage = ITradeMissionStorage(tradeStorageAddr);
+        
+        // Get shipId and targetIslandId for authorization
+        (uint256 shipId, , uint256 targetIslandId, , , , , , , , , ) = tradeMissionStorage.getMissionDetails(missionId);
+        if (shipId == 0) return false; // Mission doesn't exist
+        
+        // Allow both ship owner and target island owner to complete
+        address shipOwner = getShipAndPirateStaking().getShipOwner(shipId);
+        address islandOwner = IERC721(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ISLAND_NFT_KEY)).ownerOf(targetIslandId);
+        
+        return (caller == shipOwner || caller == islandOwner);
+    }
+
     function completeMission(
         uint256 missionId
     ) external override onlyMissionsManager returns (bool isFullyComplete) {
+        return _executeCompleteMission(missionId);
+    }
+    
+    /**
+     * @notice Internal function that executes the trade mission completion logic
+     * @param missionId Trade mission ID
+     * @return isFullyComplete Whether the mission is fully complete
+     */
+    function _executeCompleteMission(uint256 missionId) internal returns (bool isFullyComplete) {
         // Get mission information from central storage
         IMissionsStorage missionsStorage = getMissionsStorage();
         address tradeStorageAddr = missionsStorage.getSpecializedStorage(getMissionType());

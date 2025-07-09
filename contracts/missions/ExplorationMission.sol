@@ -8,8 +8,9 @@ import "../interfaces/IMissionRegistration.sol";
 import "./MissionRegistration.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "../interfaces/IMissionAuthorization.sol";
 
-contract ExplorationMission is BaseMission {
+contract ExplorationMission is BaseMission, IMissionAuthorization {
     using Strings for uint256;
 
     // Constants for discovery chances
@@ -180,6 +181,21 @@ contract ExplorationMission is BaseMission {
         
         // ExplorationMission is always fully complete in one phase
         return true;
+    }
+
+    /**
+     * @notice Check if caller is authorized to complete this mission
+     * @param missionId Mission identifier  
+     * @param caller Address of the caller
+     * @return isAuthorized Whether the caller can complete this mission
+     */
+    function isAuthorizedToComplete(uint256 missionId, address caller) external view override returns (bool isAuthorized) {
+        // For exploration missions, ship ID equals mission ID
+        uint256 shipId = missionId;
+        
+        // Only ship owner can complete exploration missions
+        address shipOwner = getShipAndPirateStaking().getShipOwner(shipId);
+        return (caller == shipOwner);
     }
     
     function getMissionDetails(uint256 missionId) external view override returns (bytes memory) {

@@ -19,6 +19,7 @@ import "../interfaces/IResourceTypeManager.sol";
 import "../interfaces/IBuildingStorage.sol";
 import "../core/InterfaceIdentifiers.sol";
 import "../interfaces/ITradeManager.sol";
+import "../interfaces/IMissionAuthorization.sol";
 
 
 /**
@@ -26,7 +27,7 @@ import "../interfaces/ITradeManager.sol";
  * @notice Handles resource transfer missions between islands
  * @dev Implements the IMission interface through BaseMission
  */
-contract ResourceTransferMission is BaseMission {
+contract ResourceTransferMission is BaseMission, IMissionAuthorization {
     using Strings for uint256;
 
     // Events
@@ -290,6 +291,28 @@ contract ResourceTransferMission is BaseMission {
      */
     function getTradeManager() internal view returns (ITradeManager) {
         return ITradeManager(centralAuthorizationRegistry.getContractAddress(keccak256("ITradeManager")));
+    }
+
+    /**
+     * @notice Check if caller is authorized to complete this mission
+     * @param missionId Mission identifier  
+     * @param caller Address of the caller
+     * @return isAuthorized Whether the caller can complete this mission
+     */
+    function isAuthorizedToComplete(uint256 missionId, address caller) external view override returns (bool isAuthorized) {
+        // Get mission information to find the ship
+        IMissionsStorage missionsStorage = getMissionsStorage();
+        address storageAddr = missionsStorage.getSpecializedStorage(getMissionType());
+        
+        // Get mission data to extract shipId
+        bytes memory missionData = IMissionTypeStorage(storageAddr).getMissionData(missionId);
+        if (missionData.length == 0) return false; // Mission doesn't exist
+        
+        (uint256 shipId, , , , , , , ) = abi.decode(missionData, (uint256, uint256, uint256, string, uint256, uint256, uint256, bool));
+        
+        // Only ship owner can complete resource transfer missions
+        address shipOwner = getShipAndPirateStaking().getShipOwner(shipId);
+        return (caller == shipOwner);
     }
 
     /**
