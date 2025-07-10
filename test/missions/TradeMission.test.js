@@ -796,7 +796,8 @@ describe("TradeMission - V2 Technical Flow Compliance", function () {
         await missionsManager.connect(user).completeMission(shipId);
 
         const missionData = await tradeMissionStorage.getMissionDetails(missionId);
-        expect(missionData.shipId).to.equal(0, "Mission data should be cleared after completion");
+        expect(missionData.journeyState).to.equal(4, "Mission should be marked as completed");
+        expect(missionData.shipId).to.not.equal(0, "Mission data should be preserved after completion");
     });
   });
 
@@ -1477,9 +1478,10 @@ describe("TradeMission - V2 Technical Flow Compliance", function () {
       const activeMissionId = await missionsManager.shipToActiveMission(shipId);
       expect(activeMissionId).to.equal(0, "Ship should be freed");
       
-      // Check mission data is cleared
-      const clearedMissionData = await tradeMissionStorage.getMissionDetails(missionId);
-      expect(clearedMissionData.shipId).to.equal(0, "Mission data should be cleared");
+      // Check mission data is properly completed
+      const completedMissionData = await tradeMissionStorage.getMissionDetails(missionId);
+      expect(completedMissionData.journeyState).to.equal(4, "Mission should be marked as completed");
+      expect(completedMissionData.shipId).to.not.equal(0, "Mission data should be preserved after completion");
     });
 
     it("should handle mission timeout scenarios", async function() {

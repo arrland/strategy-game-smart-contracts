@@ -125,20 +125,8 @@ contract TradeMissionStorage is ITradeMissionStorage, AuthorizationModifiers {
         
         uint256 shipId = data.shipId; // Save shipId for event
         
-        // Clear mission data by resetting to default values
-        data.shipId = 0;
-        data.originIslandId = 0;
-        data.targetIslandId = 0;
-        data.tradeOrderId = 0;
-        data.resourceType = "";
-        data.amount = 0;
-        data.price = 0;
-        data.startTime = 0;
-        data.endTime = 0;
-        data.journeyState = IMissionStates.JourneyState.NotStarted;
-        data.isShipBuying = false;
-        data.resourcesClaimed = false;
-        data.returnJourneyDuration = 0;
+        // Set mission as completed by updating journey state
+        data.journeyState = IMissionStates.JourneyState.Completed;
         
         emit TradeMissionCompleted(missionId, shipId);
     }
