@@ -646,3 +646,485 @@ Completed: 2025-07-08 20:13
 - Multiple partial fills of the same order.
 - Claiming pending deliveries when multiple resource types are pending.
 - Interactions between different trades for the same ship (should be prevented by mission system; `TradeMission` should handle revert from `TradeManager` gracefully).
+
+---
+
+## TASK-ARCH-REENTRANCY-STATE-SYNC: Audit and Refactor for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+PRD Reference: @{docs/PRD-missios.md}, @{docs/trade-flow.md}
+Architectural Module: Missions, Trade, Storage, Token Integrations
+Dependencies: None
+Complexity: 8
+
+### 🔧 Implementation Plan
+- [ ] Audit all mission, trade, and storage contracts for external calls before state mutation (esp. token transfers, CAR lookups, storage updates)
+- [ ] Refactor to ensure all state changes are finalized before any external call
+- [ ] Add/verify reentrancy guards (nonReentrant) on all externally callable functions that mutate state
+- [ ] Add tests for reentrancy and state sync edge cases (simulate malicious tokens, reentrant calls)
+- [ ] Document all external call points and their ordering
+- [ ] Update docs/status.md and docs/log.md after each step
+
+### Sub-tasks:
+- TASK-ARCH-REENTRANCY-STATE-SYNC.1: Audit and Refactor TradeManager.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.2: Audit and Refactor MissionsManager.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.3: Audit and Refactor MissionFactory.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.4: Audit and Refactor MissionRegistration.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.5: Audit and Refactor TradeMission.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.6: Audit and Refactor BaseMission.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.7: Audit and Refactor ResourceTransferMission.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.8: Audit and Refactor CooldownManager.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.9: Audit and Refactor CrewManagement.sol for Reentrancy and State Consistency
+- TASK-ARCH-REENTRANCY-STATE-SYNC.10: Audit and Refactor ShipAndPirateStaking.sol for Reentrancy and State Consistency
+
+## TASK-ARCH-REENTRANCY-STATE-SYNC.1: Audit and Refactor TradeManager.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: Trade
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in TradeManager.sol for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected
+- [ ] Refactor any logic where state is not finalized before external calls (token transfers, CAR lookups, storage updates)
+- [ ] Check all token/resource/ownership flows for atomicity and consistency (e.g., order book, event emission)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., partial fills, cancel during mission, double-spend)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All order book state transitions (create, fill, cancel) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., partial fill, cancel during mission, double-spend) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via token callbacks or storage hooks
+- Order cancellation during mission
+- Partial fills and double-spend attempts
+- Registry misconfiguration causing stuck or orphaned orders
+- Rapid/duplicate calls to create/fill/cancel order
+- Failing order and then attempting to fill/cancel again
+
+---
+
+## TASK-ARCH-REENTRANCY-STATE-SYNC.2: Audit and Refactor MissionsManager.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: Missions
+Dependencies: None
+Complexity: 6
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in MissionsManager.sol (especially to mission contracts, storage, registry, staking, cooldown) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., startMission, completeMission, failMission)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., mission contract calls, storage updates, registry lookups)
+- [ ] Check all token/resource/ownership flows for atomicity and consistency (e.g., shipToActiveMission, missions mapping, event emission)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid mission completion, double mission start, mission fail/advance race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All mission state transitions (start, complete, fail) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid completion attempts, double mission start, fail/advance races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via mission contract callbacks or storage hooks
+- Ship ownership changes during mission lifecycle
+- Mission contract returning unexpected missionId or failing mid-execution
+- Cooldown or registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to startMission or completeMission
+- Failing mission and then attempting to start/complete again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.3: Audit and Refactor MissionFactory.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: MissionFactory
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in MissionFactory.sol (especially to mission contracts, registry, and storage) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., createMission, upgradeMission)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., mission contract creation, registry updates)
+- [ ] Check all mission creation/upgrade flows for atomicity and consistency (e.g., missionId assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid mission creation, double creation, upgrade/fail race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All mission factory state transitions (create, upgrade) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid creation attempts, double creation, upgrade/fail races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via mission contract callbacks or registry hooks
+- MissionId assignment collisions or registry sync failures
+- Mission contract returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to createMission or upgradeMission
+- Failing upgrade and then attempting to create/upgrade again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.4: Audit and Refactor MissionRegistration.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: MissionRegistration
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in MissionRegistration.sol (especially to mission contracts, registry, and storage) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., registerMission, deregisterMission)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., mission registration, registry updates)
+- [ ] Check all mission registration/deregistration flows for atomicity and consistency (e.g., missionId assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid registration, double registration, deregister/fail race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All mission registration state transitions (register, deregister) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid registration attempts, double registration, deregister/fail races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via mission contract callbacks or registry hooks
+- MissionId assignment collisions or registry sync failures
+- Mission contract returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to registerMission or deregisterMission
+- Failing deregistration and then attempting to register/deregister again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.5: Audit and Refactor TradeMission.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: TradeMission
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in TradeMission.sol (especially to mission contracts, registry, and storage) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., startMission, completeMission, abortMission)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., mission execution, registry updates)
+- [ ] Check all mission lifecycle flows for atomicity and consistency (e.g., missionId assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid mission start, double start, abort/complete race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All trade mission state transitions (start, complete, abort) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid start attempts, double start, abort/complete races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via mission contract callbacks or registry hooks
+- MissionId assignment collisions or registry sync failures
+- Mission contract returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to startMission or completeMission
+- Failing completion and then attempting to start/complete/abort again
+
+---
+
+## TASK-ARCH-REENTRANCY-STATE-SYNC.6: Audit and Refactor BaseMission.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: BaseMission
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in BaseMission.sol (especially to registry, storage, and mission hooks) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., register, deregister, updateState)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., registry updates, mission hooks)
+- [ ] Check all mission lifecycle flows for atomicity and consistency (e.g., missionId assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid registration, double registration, deregister/update race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All base mission state transitions (register, deregister, update) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid registration attempts, double registration, deregister/update races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via registry or mission hook callbacks
+- MissionId assignment collisions or registry sync failures
+- Mission hook returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to register or deregister
+- Failing deregistration and then attempting to register/deregister again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.7: Audit and Refactor ResourceTransferMission.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: ResourceTransferMission
+Dependencies: None
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in ResourceTransferMission.sol (especially to registry, storage, and transfer hooks) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., initiateTransfer, completeTransfer, abortTransfer)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., registry updates, transfer hooks)
+- [ ] Check all mission lifecycle flows for atomicity and consistency (e.g., missionId assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid initiation, double initiation, abort/complete race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All resource transfer mission state transitions (initiate, complete, abort) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid initiation attempts, double initiation, abort/complete races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via transfer hooks or registry callbacks
+- MissionId assignment collisions or registry sync failures
+- Transfer hook returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned missions
+- Rapid/duplicate calls to initiateTransfer or completeTransfer
+- Failing completion and then attempting to initiate/complete/abort again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.8: Audit and Refactor CooldownManager.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: CooldownManager
+Dependencies: None
+Complexity: 4
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in CooldownManager.sol (especially to registry, hooks, or external contracts) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., startCooldown, endCooldown, resetCooldown)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., registry updates, cooldown hooks)
+- [ ] Check all cooldown lifecycle flows for atomicity and consistency (e.g., cooldown assignment, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid start/end, double start, reset/end race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All cooldown state transitions (start, end, reset) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid start attempts, double start, reset/end races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via cooldown hooks or registry callbacks
+- CooldownId assignment collisions or registry sync failures
+- Cooldown hook returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned cooldowns
+- Rapid/duplicate calls to startCooldown or endCooldown
+- Failing completion and then attempting to start/end/reset again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.9: Audit and Refactor CrewManagement.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: CrewManagement
+Dependencies: None
+Complexity: 4
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in CrewManagement.sol (especially to registry, hooks, or external contracts) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., assignCrew, removeCrew, updateCrewStatus)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., registry updates, crew assignment hooks)
+- [ ] Check all crew lifecycle flows for atomicity and consistency (e.g., crew assignment, removal, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid assign/remove, double assign, update/remove race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All crew state transitions (assign, remove, update) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid assign attempts, double assign, update/remove races) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via crew assignment hooks or registry callbacks
+- CrewId assignment collisions or registry sync failures
+- Crew hook returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned crew assignments
+- Rapid/duplicate calls to assignCrew or removeCrew
+- Failing removal and then attempting to assign/remove/update again
+
+---
+## TASK-ARCH-REENTRANCY-STATE-SYNC.10: Audit and Refactor ShipAndPirateStaking.sol for Reentrancy and State Consistency
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-REENTRANCY-STATE-SYNC
+Architectural Module: ShipAndPirateStaking
+Dependencies: None
+Complexity: 4
+
+### 🔧 Implementation Plan
+- [ ] Audit all external calls in ShipAndPirateStaking.sol (especially to registry, hooks, or external contracts) for correct ordering (state changes before external calls)
+- [ ] Review all uses of `nonReentrant` and ensure every externally callable state-mutating function is protected (e.g., stakeShip, unstakeShip, stakePirate, unstakePirate)
+- [ ] Refactor any logic where state is not finalized before external calls (e.g., registry updates, staking hooks)
+- [ ] Check all staking lifecycle flows for atomicity and consistency (e.g., staking, unstaking, event emission, registry sync)
+- [ ] Add/verify custom errors and revert reasons for all critical state transitions and edge cases
+- [ ] Add/verify tests for reentrancy, state sync, and edge cases (e.g., rapid stake/unstake, double stake, unstake/race conditions)
+- [ ] Document all changes and update function-level NatSpec comments for public/external methods
+
+### ✅ Acceptance Criteria
+1. No external call is made before all relevant state changes are finalized in any externally callable function
+2. All externally callable state-mutating functions are protected by reentrancy guards where needed
+3. All staking state transitions (stake, unstake) are atomic and cannot be left in a limbo state
+4. All error/revert reasons are clear and actionable for frontend/off-chain consumers
+5. All relevant edge cases (e.g., rapid stake attempts, double stake, unstake/race conditions) are covered by tests
+6. Documentation is updated for all public/external functions, events, and error flows
+
+### 🧐 Edge Cases
+- Reentrancy via staking hooks or registry callbacks
+- Ship/PirateId assignment collisions or registry sync failures
+- Staking hook returning unexpected values or failing mid-execution
+- Registry misconfiguration causing stuck or orphaned stakes
+- Rapid/duplicate calls to stakeShip, unstakeShip, stakePirate, or unstakePirate
+- Failing unstake and then attempting to stake/unstake again
+
+
+
+## TASK-ARCH-AUTH-REGISTRY-ROBUSTNESS: Strengthen Authorization and Registry Validation
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: CentralAuthorizationRegistry, Trade, Missions, Storage
+Dependencies: None
+Complexity: 7
+
+### 🔧 Implementation Plan
+- [ ] Add robust on-chain validation of CAR state before all critical actions (trade, mission start/complete, resource transfer)
+- [ ] Add tests for misconfigured, missing, or incorrect CAR keys (simulate registry corruption)
+- [ ] Add explicit error messages and revert reasons for all registry lookup failures
+- [ ] Document all CAR key usage and validation flows
+- [ ] Update docs/status.md and docs/log.md after each step
+
+### ✅ Acceptance Criteria
+1. All critical contract actions validate CAR state and revert with clear errors if misconfigured
+2. Tests cover all registry misconfiguration scenarios
+3. Documentation lists all CAR keys and their usage
+
+### 🧐 Edge Cases
+- CAR key typos or mismatches
+- Registry state changes during mission/trade lifecycle
+- Missing contract registrations
+
+---
+
+## TASK-ARCH-ORDER-BOOK-CONSISTENCY: Watertight Order Book and Mission State Machine
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}, @{docs/trade-mission-technical-flow.md}
+Architectural Module: TradeManager, TradeMission, MissionsManager, TradeMissionStorage
+Dependencies: None
+Complexity: 8
+
+### 🔧 Implementation Plan
+- [ ] Audit and refactor order book logic to prevent stuck, limbo, or double-spend orders
+- [ ] Ensure atomic state transitions for trade order fulfillment, cancellation, and mission advancement
+- [ ] Add/verify tests for partial fills, mid-mission cancellations, and edge state transitions
+- [ ] Document state machine for order lifecycle and mission integration
+- [ ] Update docs/status.md and docs/log.md after each step
+
+### ✅ Acceptance Criteria
+1. No trade order can be left in a limbo or partially filled state without clear resolution
+2. All state transitions are atomic and revert on error
+3. Tests cover all edge cases: partial fills, cancellations, mission aborts
+4. Documentation includes a state machine diagram for order and mission lifecycle
+
+### 🧐 Edge Cases
+- Order cancelled mid-mission
+- Mission fails after order is partially filled
+- Double-spend attempts on the same order
+
+---
+
+## TASK-ARCH-TOKEN-HANDLING-ROBUSTNESS: Harden Resource/Token Transfer Logic
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: ResourceManagement, TradeManager, MissionResourceHandler
+Dependencies: None
+Complexity: 7
+
+### 🔧 Implementation Plan
+- [ ] Audit all token transfer logic for non-standard ERC20/721/1155 behavior (false returns, transfer fees, reentrancy)
+- [ ] Add/verify safe transfer wrappers and error handling for all token operations
+- [ ] Add tests for non-standard token scenarios (simulate transfer failures, fees, etc.)
+- [ ] Document all token integration points and their assumptions
+- [ ] Update docs/status.md and docs/log.md after each step
+
+### ✅ Acceptance Criteria
+1. All token transfers are robust to non-standard behavior and revert on error
+2. Tests cover all token edge cases (false returns, fees, reentrancy)
+3. Documentation lists all token assumptions and integration points
+
+### 🧐 Edge Cases
+- ERC20s that return false or revert
+- Tokens with transfer fees or hooks
+- Reentrancy via token callbacks
+
+---
+
+## TASK-ARCH-OWNERSHIP-VALIDATION: Guarantee Ship/Island Ownership Throughout Mission Lifecycle
+Status: Planned
+Priority: High
+PRD Reference: @{docs/PRD-missios.md}
+Architectural Module: ShipAndPirateStaking, ShipMetadata, MissionsManager, TradeMission, ResourceTransferMission
+Dependencies: None
+Complexity: 8
+
+### 🔧 Implementation Plan
+- [ ] Audit all mission and trade flows for ownership checks at start, during, and at completion
+- [ ] Refactor to ensure only the rightful owner can complete/claim at every stage
+- [ ] Add/verify tests for mid-mission ownership transfers (NFTs, islands)
+- [ ] Document all ownership validation points and flows
+- [ ] Update docs/status.md and docs/log.md after each step
+
+### ✅ Acceptance Criteria
+1. Only the rightful owner at each stage can complete/claim mission/trade
+2. Tests cover all mid-mission ownership transfer scenarios
+3. Documentation lists all ownership validation points
+
+### 🧐 Edge Cases
+- NFT transferred during mission
+- Island ownership changes mid-mission
+- Griefing or theft attempts via ownership transfer
+
+---
