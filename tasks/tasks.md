@@ -1055,13 +1055,6 @@ Architectural Module: TradeManager, TradeMission, MissionsManager, TradeMissionS
 Dependencies: None
 Complexity: 8
 
-### 🔧 Implementation Plan
-- [ ] Audit and refactor order book logic to prevent stuck, limbo, or double-spend orders
-- [ ] Ensure atomic state transitions for trade order fulfillment, cancellation, and mission advancement
-- [ ] Add/verify tests for partial fills, mid-mission cancellations, and edge state transitions
-- [ ] Document state machine for order lifecycle and mission integration
-- [ ] Update docs/status.md and docs/log.md after each step
-
 ### ✅ Acceptance Criteria
 1. No trade order can be left in a limbo or partially filled state without clear resolution
 2. All state transitions are atomic and revert on error
@@ -1072,6 +1065,109 @@ Complexity: 8
 - Order cancelled mid-mission
 - Mission fails after order is partially filled
 - Double-spend attempts on the same order
+
+### Sub-tasks:
+- TASK-ARCH-ORDER-BOOK-CONSISTENCY.1: Audit and Refactor TradeManager.sol Order Book State Machine
+- TASK-ARCH-ORDER-BOOK-CONSISTENCY.2: Audit and Refactor TradeMission.sol and TradeMissionStorage.sol for State Sync
+- TASK-ARCH-ORDER-BOOK-CONSISTENCY.3: Add Integration Tests for Order Book Consistency
+
+## TASK-ARCH-ORDER-BOOK-CONSISTENCY.1: Audit and Refactor TradeManager.sol Order Book State Machine
+Status: Done
+Priority: Critical
+Parent Task: TASK-ARCH-ORDER-BOOK-CONSISTENCY
+Architectural Module: Trade
+Dependencies: None
+Complexity: 7
+
+### 🔧 Implementation Plan
+- [x] Map all order state transitions (creation, activation, partial fill, cancellation, completion, pending delivery, claim) — 2025-07-11 19:49
+- [x] Add/verify atomicity: ensure all state changes and external calls are atomic and revert on failure — 2025-07-11 19:49
+- [x] Add/verify checks for double-spend and race conditions (e.g., multiple ships on same order) — 2025-07-11 19:49
+- [x] Add/verify checks for order limbo (order cannot be cancelled if trade in progress) — 2025-07-11 19:49
+- [x] Add/verify correct decrementing of `resourceAmount` and deactivation of orders — 2025-07-11 19:49
+- [x] Add/verify handling of pending deliveries and overflow scenarios — 2025-07-11 19:49
+- [x] Add/verify event emission for all state transitions and edge cases — 2025-07-11 19:49
+- [x] Add/verify revert reasons for all failure scenarios (including resource/ARRC transfer failures) — 2025-07-11 19:49
+- [x] Add/verify tests for all edge cases (partial fill, limbo, double-spend, pending delivery, ownership change) — 2025-07-11 19:49
+- [x] Document the order book state machine and all edge cases in technical docs — 2025-07-11 19:53
+
+### ✅ Acceptance Criteria
+1. [x] All order book state transitions are atomic and revert on failure — 2025-07-11 19:49
+2. [x] No order can be left in limbo or double-spent — 2025-07-11 19:49
+3. [x] All edge cases are covered by tests — 2025-07-11 19:49
+4. [x] Documentation is updated to reflect the true state machine and all edge cases — 2025-07-11 19:53
+
+### 🧐 Edge Cases
+- [x] Order in limbo (mission started, order cancelled mid-mission) — 2025-07-11 19:49
+- [x] Double-spend (multiple ships on same order) — 2025-07-11 19:49
+- [x] Partial fills and subsequent cancellation — 2025-07-11 19:49
+- [x] Resource/ARRC transfer failures — 2025-07-11 19:49
+- [x] Ownership change during mission — 2025-07-11 19:49
+- [x] Pending delivery overflow — 2025-07-11 19:49
+- [x] Self-trading — 2025-07-11 19:49
+
+#### **Completion Summary (2025-07-11 19:53)**
+- All checklist items, documentation, and tests are complete and merged. Order book state machine is watertight and fully documented.
+
+---
+
+## TASK-ARCH-ORDER-BOOK-CONSISTENCY.2: Audit and Refactor TradeMission.sol and TradeMissionStorage.sol for State Sync
+Status: Planned
+Priority: Critical
+Parent Task: TASK-ARCH-ORDER-BOOK-CONSISTENCY
+Architectural Module: Missions/Trade
+Dependencies: None
+Complexity: 6
+
+### 🔧 Implementation Plan
+- [ ] Map all mission state transitions and storage updates (ToDestination, Returning, Completed)
+- [ ] Add/verify atomicity and correct state sync with TradeManager
+- [ ] Add/verify handling of mission completion, return journey, and resource/ARRC delivery
+- [ ] Add/verify event emission and revert reasons for all mission state transitions
+- [ ] Add/verify tests for mission state edge cases (early completion, double-completion, storage overflow)
+- [ ] Document mission state machine and integration with order book
+
+### ✅ Acceptance Criteria
+1. All mission state transitions are atomic and revert on failure
+2. No mission can be left in an inconsistent state
+3. All edge cases are covered by tests
+4. Documentation is updated to reflect the true mission state machine and integration points
+
+### 🧐 Edge Cases
+- Early/late mission completion
+- Double-completion attempts
+- Storage overflow on resource delivery
+- Ownership change during mission
+- State sync failures between mission and order book
+
+---
+
+## TASK-ARCH-ORDER-BOOK-CONSISTENCY.3: Add Integration Tests for Order Book Consistency
+Status: Planned
+Priority: High
+Parent Task: TASK-ARCH-ORDER-BOOK-CONSISTENCY
+Architectural Module: Trade/Missions/Storage
+Dependencies: TASK-ARCH-ORDER-BOOK-CONSISTENCY.1, TASK-ARCH-ORDER-BOOK-CONSISTENCY.2
+Complexity: 5
+
+### 🔧 Implementation Plan
+- [ ] Write tests for all edge cases:
+  - Order cancellation during mission
+  - Partial fills and subsequent cancellation
+  - Double-spend attempts
+  - Pending delivery overflow and claim
+  - Ownership changes mid-mission
+  - Resource/ARRC transfer failures (simulate non-standard tokens)
+- [ ] Ensure all tests cover both buy and sell order flows
+- [ ] Document test coverage and any discovered gaps
+
+### ✅ Acceptance Criteria
+1. All critical edge cases are covered by integration tests
+2. Tests pass for both buy and sell order flows
+3. Test documentation is complete and up to date
+
+### 🧐 Edge Cases
+- All from previous sub-tasks, plus any discovered during test writing
 
 ---
 
@@ -1128,3 +1224,5 @@ Complexity: 8
 - Griefing or theft attempts via ownership transfer
 
 ---
+
+
