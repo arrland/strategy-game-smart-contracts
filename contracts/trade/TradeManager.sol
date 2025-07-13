@@ -76,6 +76,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
     // Updated events
     event ResourcesHeldForDelivery(uint256 indexed islandId, uint256 orderStorageId, string resourceType, uint256 amount);
     event PendingDeliveryClaimed(uint256 indexed islandId, string resourceType, uint256 amount);
+    event TradeOrderFilled(uint256 indexed tradeOrderId);
 
     // Constructor
     constructor(address _centralAuthorizationRegistry)
@@ -309,10 +310,11 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
     {
         TradeOrder storage order = tradeOrders[tradeOrderId];
         require(msg.sender == order.seller, "Not seller");
-        require(!isTradeInProgress(tradeOrderId), "Trade in progress");
+        // Allow cancellation only if there are no incomplete trades for this order
+        require(!_hasIncompleteTrade(tradeOrderId), "Trade in progress");
 
         if (!order.isSellOrder) {
-            // For buy orders (island selling resources): return resources to seller
+            // For buy orders (island selling resources): return remaining resources to seller
             getResourceManagement().transferResource(
                 address(getMarketPlaceStorage()),
                 tradeOrderId,
@@ -324,7 +326,7 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                 order.resourceAmount
             );
         } else {
-            // For sell orders (island buying resources): return total ARRC to seller
+            // For sell orders (island buying resources): return remaining ARRC to seller
             uint256 totalPrice = order.resourceAmount * order.arrcPrice;
             IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
             require(arrcToken.transfer(order.seller, totalPrice), "ARRC return failed");
@@ -334,7 +336,18 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         getMarketPlaceStorage().removeOrderStorage(tradeOrderId);
 
         order.isActive = false;
+        order.resourceAmount = 0;
         emit TradeOrderCancelled(tradeOrderId);
+    }
+
+    // Internal helper: returns true if there is any incomplete (not isCompleted) trade for this order
+    function _hasIncompleteTrade(uint256 tradeOrderId) internal view returns (bool) {
+        for (uint256 i = 1; i < nextActiveTradeId; i++) {
+            if (activeTrades[i].tradeOrderId == tradeOrderId && !activeTrades[i].isCompleted) {
+                return true;
+            }
+        }
+        return false;
     }
 
     function initiateTrade(
@@ -448,12 +461,11 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
         TradeOrder storage order = tradeOrders[trade.tradeOrderId];
         bool isSellOrder = order.isSellOrder;
         
+        // --- All state checks above this line ---
+        // --- External calls and state changes below ---
         if (!isSellOrder) {
             // Buy order (ship buying resources from island)
-            // Transfer ARRC payment from ArrcLocking to island owner
             getArrcLocking().transferArrcToRecipient(shipId, order.seller);
-            
-            // Transfer resources from marketplace to ship
             IResourceManagement resourceManagement = getResourceManagement();
             resourceManagement.transferResource(
                 address(getMarketPlaceStorage()),
@@ -465,20 +477,10 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                 order.resourceType,
                 trade.resourceAmount
             );
-            
-            // For buy orders, resources are now in ship storage and will be delivered 
-            // to the origin island when the mission completes. No immediate transfer needed.
         } else {
-            // Sell order (ship selling resources to island)
-            // Calculate return journey duration for locking
             uint256 returnDuration = getTravelTimeCalculator().calculateTravelTime(order.islandId, trade.originIslandId, shipId, true);
-            
-            // Lock ARRC for the return journey in ArrcLocking
-            // We need to transfer ARRC from this contract to ArrcLocking first
             IERC20 arrcToken = IERC20(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.ARRC_TOKEN_KEY));
             require(arrcToken.approve(address(getArrcLocking()), trade.price), "ARRC approval failed");
-            
-            // Lock ARRC in ArrcLocking contract for return journey
             getArrcLocking().lockForTrade(
                 shipId,
                 trade.price,
@@ -486,8 +488,6 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                 LOCKING_TYPE_SELL_ORDER,
                 address(this)
             );
-            
-            // Transfer resources from ship to marketplace
             IResourceManagement resourceManagement = getResourceManagement();
             resourceManagement.transferResource(
                 address(getShipStorage()),
@@ -499,14 +499,10 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                 order.resourceType,
                 trade.resourceAmount
             );
-            
-            // Check if the island has enough storage capacity to receive the resources
             IStorageManagement storageManagement = IStorageManagement(centralAuthorizationRegistry.getContractAddress(InterfaceIdentifiers.STORAGE_MANAGEMENT_KEY));
             IERC721 islandNFT = getIslandNFT();
             bool hasEnoughStorage = storageManagement.checkStorageLimit(address(islandNFT), order.islandId, trade.resourceAmount);
-            
             if (hasEnoughStorage) {
-                // If island has enough storage, transfer resources directly
                 resourceManagement.transferResource(
                     address(getMarketPlaceStorage()),
                     trade.tradeOrderId,
@@ -518,26 +514,28 @@ contract TradeManager is ITradeManager, AuthorizationModifiers, ReentrancyGuard 
                     trade.resourceAmount
                 );
             } else {
-                // If island doesn't have enough storage, add to pending deliveries in consolidated storage
-                // Add to consolidated pending resources in MarketPlaceStorage
                 getMarketPlaceStorage().addPendingResource(
                     order.islandId,
                     order.resourceType,
                     trade.resourceAmount
                 );
-                
                 emit ResourcesHeldForDelivery(order.islandId, 0, order.resourceType, trade.resourceAmount);
             }
         }
 
-        // Update order amounts for partial orders
+        // --- Atomic state update: decrement order amount ---
         order.resourceAmount -= trade.resourceAmount;
         
-        // If all resources are traded, deactivate the order and clean up storage
+        // Emit TradeOrderUpdated on partial fill
+        if (order.resourceAmount > 0) {
+            emit TradeOrderUpdated(trade.tradeOrderId, order.resourceAmount, order.arrcPrice);
+        }
+
+        // If all resources are traded, deactivate the order and emit TradeOrderFilled
         if (order.resourceAmount == 0) {
             order.isActive = false;
-            // Remove marketplace storage when completely fulfilled
             getMarketPlaceStorage().removeOrderStorage(trade.tradeOrderId);
+            emit TradeOrderFilled(trade.tradeOrderId);
         }
 
         // Mark trade as completed and needing return journey

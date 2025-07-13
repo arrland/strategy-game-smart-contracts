@@ -199,6 +199,198 @@ describe("TradeManager - Comprehensive Unit Tests (TASK-TEST-TRADEMANAGER)", fun
     });
   });
 
+  describe("Order Book Consistency - Limbo Order Edge Case", function() {
+    it("should revert when attempting to cancel a trade order that is in progress (limbo order)", async function() {
+      // Setup: create trade order and start a mission (simulate trade in progress)
+      const { admin, user, tradeManager, coreContracts, nftsSetup, centralAuthorizationRegistry, islandId, shipId, amount, pricePerUnit } = await setupTradeOrderAndShip();
+
+      // Simulate mission start by calling initiateTrade (normally called by mission contract)
+      // For test, register admin as TradeMission in CAR for authorization
+      await centralAuthorizationRegistry.setContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("ITradeMission")),
+        admin.address
+      );
+
+      // Approve ARRC for user (if not already done)
+      const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
+      );
+      await coreContracts.arrcToken.connect(user).approve(arrcLockingAddress, pricePerUnit * BigInt(amount));
+
+      // Initiate trade (simulate mission in progress)
+      await tradeManager.connect(admin).initiateTrade(
+        user.address,
+        shipId,
+        1, // tradeOrderId (first order created in setup)
+        pricePerUnit * BigInt(amount),
+        "wood",
+        amount,
+        islandId
+      );
+
+      // Attempt to cancel the order while trade is in progress
+      // Should revert and NOT emit TradeOrderCancelled
+      await expect(
+        tradeManager.connect(admin).cancelTradeOrder(1)
+      ).to.be.revertedWith("Trade in progress");
+      // No .to.emit(tradeManager, "TradeOrderCancelled") here: revert means no event
+    });
+  });
+
+  describe("Order Book Consistency - Double-Spend Edge Case", function() {
+    it("should prevent two ships from simultaneously fulfilling the same trade order (double-spend)", async function() {
+      // Setup: create trade order and two ships
+      const { admin, user, tradeManager, coreContracts, nftsSetup, centralAuthorizationRegistry, islandId, amount, pricePerUnit } = await setupTradeOrderAndShip();
+
+      // Mint and setup a second ship for the user
+      const shipId2 = 9999;
+      await nftsSetup.shipNFT.connect(admin).safeMint(user.address, shipId2);
+      const captainPirateId2 = 200;
+      await nftsSetup.genesisPiratesNFT.connect(admin).mint(user.address, captainPirateId2);
+      const userIsland2 = 8888;
+      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, userIsland2);
+      await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId2, captainPirateId2, userIsland2);
+
+      // Approve ARRC for user (if not already done)
+      const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
+      );
+      await coreContracts.arrcToken.connect(user).approve(arrcLockingAddress, pricePerUnit * BigInt(amount) * 2n);
+
+      // Simulate mission start for both ships by calling initiateTrade (normally called by mission contract)
+      await centralAuthorizationRegistry.setContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("ITradeMission")),
+        admin.address
+      );
+
+      // First ship initiates trade (should succeed)
+      await tradeManager.connect(admin).initiateTrade(
+        user.address,
+        shipId2,
+        1, // tradeOrderId (first order created in setup)
+        pricePerUnit * BigInt(amount),
+        "wood",
+        amount,
+        islandId
+      );
+
+      // Second ship attempts to initiate trade on the same order (should fail or revert due to order already in progress or insufficient resources)
+      // Should NOT emit TradeOrderUpdated or TradeOrderFilled
+      await expect(
+        tradeManager.connect(admin).initiateTrade(
+          user.address,
+          shipId2 + 1, // new shipId
+          1, // same tradeOrderId
+          pricePerUnit * BigInt(amount),
+          "wood",
+          amount,
+          islandId
+        )
+      ).to.be.reverted;
+      // No .to.emit(tradeManager, "TradeOrderUpdated") or .to.emit(tradeManager, "TradeOrderFilled")
+    });
+  });
+
+  describe("Order Book Consistency - Partial Fill and Cancellation Edge Case", function() {
+    it("should allow cancellation of the remaining order after a partial fill, returning only the unfilled portion", async function() {
+      const { admin, user, tradeManager, coreContracts, nftsSetup, centralAuthorizationRegistry, islandId, amount, pricePerUnit } = await setupTradeOrderAndShip();
+
+      // Mint and setup a second ship for the user
+      const shipId2 = 8888;
+      await nftsSetup.shipNFT.connect(admin).safeMint(user.address, shipId2);
+      const captainPirateId2 = 201;
+      await nftsSetup.genesisPiratesNFT.connect(admin).mint(user.address, captainPirateId2);
+      const userIsland2 = 7777;
+      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, userIsland2);
+      await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId2, captainPirateId2, userIsland2);
+
+      // Approve ARRC for user (if not already done)
+      const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
+      );
+      await coreContracts.arrcToken.connect(user).approve(arrcLockingAddress, pricePerUnit * BigInt(amount));
+
+      // Simulate mission start for first ship by calling initiateTrade (partial fill)
+      await centralAuthorizationRegistry.setContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("ITradeMission")),
+        admin.address
+      );
+
+      // First ship initiates trade for half the order (partial fill)
+      const partialAmount = Math.floor(amount / 2);
+      await tradeManager.connect(admin).initiateTrade(
+        user.address,
+        shipId2,
+        1, // tradeOrderId (first order created in setup)
+        pricePerUnit * BigInt(partialAmount),
+        "wood",
+        partialAmount,
+        islandId
+      );
+
+      // Simulate mission completion for the partial fill and check for TradeOrderUpdated event
+      await expect(
+        tradeManager.connect(admin).completeTrade(user.address, shipId2)
+      ).to.emit(tradeManager, "TradeOrderUpdated").withArgs(1, amount - partialAmount, pricePerUnit);
+
+      // After partial fill and completion, cancel the order (should return only the unfilled portion)
+      await expect(
+        tradeManager.connect(admin).cancelTradeOrder(1)
+      ).to.emit(tradeManager, "TradeOrderCancelled");
+
+      // Check that the order is deactivated and only the unfilled portion was returned
+      const order = await tradeManager.getTradeOrder(1);
+      expect(order.isActive).to.be.false;
+      expect(order.resourceAmount).to.equal(0);
+    });
+
+    it("should emit TradeOrderFilled when an order is fully filled", async function() {
+      const { admin, user, tradeManager, coreContracts, nftsSetup, centralAuthorizationRegistry, islandId, amount, pricePerUnit } = await setupTradeOrderAndShip();
+
+      // Mint and setup a second ship for the user
+      const shipId2 = 8889;
+      await nftsSetup.shipNFT.connect(admin).safeMint(user.address, shipId2);
+      const captainPirateId2 = 202;
+      await nftsSetup.genesisPiratesNFT.connect(admin).mint(user.address, captainPirateId2);
+      const userIsland2 = 7778;
+      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, userIsland2);
+      await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId2, captainPirateId2, userIsland2);
+
+      // Approve ARRC for user (if not already done)
+      const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
+      );
+      await coreContracts.arrcToken.connect(user).approve(arrcLockingAddress, pricePerUnit * BigInt(amount));
+
+      // Simulate mission start for first ship by calling initiateTrade (full fill)
+      await centralAuthorizationRegistry.setContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("ITradeMission")),
+        admin.address
+      );
+
+      // Ship initiates trade for the full order
+      await tradeManager.connect(admin).initiateTrade(
+        user.address,
+        shipId2,
+        1, // tradeOrderId (first order created in setup)
+        pricePerUnit * BigInt(amount),
+        "wood",
+        amount,
+        islandId
+      );
+
+      // Simulate mission completion for the full fill and check for TradeOrderFilled event
+      await expect(
+        tradeManager.connect(admin).completeTrade(user.address, shipId2)
+      ).to.emit(tradeManager, "TradeOrderFilled").withArgs(1);
+
+      // Check that the order is deactivated and resourceAmount is zero
+      const order = await tradeManager.getTradeOrder(1);
+      expect(order.isActive).to.be.false;
+      expect(order.resourceAmount).to.equal(0);
+    });
+  });
+
   describe("createTradeOrder - Island Selling to Ships", function() {
     it("should successfully create a trade order", async function() {
       const { admin, tradeManager, coreContracts, nftsSetup } = await loadFixture(setupFixture);

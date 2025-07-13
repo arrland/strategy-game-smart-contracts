@@ -317,7 +317,7 @@ describe("TradeMission - V2 Technical Flow Compliance", function () {
     });
 
     it("should revert if user does not own the origin island", async function () {
-        const { admin, user, otherAccount, centralAuthorizationRegistry, coreContracts, nftsSetup, captainPirateId, missionsManager, tradeManager, missionType, missionRequirements } = await loadFixture(setupFixture);
+        const { admin, user, otherAccount, centralAuthorizationRegistry, coreContracts, nftsSetup, captainPirateId, missionsManager, tradeManager, missionType, missionRequirements, tradeMissionStorage } = await loadFixture(setupFixture);
         const { arrcToken } = coreContracts;
 
         const shipId = getNextShipId();
@@ -1389,42 +1389,43 @@ describe("TradeMission - V2 Technical Flow Compliance", function () {
 
     it("should prevent self-trading", async function() {
       const { admin, user, centralAuthorizationRegistry, coreContracts, nftsSetup, captainPirateId, tradeManager, missionsManager, missionType, missionRequirements } = await loadFixture(setupFixture);
+      const { arrcToken } = coreContracts;
       
+      // Mint ship and both islands to the same user
       const shipId = getNextShipId();
-      const islandId1 = getNextIslandId();
-      const islandId2 = getNextIslandId();
-      
+      const originIslandId = getNextIslandId();
+      const destIslandId = getNextIslandId();
       await nftsSetup.shipNFT.connect(admin).safeMint(user.address, shipId);
-      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, islandId1);
-      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, islandId2); // User owns both islands
-      await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, islandId1);
+      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, originIslandId);
+      await nftsSetup.islandNft.connect(admin).mintSpecific(user.address, destIslandId);
+      await setupShipForMissionTesting(user, admin, coreContracts, nftsSetup, shipId, captainPirateId, originIslandId);
       
       // Add resources to user's destination island
+      const amount = 100;
       const amountWei = ethers.parseUnits(amount.toString(), 18);
-      await coreContracts.resourceManagement.connect(admin).addResource(user.address, islandId2, user.address, resourceType, amountWei);
+      await coreContracts.resourceManagement.connect(admin).addResource(user.address, destIslandId, user.address, "wood", amountWei);
       
+      // Set up trade order on user's own island
       const pricePerUnit = ethers.parseEther("0.01");
       const requiredARRC = pricePerUnit * BigInt(amount);
-      await coreContracts.arrcToken.connect(admin).mint(user.address, requiredARRC);
-      
+      await arrcToken.connect(admin).mint(user.address, requiredARRC);
       const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
         ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
       );
-      await coreContracts.arrcToken.connect(user).approve(arrcLockingAddress, requiredARRC);
+      await arrcToken.connect(user).approve(arrcLockingAddress, requiredARRC);
+      await tradeManager.connect(user).createTradeOrder(destIslandId, "wood", amount, pricePerUnit);
+      await missionRequirements.setIslandValidity(destIslandId, missionType, true);
       
-      // User creates trade order on their own island
-      await tradeManager.connect(user).createTradeOrder(islandId2, resourceType, amount, pricePerUnit);
-      await missionRequirements.setIslandValidity(islandId2, missionType, true);
-      
+      // Attempt to start a mission from user's island to their own island (should revert)
       const tradeOrderId = 1;
       const encodedInnerMissionData = ethers.AbiCoder.defaultAbiCoder().encode(
         ["uint256", "uint256", "string", "uint256", "uint256", "string", "string"],
-        [islandId1, islandId2, resourceType, amount, tradeOrderId, "citrus", "fish"]
+        [originIslandId, destIslandId, "wood", amount, tradeOrderId, "citrus", "fish"]
       );
       
-      // Should revert because user is trying to trade with themselves
-      await expect(missionsManager.connect(user).startMission(shipId, missionType, encodedInnerMissionData))
-        .to.be.revertedWith("Cannot trade with yourself");
+      await expect(
+        missionsManager.connect(user).startMission(shipId, missionType, encodedInnerMissionData)
+      ).to.be.revertedWith("Cannot trade with yourself");
     });
 
     it("should properly clean up mission data after completion", async function() {
@@ -2480,6 +2481,76 @@ describe("TradeMission - V2 Technical Flow Compliance", function () {
       // Mission should still be active and require proper timing
       const activeMissionId = await missionsManager.shipToActiveMission(shipId);
       expect(activeMissionId).to.be.gt(0, "Mission should still be active despite completion attempts");
+    });
+  });
+
+  describe("Ownership Change Edge Cases", function() {
+    it("should prevent mission manipulation if ship or island ownership changes mid-mission", async function() {
+      const [admin, userA, userB, ...rest] = await ethers.getSigners();
+      const { centralAuthorizationRegistry, coreContracts, nftsSetup, captainPirateId, tradeManager, missionsManager, missionType, missionRequirements, tradeMissionStorage } = await loadFixture(setupFixture);
+      const { shipNFT, islandNft } = nftsSetup;
+      const { arrcToken } = coreContracts;
+
+      // Mint ship and origin island to userA, destination island to userB
+      const shipId = getNextShipId();
+      const originIsland = getNextIslandId();
+      const destIsland = getNextIslandId();
+      await shipNFT.connect(admin).safeMint(userA.address, shipId);
+      await islandNft.connect(admin).mintSpecific(userA.address, originIsland);
+      await islandNft.connect(admin).mintSpecific(userB.address, destIsland);
+      await setupShipForMissionTesting(userA, admin, coreContracts, nftsSetup, shipId, captainPirateId, originIsland);
+
+      // userB creates trade order on their island
+      const amount = 100;
+      const amountWei = ethers.parseUnits(amount.toString(), 18);
+      await coreContracts.resourceManagement.connect(admin).addResource(userB.address, destIsland, userB.address, "wood", amountWei);
+      const pricePerUnit = ethers.parseEther("0.01");
+      const requiredARRC = pricePerUnit * BigInt(amount);
+      await arrcToken.connect(admin).mint(userA.address, requiredARRC);
+      const arrcLockingAddress = await centralAuthorizationRegistry.getContractAddress(
+        ethers.keccak256(ethers.toUtf8Bytes("IArrcLocking"))
+      );
+      await arrcToken.connect(userA).approve(arrcLockingAddress, requiredARRC);
+      await tradeManager.connect(userB).createTradeOrder(destIsland, "wood", amount, pricePerUnit);
+      await missionRequirements.setIslandValidity(destIsland, missionType, true);
+      const tradeOrderId = 1;
+      const encodedInnerMissionData = ethers.AbiCoder.defaultAbiCoder().encode(
+        ["uint256", "uint256", "string", "uint256", "uint256", "string", "string"],
+        [originIsland, destIsland, "wood", amount, tradeOrderId, "citrus", "fish"]
+      );
+      // userA starts mission
+      await missionsManager.connect(userA).startMission(shipId, missionType, encodedInnerMissionData);
+
+      // While mission is active, all transfers should revert
+      await expect(
+        shipNFT.connect(userA).transferFrom(userA.address, rest[0].address, shipId)
+      ).to.be.reverted;
+      await expect(
+        islandNft.connect(userA).transferFrom(userA.address, rest[0].address, originIsland)
+      ).to.be.reverted;
+      await expect(
+        islandNft.connect(userB).transferFrom(userB.address, rest[0].address, destIsland)
+      ).to.be.reverted;
+
+      // Complete outbound journey and return
+      const missionId = await missionsManager.shipToActiveMission(shipId);
+      let missionData = await tradeMissionStorage.getMissionDetails(missionId);
+      await time.increaseTo(missionData.endTime);
+      await missionsManager.connect(userA).completeMission(shipId);
+      missionData = await tradeMissionStorage.getMissionDetails(missionId);
+      await time.increaseTo(missionData.endTime);
+      await missionsManager.connect(userA).completeMission(shipId);
+
+      // After mission completion, transfers should succeed
+      await expect(
+        shipNFT.connect(userA).transferFrom(userA.address, rest[0].address, shipId)
+      ).to.not.be.reverted;
+      await expect(
+        islandNft.connect(userA).transferFrom(userA.address, rest[0].address, originIsland)
+      ).to.not.be.reverted;
+      await expect(
+        islandNft.connect(userB).transferFrom(userB.address, rest[0].address, destIsland)
+      ).to.not.be.reverted;
     });
   });
 });

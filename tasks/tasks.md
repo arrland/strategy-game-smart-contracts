@@ -1112,7 +1112,7 @@ Complexity: 7
 ---
 
 ## TASK-ARCH-ORDER-BOOK-CONSISTENCY.2: Audit and Refactor TradeMission.sol and TradeMissionStorage.sol for State Sync
-Status: Planned
+Status: In Progress
 Priority: Critical
 Parent Task: TASK-ARCH-ORDER-BOOK-CONSISTENCY
 Architectural Module: Missions/Trade
@@ -1120,12 +1120,12 @@ Dependencies: None
 Complexity: 6
 
 ### 🔧 Implementation Plan
-- [ ] Map all mission state transitions and storage updates (ToDestination, Returning, Completed)
-- [ ] Add/verify atomicity and correct state sync with TradeManager
-- [ ] Add/verify handling of mission completion, return journey, and resource/ARRC delivery
-- [ ] Add/verify event emission and revert reasons for all mission state transitions
-- [ ] Add/verify tests for mission state edge cases (early completion, double-completion, storage overflow)
-- [ ] Document mission state machine and integration with order book
+- [x] Map all mission state transitions and storage updates (ToDestination, Returning, Completed)
+- [x] Add/verify atomicity and correct state sync with TradeManager
+- [x] Add/verify handling of mission completion, return journey, and resource/ARRC delivery
+- [x] Add/verify event emission and revert reasons for all mission state transitions
+- [x] Add/verify tests for mission state edge cases (early completion, double-completion, storage overflow)
+- [x] Document mission state machine and integration with order book
 
 ### ✅ Acceptance Criteria
 1. All mission state transitions are atomic and revert on failure
@@ -1133,11 +1133,16 @@ Complexity: 6
 3. All edge cases are covered by tests
 4. Documentation is updated to reflect the true mission state machine and integration points
 
+### 🏗️ Progress Update (2025-07-13 20:24)
+- Most mission state transitions and edge cases have been verified in `TradeMission.test.js`.
+- **Known Issue:** During an active mission, the island NFT can still be transferred by the owner (mid-mission ownership change is possible). This is a limitation of the current architecture.
+- **Planned Fix:** This will be resolved when the GameAccount system (see `TASK-AA-GAME-ACCOUNT`) is implemented, which will lock assets at the account level and prevent transfers during active missions.
+
 ### 🧐 Edge Cases
 - Early/late mission completion
 - Double-completion attempts
 - Storage overflow on resource delivery
-- Ownership change during mission
+- Ownership change during mission (**currently possible, will be fixed with GameAccount**)
 - State sync failures between mission and order book
 
 ---
@@ -1225,4 +1230,227 @@ Complexity: 8
 
 ---
 
+## TASK-AA-GAME-ACCOUNT: Implement Account Abstraction-Based Game Account System (Epic)
+Status: Epic
+Priority: High
+PRD Reference: @{docs/research/TASK-AA-GAME-ACCOUNT.md}, @{docs/research/TASK-AA-GAME-ACCOUNT-TECHNICAL-DESIGN.md}, @{docs/research/TASK-AA-GAME-ACCOUNT-UNIFIED-DESIGN.md}, @{docs/research/OpenZeppelin Account Abstraction Implementation Gu.md}
+Architectural Module: GameAccount, AccountFactory, ERC-4337 Integration, Game Logic Integration, LockRegistry
+Dependencies: See sub-tasks
+Complexity: Epic
+
+**References:**
+- [OpenZeppelin Account Abstraction Docs](https://docs.openzeppelin.com/community-contracts/0.0.1/account-abstraction)
+- [OpenZeppelin Smart Accounts](https://docs.openzeppelin.com/community-contracts/0.0.1/accounts)
+- [OpenZeppelin Account Modules (ERC-7579)](https://docs.openzeppelin.com/community-contracts/0.0.1/account-modules)
+- [OpenZeppelin EOA Delegation (EIP-7702)](https://docs.openzeppelin.com/community-contracts/0.0.1/eoa-delegation)
+- [OpenZeppelin Paymasters](https://docs.openzeppelin.com/community-contracts/0.0.1/paymasters)
+
+### Sub-tasks:
+- TASK-AA-GAME-ACCOUNT.1: GameAccount Core (ERC-4337, OpenZeppelin)
+- TASK-AA-GAME-ACCOUNT.2: AccountFactory & Deterministic Deployment
+- TASK-AA-GAME-ACCOUNT.3: Paymaster for Gas Sponsorship
+- TASK-AA-GAME-ACCOUNT.4: Group-Based LockRegistry Module (ERC-7579)
+- TASK-AA-GAME-ACCOUNT.5: Game Logic Integration & Dual-Mode UX (EIP-7702)
+- TASK-AA-GAME-ACCOUNT.6: Security, Recovery, and Documentation (ERC-7739)
+- TASK-AA-GAME-ACCOUNT.7: Refactor ShipAndPirateStaking to Use Group-Based Locks
+
+---
+
+## TASK-AA-GAME-ACCOUNT.1: GameAccount Core (ERC-4337, OpenZeppelin)
+Status: Planned
+Priority: High
+Dependencies: OpenZeppelin Account, SignerECDSA, EntryPoint
+
+**References:**
+- [OpenZeppelin Account Abstraction Docs](https://docs.openzeppelin.com/community-contracts/0.0.1/account-abstraction)
+- [OpenZeppelin Smart Accounts](https://docs.openzeppelin.com/community-contracts/0.0.1/accounts)
+- [OpenZeppelin Account Modules (ERC-7579)](https://docs.openzeppelin.com/community-contracts/0.0.1/account-modules)
+
+### 🔧 Implementation Plan
+- [ ] Inherit from OpenZeppelin's `Account` (or `AccountERC7579`) and `SignerECDSA` contracts.
+- [ ] Design the core account to be compatible with **ERC-7579 for modularity**, allowing features like LockRegistry or recovery to be pluggable modules.
+- [ ] Implement `validateUserOp` and execution logic per OpenZeppelin's IAccount interface.
+- [ ] Add `ERC721Holder`/`ERC1155Holder` for NFT support.
+- [ ] Support owner/guardian management and upgradability (UUPS).
+- [ ] Unit test signature validation, execution, module installation, and upgradability.
+
+### ✅ Acceptance Criteria
+- GameAccount contract deploys and passes all OpenZeppelin ERC-4337 compliance tests.
+- ECDSA signature validation works for owner.
+- **Core account supports installation, execution, and uninstallation of ERC-7579 modules.**
+- Can receive and hold ERC20, ERC721, ERC1155 assets.
+- Upgradable via UUPS pattern.
+
+### 🧐 Edge Cases
+- Signature replay attacks (test with multiple signers).
+- NFT transfer hooks (ERC721/1155 safeTransferFrom).
+- Upgradability storage layout collisions.
+- **Unauthorized module installations or interactions between modules.**
+
+---
+
+## TASK-AA-GAME-ACCOUNT.2: AccountFactory & Deterministic Deployment
+Status: Planned
+Priority: High
+Dependencies: OpenZeppelin Clones, AccountFactory, GameAccount Core
+
+**References:**
+- [OpenZeppelin Smart Accounts](https://docs.openzeppelin.com/community-contracts/0.0.1/accounts)
+
+### 🔧 Implementation Plan
+- [ ] Implement AccountFactory using OpenZeppelin's `Clones` for minimal proxy deployment.
+- [ ] Support deterministic address prediction (CREATE2) for GameAccounts.
+- [ ] Expose `predictAddress` and `cloneAndInitialize` methods.
+- [ ] Integrate with ERC-4337 EntryPoint for `initCode`-based deployment.
+- [ ] Unit test factory deployment, address prediction, and initialization.
+
+### ✅ Acceptance Criteria
+- Factory can deploy GameAccounts deterministically.
+- Addresses are predictable and match EntryPoint expectations.
+- Initialization logic is secure and idempotent.
+- All factory functions are covered by tests.
+
+### 🧐 Edge Cases
+- Address collisions with CREATE2 salts.
+- Re-initialization attacks.
+- Factory upgradeability and implementation pointer changes.
+
+---
+
+## TASK-AA-GAME-ACCOUNT.3: Paymaster for Gas Sponsorship
+Status: Planned
+Priority: High
+Dependencies: OpenZeppelin PaymasterCore, PaymasterERC20, EntryPoint
+
+**References:**
+- [OpenZeppelin Paymasters](https://docs.openzeppelin.com/community-contracts/0.0.1/paymasters)
+
+### 🔧 Implementation Plan
+- [ ] Deploy and configure OpenZeppelin `PaymasterCore` or `PaymasterERC20` for gas sponsorship.
+- [ ] Integrate with GameAccount to allow self-sponsored transactions (user deposits MATIC/ERC20 to GameAccount).
+- [ ] Implement logic for gas payment from GameAccount balance or via Paymaster.
+- [ ] Unit test gas sponsorship, balance checks, and fallback to user-pays mode.
+
+### ✅ Acceptance Criteria
+- GameAccount can sponsor its own transactions using deposited funds.
+- Paymaster correctly refunds bundler and handles gas payments.
+- Dual-mode (auto-confirm and manual) is supported.
+- All gas sponsorship flows are covered by tests.
+
+### 🧐 Edge Cases
+- Insufficient balance for gas sponsorship.
+- Paymaster denial-of-service (DoS) scenarios.
+- Gas price spikes and refund failures.
+
+---
+
+## TASK-AA-GAME-ACCOUNT.4: Group-Based LockRegistry Module (ERC-7579)
+Status: Planned
+Priority: High
+Dependencies: GameAccount Core, Game Logic Contracts
+
+**References:**
+- [OpenZeppelin Account Modules (ERC-7579)](https://docs.openzeppelin.com/community-contracts/0.0.1/account-modules)
+
+### 🔧 Implementation Plan
+- [ ] **Implement LockRegistry as an ERC-7579 compliant module**, installable into the GameAccount.
+- [ ] The module will track group-based locks for each asset (NFT, ERC20, etc.).
+- [ ] Expose `lockAsset` and `unlockAsset` functions callable only by authorized game modules (via GameAccount execution).
+- [ ] Prevent asset withdrawal/transfer if any group lock is active by hooking into the GameAccount's execution flow.
+- [ ] Unit test lock/unlock flows and integration with game modules.
+
+### ✅ Acceptance Criteria
+- **LockRegistry is a standalone, testable ERC-7579 module that can be installed/uninstalled from a GameAccount.**
+- LockRegistry tracks locks by group/module (e.g., "MISSIONS", "BUILDINGS").
+- Only authorized contracts can trigger lock/unlock actions.
+- Assets cannot be withdrawn if any lock is active.
+
+### 🧐 Edge Cases
+- Multiple overlapping locks (e.g., mission + building).
+- Lock cleanup on module upgrade or failure.
+- Unauthorized lock/unlock attempts.
+
+---
+
+## TASK-AA-GAME-ACCOUNT.5: Game Logic Integration & Dual-Mode UX (EIP-7702)
+Status: Planned
+Priority: High
+Dependencies: GameAccount Core, LockRegistry, Game Logic Contracts
+
+**References:**
+- [OpenZeppelin EOA Delegation (EIP-7702)](https://docs.openzeppelin.com/community-contracts/0.0.1/eoa-delegation)
+
+### 🔧 Implementation Plan
+- [ ] Integrate GameAccount with all relevant game modules (missions, trading, buildings, etc.).
+- [ ] Implement dual-mode UX: auto-confirm (GameAccount/session key) and manual (EOA/MetaMask).
+- [ ] **Explore EIP-7702 EOA delegation to provide a smoother onboarding path for new users, allowing them to use AA features before full GameAccount deployment.**
+- [ ] Update frontend to support both modes and session key management.
+- [ ] Unit/integration test all game flows for both modes.
+
+### ✅ Acceptance Criteria
+- Game modules can lock/unlock assets via GameAccount.
+- Users can choose between auto-confirm and manual confirmation.
+- **Onboarding flow gracefully handles both new GameAccount creation and optional EIP-7702 delegation.**
+- All game actions are testable in both modes.
+
+### 🧐 Edge Cases
+- Switching modes mid-session.
+- Session key expiration or compromise.
+- **Revoking EIP-7702 delegations securely.**
+
+---
+
+## TASK-AA-GAME-ACCOUNT.6: Security, Recovery, and Documentation (ERC-7739)
+Status: Planned
+Priority: High
+Dependencies: GameAccount Core, OpenZeppelin Security Patterns
+
+**References:**
+- [OpenZeppelin Smart Accounts](https://docs.openzeppelin.com/community-contracts/0.0.1/accounts) (See ERC-7739 Signatures)
+- [OpenZeppelin Multisig](https://docs.openzeppelin.com/community-contracts/0.0.1/multisig)
+
+### 🔧 Implementation Plan
+- [ ] **Implement social recovery (guardian, multi-sig, etc.) as an ERC-7579 compliant module.**
+- [ ] **Enforce ERC-7739 signature replay protection for all UserOperations to prevent cross-account replay attacks**
+- [ ] Document all contract interfaces, flows, and upgrade patterns.
+- [ ] Perform security review and static analysis.
+- [ ] Write comprehensive developer and user documentation.
+
+### ✅ Acceptance Criteria
+- Recovery flows are implemented and tested as a pluggable module.
+- **UserOperation signature validation is compliant with ERC-7739.**
+- All contracts are documented and reviewed.
+- Security analysis is complete and issues are addressed.
+
+### 🧐 Edge Cases
+- Recovery race conditions (multiple guardians).
+- Lost session keys or recovery data.
+- **Replay attacks on chains with same EOA address but different chain IDs.**
+
+---
+
+## TASK-AA-GAME-ACCOUNT.7: Refactor ShipAndPirateStaking to Use Group-Based Locks
+Status: Planned
+Priority: High
+Dependencies: LockRegistry Module, ShipAndPirateStaking
+
+### 🔧 Implementation Plan
+- [ ] Refactor `ShipAndPirateStaking` to use group-based locks instead of asset custody/staking.
+- [ ] Integrate with the `LockRegistry` module for ship and pirate NFTs.
+- [ ] Update all mission and game logic to use lock/unlock flows.
+- [ ] Unit/integration test all staking, mission, and transfer flows.
+
+### ✅ Acceptance Criteria
+- `ShipAndPirateStaking` no longer holds custody; uses locks only.
+- All mission and transfer logic respects lock state.
+- All flows are covered by tests and pass.
+
+### 🧐 Edge Cases
+- Legacy staked assets migration.
+- Lock cleanup on mission abort or failure.
+- Unauthorized unlock attempts.
+
+---
+
+_Last updated: 2025-07-13 14:00 (Europe/Warsaw)_
 
