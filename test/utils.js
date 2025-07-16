@@ -54,6 +54,7 @@ const InterfaceIdentifiers = {
     GAME_REWARDS_KEY: ethers.keccak256(ethers.toUtf8Bytes("IGameRewards")),
     ARRC_DISTRIBUTION_KEY: ethers.keccak256(ethers.toUtf8Bytes("IARRCDistribution")),
     MISSION_REGISTRATION_KEY: ethers.keccak256(ethers.toUtf8Bytes("IMissionRegistration")),
+    RESOURCE_TYPE_MANAGER_KEY: ethers.keccak256(ethers.toUtf8Bytes("IResourceTypeManager")),
 };
 
 /**
