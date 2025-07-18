@@ -5,7 +5,7 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **CentralAuthorizationRegistry**: 0x99a764fd156083aA343e2577C348c8cF110C7141
 - **ResourceTypeManager**: 0xd5bB9410d928C6De6Dd75C989bA306726b005342
 - **ResourceManagement**: 0x52b107ECd25148239A827FDE5b39246516825657 
-- **FeeManagement**: 0x9f9582f104e352528BDd4B4af1CCe5577B5A9A2b
+- **FeeManagement**: 0x2180b57701d7091F610A3482266f8E7C9D993A15
 - **PirateManagement**: 0x5fFAc2B667520Dfe41F54B62511aCb290955E0a0
 - **PirateStorage**: 0x64F40B91051DEeD155a0Af295B4a41445bD6764b
 - **InhabitantStorage**: 0x54E18DB386854D9f1D60eaA15355380334ba5d13
@@ -24,6 +24,7 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **RUM_TOKEN_ADDRESS**: 0x17fF13862c5665dE5676cab1db0927B4C97eebc1
 - **StorageUpgrade**: 0xcbD935feEA45019F54146A798d881BD1b132A5a5
 - **UpgradeConstructionTime**: 0x836159812D4a0D3b2f3239e7AeE1A27D9702d001
+- **ResourceTransferManager**: 0x25450c18F1BD3cee9970a533E3aa833F1D20345d
 
 ## Mainnet Deployed Addresses
 

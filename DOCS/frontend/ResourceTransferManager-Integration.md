@@ -8,7 +8,7 @@ The ResourceTransferManager contract enables secure resource transfers between N
 
 ## Contract Information
 
-- **Contract Address (Amoy)**: `0x864d9D87Ae2d4B72AdFf11b1df0bfb814918771b`
+- **Contract Address (Amoy)**: `0x25450c18F1BD3cee9970a533E3aa833F1D20345d`
 - **Contract Address (Polygon)**: *To be deployed*
 - **Network**: Amoy Testnet (chainId: 80002)
 - **ABI**: Available in `artifacts/contracts/ResourceTransferManager.sol/ResourceTransferManager.json`
