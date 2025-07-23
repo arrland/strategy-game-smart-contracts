@@ -5,7 +5,7 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **CentralAuthorizationRegistry**: 0x99a764fd156083aA343e2577C348c8cF110C7141
 - **ResourceTypeManager**: 0xd5bB9410d928C6De6Dd75C989bA306726b005342
 - **ResourceManagement**: 0x52b107ECd25148239A827FDE5b39246516825657 
-- **FeeManagement**: 0x2180b57701d7091F610A3482266f8E7C9D993A15
+- **FeeManagement**: 0xbc076E094cEDf87037801Bd2c450D2ee98e5D63e
 - **PirateManagement**: 0x5fFAc2B667520Dfe41F54B62511aCb290955E0a0
 - **PirateStorage**: 0x64F40B91051DEeD155a0Af295B4a41445bD6764b
 - **InhabitantStorage**: 0x54E18DB386854D9f1D60eaA15355380334ba5d13
@@ -24,8 +24,8 @@ The following are the addresses of the deployed contracts on the Amoy testnet:
 - **RUM_TOKEN_ADDRESS**: 0x17fF13862c5665dE5676cab1db0927B4C97eebc1
 - **StorageUpgrade**: 0xcbD935feEA45019F54146A798d881BD1b132A5a5
 - **UpgradeConstructionTime**: 0x836159812D4a0D3b2f3239e7AeE1A27D9702d001
-- **ResourceTransferManager**: 0x25450c18F1BD3cee9970a533E3aa833F1D20345d
-
+- **ResourceTransferManager**: 0x7FB037AFDD3824b38C4cCeb249075cc056F04580
+- **ARRCtoken**: 0x768d32E7AA4ad9024378971bFC9a542618f060f3
 ## Mainnet Deployed Addresses
 
 The following are the addresses of the deployed contracts on the Mainnet:
@@ -33,7 +33,7 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **CentralAuthorizationRegistry**: 0xdAf8728C9eD7CBCCf8E24226B0794943E394f778
 - **ResourceTypeManager**: 0xA35FC33434152819007c08a4b63adAd3D8D09440
 - **ResourceManagement**: 0x526edD73D8f331f7469b36E8485FcE643b09bACB
-- **FeeManagement**: 0xA4C960945F5fa18409D3e52692e10AE408d4AaC2
+- **FeeManagement**: 0x83823206c23B3570027050D5dA8B18bd1f5c814c
 - **PirateManagement**: 0xE56BEf6F3Ec16006a71830498117c616feBF804c
 - **PirateStorage**: 0xf50b600dF45182A8ABD9a19fa823871A0f26Bf70
 - **IslandStorage**: 0xbeB04A176c8a5EC72C79c2E53C884Cf8722dF9B3
@@ -51,3 +51,9 @@ The following are the addresses of the deployed contracts on the Mainnet:
 - **SHIP_COLLECTION_ADDRESS**: 0x4DAeE3D7888B1CFC61432815FF209A554fbc1884
 - **StorageUpgrade**: 0x57BaD518DeF9122f143C92Df4EB67FaC425Cd160
 - **UpgradeConstructionTime**: 0x9DD91525087688d71809745cc58c04446aC8ef49
+- **RumToken**: 0x14e5386f47466a463f85d151653e1736c0c50fc3
+- **ARRCtoken**: 0xe5fba6ddd3767175ae7125c334c665a2e018f785
+- **ResourceTransferManager**: 0xAa899BaBA49c0F0865eCc6ABe8659F449ccd37d7
+
+
+

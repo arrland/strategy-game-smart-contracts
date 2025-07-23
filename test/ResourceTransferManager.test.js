@@ -712,6 +712,64 @@ describe("ResourceTransferManager", function () {
             const finalArrcBalance = await state.arrcToken.balanceOf(user.address);
             expect(finalArrcBalance).to.equal(initialArrcBalance);
         });
+
+        it("should fail when trying to transfer resources to unrelated NFT contract", async function () {
+            const { resourceTransferManager, user, otherAccount, islandNft, config, admin } = state;
+            
+            // Deploy a mock ERC721 contract that is not part of our game system
+            const MockERC721 = await ethers.getContractFactory("ShipNFT");
+            const unrelatedNFT = await MockERC721.deploy(admin.address, admin.address, admin.address);
+            await unrelatedNFT.waitForDeployment();
+            
+            // Mint an NFT to otherAccount in the unrelated contract
+            await unrelatedNFT.connect(admin).safeMint(otherAccount.address, 1);
+            
+            const sourceIslandId = config.islandIds.ISLAND_1;
+            const unrelatedTokenId = 1;
+            const resource = config.resources.WOOD;
+            const amount = config.amounts.SMALL;
+            
+            await expect(
+                resourceTransferManager.connect(user).transferResourcesToDestination(
+                    await islandNft.getAddress(),
+                    sourceIslandId,
+                    await unrelatedNFT.getAddress(),
+                    unrelatedTokenId,
+                    otherAccount.address,
+                    resource,
+                    amount
+                )
+            ).to.be.reverted;
+        });
+
+        it("should fail when trying to transfer resources from unrelated NFT contract", async function () {
+            const { resourceTransferManager, user, otherAccount, islandNft, config, admin } = state;
+            
+            // Deploy a mock ERC721 contract that is not part of our game system
+            const MockERC721 = await ethers.getContractFactory("ShipNFT");
+            const unrelatedNFT = await MockERC721.deploy(admin.address, admin.address, admin.address);
+            await unrelatedNFT.waitForDeployment();
+            
+            // Mint an NFT to user in the unrelated contract
+            await unrelatedNFT.connect(admin).safeMint(user.address, 1);
+            
+            const unrelatedTokenId = 1;
+            const destIslandId = config.islandIds.ISLAND_3;
+            const resource = config.resources.WOOD;
+            const amount = config.amounts.SMALL;
+            
+            await expect(
+                resourceTransferManager.connect(user).transferResourcesToDestination(
+                    await unrelatedNFT.getAddress(),
+                    unrelatedTokenId,
+                    await islandNft.getAddress(),
+                    destIslandId,
+                    otherAccount.address,
+                    resource,
+                    amount
+                )
+            ).to.be.reverted;
+        });
     });
 
     describe("Resource Transfer with Pirate NFTs", function () {
